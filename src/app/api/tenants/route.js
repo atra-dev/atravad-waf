@@ -1,0 +1,160 @@
+import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
+import { createOrGetUser, normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
+import { getUserRole, isSuperAdmin } from '@/lib/rbac';
+
+// Helper to get current user from token
+async function getCurrentUser(request) {
+  const token = request.cookies.get('authToken')?.value;
+  if (!token) return null;
+  
+  try {
+    const { adminAuth } = await import('@/lib/firebase-admin');
+    if (!adminAuth) {
+      console.error('Firebase Admin Auth not initialized');
+      return null;
+    }
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken;
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    return null;
+  }
+}
+
+export async function POST(request) {
+  try {
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized. Please check your environment variables.' },
+        { status: 500 }
+      );
+    }
+
+    const user = await getCurrentUser(request);
+    if (!user || !user.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Ensure user document exists
+    await createOrGetUser(adminDb, user);
+
+    // Check if user already has a tenant
+    const normalizedEmail = normalizeEmail(user.email);
+    const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
+    if (userDoc.exists && userDoc.data().tenantName) {
+      return NextResponse.json(
+        { error: 'User already belongs to a tenant' },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const { name } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    // Normalize tenant name for use as document ID
+    const normalizedTenantName = normalizeTenantName(name);
+    if (!normalizedTenantName) {
+      return NextResponse.json(
+        { error: 'Invalid tenant name. Please use alphanumeric characters, spaces, hyphens, or underscores.' },
+        { status: 400 }
+      );
+    }
+
+    // Check if tenant with this name already exists
+    const existingTenantDoc = await adminDb.collection('tenants').doc(normalizedTenantName).get();
+    if (existingTenantDoc.exists) {
+      return NextResponse.json(
+        { error: 'A tenant with this name already exists' },
+        { status: 400 }
+      );
+    }
+
+    // Create tenant in Firestore using normalized name as document ID
+    await adminDb.collection('tenants').doc(normalizedTenantName).set({
+      name, // Store original name for display
+      createdAt: new Date().toISOString(),
+      createdBy: user.uid, // Store UID for reference
+      createdByEmail: user.email, // Also store email
+    });
+
+    // Link user to tenant (using email as document ID)
+    await adminDb.collection('users').doc(normalizedEmail).update({
+      tenantName: normalizedTenantName, // Store normalized tenant name
+      role: 'admin',
+      updatedAt: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ id: normalizedTenantName, name });
+  } catch (error) {
+    console.error('Error creating tenant:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request) {
+  try {
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized. Please check your environment variables.' },
+        { status: 500 }
+      );
+    }
+
+    const user = await getCurrentUser(request);
+    if (!user || !user.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Ensure user document exists
+    await createOrGetUser(adminDb, user);
+    
+    // Check if user is super admin - if so, return all tenants
+    const userRole = await getUserRole(adminDb, user.email);
+    if (isSuperAdmin(userRole)) {
+      const tenantsSnapshot = await adminDb.collection('tenants').get();
+      const tenants = tenantsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      return NextResponse.json(tenants);
+    }
+
+    // Get user's tenant (using email as document ID)
+    const normalizedEmail = normalizeEmail(user.email);
+    const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
+    if (!userDoc.exists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const userData = userDoc.data();
+    const tenantName = userData.tenantName;
+
+    if (!tenantName) {
+      return NextResponse.json({ error: 'No tenant assigned' }, { status: 404 });
+    }
+
+    const tenantDoc = await adminDb.collection('tenants').doc(tenantName).get();
+    if (!tenantDoc.exists) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      id: tenantDoc.id,
+      ...tenantDoc.data(),
+    });
+  } catch (error) {
+    console.error('Error fetching tenant:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    );
+  }
+}
