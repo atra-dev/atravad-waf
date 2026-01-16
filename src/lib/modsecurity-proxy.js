@@ -61,6 +61,11 @@ export class ModSecurityProxy {
    * 3. Or use a ModSecurity HTTP API service
    */
   async inspectRequest(req, policyId) {
+    // Ensure policy is loaded
+    if (!this.policies.has(policyId)) {
+      await this.loadPolicy(policyId);
+    }
+    
     const policy = this.policies.get(policyId);
     
     if (!policy || !policy.modSecurityConfig) {

@@ -42,6 +42,26 @@ export class ProxyWAFServer {
   }
 
   /**
+   * Load policy for an application
+   */
+  async loadPolicyForApplication(app) {
+    if (!app.policyId || !this.modSecurity) {
+      return;
+    }
+
+    try {
+      const policy = await this.modSecurity.loadPolicy(app.policyId);
+      if (policy) {
+        console.log(`Loaded policy "${policy.name}" for application ${app.domain}`);
+      } else {
+        console.warn(`Policy ${app.policyId} not found for application ${app.domain}`);
+      }
+    } catch (error) {
+      console.error(`Error loading policy for application ${app.domain}:`, error);
+    }
+  }
+
+  /**
    * Load applications from Firestore
    */
   async loadApplications() {
@@ -51,15 +71,51 @@ export class ProxyWAFServer {
         return;
       }
 
-      const appsSnapshot = await adminDb.collection('applications').get();
+      // Get node's tenant for filtering
+      let tenantName = null;
+      if (this.nodeId) {
+        try {
+          const nodeDoc = await adminDb.collection('nodes').doc(this.nodeId).get();
+          if (nodeDoc.exists) {
+            tenantName = nodeDoc.data().tenantName;
+            console.log(`Loading applications for tenant: ${tenantName}`);
+          }
+        } catch (error) {
+          console.warn('Could not fetch node tenant, loading all applications:', error.message);
+        }
+      }
+
+      // Load applications (filtered by tenant if available)
+      let appsSnapshot;
+      if (tenantName) {
+        appsSnapshot = await adminDb
+          .collection('applications')
+          .where('tenantName', '==', tenantName)
+          .get();
+      } else {
+        // Fallback: load all applications (for testing or if tenant not available)
+        appsSnapshot = await adminDb.collection('applications').get();
+      }
       
-      appsSnapshot.docs.forEach((doc) => {
+      for (const doc of appsSnapshot.docs) {
         const app = { id: doc.id, ...doc.data() };
         if (app.domain) {
           this.applications.set(app.domain, app);
           console.log(`Loaded application: ${app.domain}`);
+          
+          // Load policy if assigned
+          await this.loadPolicyForApplication(app);
+          
+          // Start health checks for origins
+          if (app.origins && Array.isArray(app.origins)) {
+            app.origins.forEach((origin) => {
+              this.startHealthCheck(origin);
+            });
+          }
         }
-      });
+      }
+      
+      console.log(`Loaded ${this.applications.size} application(s)`);
     } catch (error) {
       console.error('Error loading applications:', error);
     }
@@ -80,6 +136,11 @@ export class ProxyWAFServer {
           if (app.domain) {
             this.applications.set(app.domain, app);
             console.log(`Application updated: ${app.domain}`);
+            
+            // Load policy if assigned
+            this.loadPolicyForApplication(app).catch((error) => {
+              console.error(`Error loading policy for ${app.domain}:`, error);
+            });
             
             // Start health checks for origins
             if (app.origins && Array.isArray(app.origins)) {
