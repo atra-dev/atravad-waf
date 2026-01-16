@@ -368,7 +368,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">Register WAF Node</p>
-                        <p className="text-xs text-gray-500">Add new deployment target</p>
+                        <p className="text-xs text-gray-500">Add new proxy WAF node</p>
                       </div>
                     </div>
                     <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

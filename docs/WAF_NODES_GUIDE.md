@@ -1,6 +1,14 @@
 # WAF Nodes - Complete Beginner's Guide
 ## (Idiot-Proof Step-by-Step Instructions)
 
+> ⚠️ **DEPRECATED ARCHITECTURE**: This guide describes the legacy WAF architecture where ModSecurity runs on origin servers. 
+> 
+> **NEW ARCHITECTURE**: ATRAVAD WAF now uses a modern **proxy WAF architecture** where the WAF acts as a reverse proxy.
+> 
+> **👉 For the new architecture, see: [Proxy WAF Quick Start Guide](./PROXY_WAF_QUICKSTART.md)**
+> 
+> This legacy guide is kept for backward compatibility. New deployments should use the proxy WAF architecture.
+
 ---
 
 ## 🏗️ **ATRAVAD WAF Architecture - ModSecurity Core Engine**

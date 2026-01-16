@@ -6,6 +6,9 @@ import Link from 'next/link';
 
 export default function WAFNodesGuidePage() {
   const [expandedSections, setExpandedSections] = useState({});
+  
+  // Show deprecation notice for legacy content
+  const showLegacyNotice = true;
 
   const toggleSection = (sectionId) => {
     setExpandedSections(prev => ({
@@ -92,20 +95,32 @@ export default function WAFNodesGuidePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <h3 className="font-bold mb-2">What is a WAF Node?</h3>
-              <p className="text-sm">
-                A <strong>WAF Node</strong> is a server that runs <strong>ModSecurity</strong> to protect your website. 
-                Think of it as a security guard server that watches all traffic and blocks attacks automatically.
-              </p>
+              <h3 className="font-bold mb-2">What is a Proxy WAF Node?</h3>
+              <div className="text-sm">
+                <p>
+                  A <strong>Proxy WAF Node</strong> is a <strong>reverse proxy server</strong> that protects your websites.
+                  It sits between the internet and your origin servers, inspecting all traffic with ModSecurity before forwarding clean requests.
+                </p>
+                <p className="mt-2">
+                  <strong>Key Features:</strong>
+                </p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                  <li>Acts as reverse proxy (like Sucuri/Reblaze)</li>
+                  <li>Protects multiple domains automatically</li>
+                  <li>Fetches application configs from dashboard</li>
+                  <li>Handles SSL/TLS termination</li>
+                  <li>Routes traffic to origin servers</li>
+                </ul>
+              </div>
             </div>
           </div>
         </InfoBox>
 
         {/* Architecture Section */}
-        <Section id="architecture" title="🏗️ ATRAVAD WAF Architecture - ModSecurity Core Engine" defaultExpanded={true}>
+        <Section id="architecture" title="🏗️ Proxy WAF Architecture - Modern Reverse Proxy" defaultExpanded={true}>
           <div className="space-y-6">
             <p className="text-gray-700 text-lg">
-              ATRAVAD WAF is <strong>powered by ModSecurity</strong> as its core engine. Here's how it works:
+              ATRAVAD WAF uses a <strong>modern proxy WAF architecture</strong> where nodes act as reverse proxies. Here's how it works:
             </p>
             
             {/* Modern Visual Architecture Diagram */}
@@ -147,7 +162,7 @@ export default function WAFNodesGuidePage() {
                           <svg className="h-7 w-7 flex-shrink-0 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
-                          <span className="text-lg font-extrabold text-white leading-tight" style={{ textShadow: '0 2px 5px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.4)' }}>Deploys to nodes</span>
+                          <span className="text-lg font-extrabold text-white leading-tight" style={{ textShadow: '0 2px 5px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.4)' }}>Manages applications</span>
                         </div>
                       </div>
                       <div className="bg-white bg-opacity-30 rounded-xl p-6 backdrop-blur-lg border-3 border-white border-opacity-60 shadow-2xl hover:bg-opacity-40 transition-all">
@@ -201,7 +216,7 @@ export default function WAFNodesGuidePage() {
                           <svg className="h-6 w-6 text-blue-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                           </svg>
-                          <span className="text-base font-extrabold text-blue-900">Protects Website A</span>
+                          <span className="text-base font-extrabold text-blue-900">Protects Multiple Domains</span>
                         </div>
                       </div>
                     </div>
@@ -232,7 +247,7 @@ export default function WAFNodesGuidePage() {
                           <svg className="h-6 w-6 text-blue-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                           </svg>
-                          <span className="text-base font-extrabold text-blue-900">Protects Website B</span>
+                          <span className="text-base font-extrabold text-blue-900">Fetches App Configs</span>
                         </div>
                       </div>
                     </div>
@@ -263,7 +278,7 @@ export default function WAFNodesGuidePage() {
                           <svg className="h-6 w-6 text-blue-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                           </svg>
-                          <span className="text-base font-extrabold text-blue-900">Protects Website C</span>
+                          <span className="text-base font-extrabold text-blue-900">Reverse Proxy</span>
                         </div>
                       </div>
                     </div>
@@ -289,8 +304,8 @@ export default function WAFNodesGuidePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     </div>
-                    <p className="text-base font-bold text-gray-900">1. Deploy Policy</p>
-                    <p className="text-sm text-gray-600 mt-2">Dashboard sends ModSecurity config</p>
+                    <p className="text-base font-bold text-gray-900">1. Create Application</p>
+                    <p className="text-sm text-gray-600 mt-2">Configure domain, origin, and policy</p>
                   </div>
                   <div className="text-center">
                     <div className="bg-green-50 rounded-xl p-4 mb-3 border-2 border-green-200">
@@ -298,8 +313,8 @@ export default function WAFNodesGuidePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <p className="text-base font-bold text-gray-900">2. Apply Config</p>
-                    <p className="text-sm text-gray-600 mt-2">Node downloads and applies rules</p>
+                    <p className="text-base font-bold text-gray-900">2. Node Fetches Config</p>
+                    <p className="text-sm text-gray-600 mt-2">Node automatically gets application configs</p>
                   </div>
                   <div className="text-center">
                     <div className="bg-purple-50 rounded-xl p-4 mb-3 border-2 border-purple-200">
@@ -307,8 +322,8 @@ export default function WAFNodesGuidePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                     </div>
-                    <p className="text-base font-bold text-gray-900">3. Protect Website</p>
-                    <p className="text-sm text-gray-600 mt-2">ModSecurity blocks attacks in real-time</p>
+                    <p className="text-base font-bold text-gray-900">3. Traffic Protected</p>
+                    <p className="text-sm text-gray-600 mt-2">Proxy routes traffic through ModSecurity</p>
                   </div>
                 </div>
               </div>
@@ -318,40 +333,41 @@ export default function WAFNodesGuidePage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-bold text-blue-900 mb-2">1. Dashboard</h3>
                 <p className="text-sm text-blue-800">
-                  You use the web dashboard to create security policies. Dashboard generates ModSecurity configuration files automatically.
+                  Create applications with domains, origins, and policies. Dashboard generates ModSecurity configurations automatically.
                 </p>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-bold text-green-900 mb-2">2. ModSecurity Engine</h3>
+                <h3 className="font-bold text-green-900 mb-2">2. Proxy Node</h3>
                 <p className="text-sm text-green-800">
-                  Each WAF node runs ModSecurity (the actual security software). ModSecurity reads configuration files and blocks attacks.
+                  Proxy nodes fetch application configs automatically. They act as reverse proxies, routing traffic through ModSecurity.
                 </p>
               </div>
               <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                 <h3 className="font-bold text-purple-900 mb-2">3. Protection Flow</h3>
                 <p className="text-sm text-purple-800">
-                  Website Visitor → WAF Node (ModSecurity) → Your Website. ModSecurity checks every request and blocks attacks.
+                  User → DNS → Proxy Node → ModSecurity → Origin Server. One node can protect multiple domains.
                 </p>
               </div>
             </div>
 
             <InfoBox type="success">
               <ul className="list-disc list-inside space-y-1 text-sm">
-                <li><strong>ModSecurity IS the core engine</strong> - It does all the actual protection</li>
-                <li><strong>Dashboard is the control center</strong> - You manage policies, nodes deploy them</li>
-                <li><strong>Each node runs ModSecurity</strong> - Multiple servers, each running ModSecurity</li>
-                <li><strong>Centralized management</strong> - One dashboard controls many ModSecurity nodes</li>
-                <li><strong>OWASP CRS included</strong> - Uses industry-standard OWASP Core Rule Set</li>
+                <li><strong>Proxy WAF Architecture</strong> - Nodes act as reverse proxies (like Sucuri/Reblaze)</li>
+                <li><strong>ModSecurity Integration</strong> - Core protection engine inspects all traffic</li>
+                <li><strong>Automatic Configuration</strong> - Nodes fetch application configs automatically</li>
+                <li><strong>Multiple Domains</strong> - One node can protect many domains</li>
+                <li><strong>No Deployment Needed</strong> - Just create applications, nodes auto-update</li>
+                <li><strong>OWASP CRS Included</strong> - Industry-standard security rules</li>
               </ul>
             </InfoBox>
           </div>
         </Section>
 
         {/* Step 1: Register Node */}
-        <Section id="step1" title="📝 STEP 1: Register Your WAF Node" defaultExpanded={true}>
+        <Section id="step1" title="📝 STEP 1: Register Your Proxy WAF Node" defaultExpanded={true}>
           <div className="space-y-4">
             <p className="text-gray-700">
-              Register your server as a WAF node in the dashboard so it can receive security policies.
+              Register your server as a proxy WAF node in the dashboard. The node will automatically fetch application configurations.
             </p>
 
             <div className="space-y-3">
@@ -423,213 +439,148 @@ export default function WAFNodesGuidePage() {
           </div>
         </Section>
 
-        {/* Step 2: Install ModSecurity */}
-        <Section id="step2" title="📦 STEP 2: Install ModSecurity on Your Server">
+        {/* Step 2: Install Proxy Server */}
+        <Section id="step2" title="📦 STEP 2: Install Proxy Server Software">
           <div className="space-y-4">
             <p className="text-gray-700">
-              Before enrolling a node, you need ModSecurity installed on your server.
+              Install and run the ATRAVAD Proxy WAF server software on your server. This software acts as a reverse proxy and integrates ModSecurity.
             </p>
 
-            <h3 className="font-semibold text-gray-900 mt-4 mb-2">For Apache:</h3>
-            <CodeBlock>
-{`# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install libapache2-mod-security2 modsecurity-crs
+            <h3 className="font-semibold text-gray-900 mt-4 mb-2">Prerequisites:</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+              <li>Node.js 18+ installed</li>
+              <li>Server with public IP address</li>
+              <li>Ports 80 (HTTP) and 443 (HTTPS) available</li>
+            </ul>
 
-# Enable ModSecurity
-sudo a2enmod security2
-sudo systemctl restart apache2`}
+            <h3 className="font-semibold text-gray-900 mt-4 mb-2">Install Proxy Server:</h3>
+            <CodeBlock>
+{`# Clone or download ATRAVAD WAF repository
+git clone <repository-url>
+cd atravad-waf
+
+# Install dependencies
+npm install
+
+# Run proxy server
+node proxy-server-standalone.js \\
+  --node-id=YOUR_NODE_ID \\
+  --api-key=YOUR_API_KEY \\
+  --dashboard-url=https://dashboard.atravad.com`}
             </CodeBlock>
 
-            <h3 className="font-semibold text-gray-900 mt-4 mb-2">For Nginx:</h3>
+            <h3 className="font-semibold text-gray-900 mt-4 mb-2">Or Use Environment Variables:</h3>
             <CodeBlock>
-{`# Install ModSecurity for Nginx
-# (This requires compiling - see official ModSecurity docs)`}
+{`export ATRAVAD_NODE_ID=node-abc123
+export ATRAVAD_API_KEY=atravad_xyz789
+export ATRAVAD_DASHBOARD_URL=https://dashboard.atravad.com
+export ATRAVAD_HTTP_PORT=80
+export ATRAVAD_HTTPS_PORT=443
+
+node proxy-server-standalone.js`}
             </CodeBlock>
 
-            <h3 className="font-semibold text-gray-900 mt-4 mb-2">Verify ModSecurity is Installed:</h3>
-            <CodeBlock>
-{`# Check if ModSecurity module is loaded
-apache2ctl -M | grep security2
-# OR for Nginx:
-nginx -V 2>&1 | grep -o with-http_modsecurity`}
-            </CodeBlock>
+            <InfoBox type="info">
+              <p className="text-sm mb-2"><strong>What the Proxy Server Does:</strong></p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li>Connects to dashboard and authenticates with Node ID + API Key</li>
+                <li>Fetches application configurations automatically</li>
+                <li>Runs as reverse proxy on ports 80/443</li>
+                <li>Routes traffic based on Host header (domain)</li>
+                <li>Integrates ModSecurity for request inspection</li>
+                <li>Forwards clean traffic to origin servers</li>
+                <li>Handles health checks and failover</li>
+              </ul>
+            </InfoBox>
           </div>
         </Section>
 
-        {/* Step 3: Node Connector */}
-        <Section id="step3" title="🔌 STEP 3: Create Node Connector Software">
+        {/* Step 3: Configure Proxy Server */}
+        <Section id="step3" title="⚙️ STEP 3: Configure and Start Proxy Server">
           <div className="space-y-4">
             <p className="text-gray-700">
-              The node connector software is a <strong>bridge</strong> between your server (where ModSecurity runs) and the ATRAVAD Dashboard.
+              Configure the proxy server with your Node ID and API Key, then start it.
             </p>
 
-            <InfoBox type="info">
-              <p className="text-sm mb-2"><strong>What the Node Connector Does:</strong></p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>A "reporter" that tells the dashboard: "I'm alive!"</li>
-                <li>A "downloader" that gets new security rules from dashboard</li>
-                <li>An "applier" that updates ModSecurity configuration files</li>
-              </ul>
-            </InfoBox>
-
-            <h3 className="font-semibold text-gray-900 mt-6 mb-2">Node Connector Requirements:</h3>
+            <h3 className="font-semibold text-gray-900 mt-4 mb-2">Configuration Options:</h3>
             <div className="space-y-3">
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">1. Send Heartbeat (Health Check)</h4>
-                <p className="text-sm text-gray-600 mb-2">Every 30-60 seconds, tell the dashboard: "I'm alive!"</p>
-                <p className="text-sm text-gray-500 font-mono mb-2">POST /api/nodes/[YOUR_NODE_ID]/health</p>
-                <p className="text-xs text-red-600 font-semibold">🔐 Required Headers:</p>
-                <ul className="text-xs text-gray-600 list-disc list-inside ml-2">
-                  <li><code>X-Node-Id: YOUR_NODE_ID</code></li>
-                  <li><code>X-Node-Api-Key: YOUR_API_KEY</code></li>
-                </ul>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">2. Check for New Policies (Polling)</h4>
-                <p className="text-sm text-gray-600 mb-2">Ask "Any new ModSecurity configs for me?" every 30 seconds</p>
-                <p className="text-sm text-gray-500 font-mono mb-2">GET /api/nodes/[YOUR_NODE_ID]/config</p>
-                <p className="text-xs text-red-600 font-semibold">🔐 Required Headers:</p>
-                <ul className="text-xs text-gray-600 list-disc list-inside ml-2">
-                  <li><code>X-Node-Id: YOUR_NODE_ID</code></li>
-                  <li><code>X-Node-Api-Key: YOUR_API_KEY</code></li>
-                </ul>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">3. Report Deployment Status</h4>
-                <p className="text-sm text-gray-600 mb-2">After applying a policy, tell the dashboard: "I applied it!" or "Failed!"</p>
-                <p className="text-sm text-gray-500 font-mono mb-2">POST /api/nodes/[YOUR_NODE_ID]/config</p>
-                <p className="text-xs text-red-600 font-semibold">🔐 Required Headers:</p>
-                <ul className="text-xs text-gray-600 list-disc list-inside ml-2">
-                  <li><code>X-Node-Id: YOUR_NODE_ID</code></li>
-                  <li><code>X-Node-Api-Key: YOUR_API_KEY</code></li>
-                </ul>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">4. Apply ModSecurity Configuration</h4>
-                <p className="text-sm text-gray-600 mb-2">When a policy is received, save it to ModSecurity config file and reload</p>
+                <h4 className="font-semibold text-gray-900 mb-2">1. Command Line Arguments</h4>
                 <CodeBlock>
-{`# Save the ModSecurity configuration
-echo "$MODSECURITY_CONFIG" > /etc/modsecurity/atravad-policy.conf
+{`node proxy-server-standalone.js \\
+  --node-id=node-abc123 \\
+  --api-key=atravad_xyz789 \\
+  --dashboard-url=https://dashboard.atravad.com \\
+  --http-port=80 \\
+  --https-port=443`}
+                </CodeBlock>
+              </div>
 
-# Reload Apache/Nginx to apply changes
-sudo systemctl reload apache2
-# OR for Nginx:
-sudo nginx -s reload`}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">2. Environment Variables (Recommended)</h4>
+                <CodeBlock>
+{`export ATRAVAD_NODE_ID=node-abc123
+export ATRAVAD_API_KEY=atravad_xyz789
+export ATRAVAD_DASHBOARD_URL=https://dashboard.atravad.com
+export ATRAVAD_HTTP_PORT=80
+export ATRAVAD_HTTPS_PORT=443
+
+node proxy-server-standalone.js`}
+                </CodeBlock>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">3. As a Systemd Service</h4>
+                <CodeBlock>
+{`# Create service file: /etc/systemd/system/atravad-proxy.service
+[Unit]
+Description=ATRAVAD Proxy WAF Server
+After=network.target
+
+[Service]
+Type=simple
+User=atravad
+Environment="ATRAVAD_NODE_ID=node-abc123"
+Environment="ATRAVAD_API_KEY=atravad_xyz789"
+Environment="ATRAVAD_DASHBOARD_URL=https://dashboard.atravad.com"
+ExecStart=/usr/bin/node /opt/atravad-waf/proxy-server-standalone.js
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# Enable and start
+sudo systemctl enable atravad-proxy
+sudo systemctl start atravad-proxy`}
                 </CodeBlock>
               </div>
             </div>
 
-            <InfoBox type="danger">
-              <p className="text-sm font-bold mb-2">🔐 API Key Authentication Required</p>
-              <p className="text-sm mb-2">All API calls from your node connector MUST include authentication headers:</p>
+            <InfoBox type="info">
+              <p className="text-sm mb-2"><strong>What the Proxy Server Does Automatically:</strong></p>
               <ul className="list-disc list-inside space-y-1 text-sm">
-                <li><code className="bg-gray-200 px-1 rounded">X-Node-Id</code>: Your Secure Node ID</li>
-                <li><code className="bg-gray-200 px-1 rounded">X-Node-Api-Key</code>: Your Node API Key</li>
+                <li><strong>Fetches Applications:</strong> Polls dashboard every 30-60 seconds for application configs</li>
+                <li><strong>Health Checks:</strong> Monitors origin server health automatically</li>
+                <li><strong>Domain Routing:</strong> Routes traffic based on Host header</li>
+                <li><strong>ModSecurity:</strong> Inspects all requests with ModSecurity rules</li>
+                <li><strong>Auto-Updates:</strong> Gets new applications and policy changes automatically</li>
               </ul>
-              <p className="text-sm mt-2">Without these headers, all API requests will be rejected with <code className="bg-gray-200 px-1 rounded">401 Unauthorized</code>.</p>
             </InfoBox>
 
-            <h3 className="font-semibold text-gray-900 mt-6 mb-2">Sample Node Connector (Python):</h3>
-            <CodeBlock>
-{`import time
-import requests
-import subprocess
-import os
-
-# CREDENTIALS - Get these from the registration modal!
-NODE_ID = "YOUR_SECURE_NODE_ID_HERE"  # e.g., "a7f3b9c2-4d1e-4f8a-9b6c-3e5d7a8b9c0d"
-NODE_API_KEY = "YOUR_API_KEY_HERE"  # e.g., "atravad_abc123xyz456..."
-DASHBOARD_URL = "https://your-dashboard-url.com"
-MODSECURITY_CONFIG_PATH = "/etc/modsecurity/atravad-policy.conf"
-
-# Authentication headers for all API requests
-AUTH_HEADERS = {
-    "X-Node-Id": NODE_ID,
-    "X-Node-Api-Key": NODE_API_KEY,
-    "Content-Type": "application/json"
-}
-
-def send_heartbeat():
-    """Send health check every 30 seconds"""
-    response = requests.post(
-        f"{DASHBOARD_URL}/api/nodes/{NODE_ID}/health",
-        headers=AUTH_HEADERS,
-        json={
-            "status": "online",
-            "version": "1.0.0",
-            "uptime": get_uptime(),
-            "cpuUsage": get_cpu_usage(),
-            "memoryUsage": get_memory_usage(),
-        }
-    )
-    if response.status_code == 401:
-        print("ERROR: Authentication failed! Check your NODE_ID and NODE_API_KEY")
-        return False
-    return response.status_code == 200
-
-def check_for_config():
-    """Check for new policies every 30 seconds"""
-    response = requests.get(
-        f"{DASHBOARD_URL}/api/nodes/{NODE_ID}/config",
-        headers=AUTH_HEADERS
-    )
-    
-    if response.status_code == 401:
-        print("ERROR: Authentication failed! Check your NODE_ID and NODE_API_KEY")
-        return False
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data.get("hasConfig"):
-            modsecurity_config = data["policy"]["modSecurityConfig"]
-            # Save and apply config
-            apply_modsecurity_config(modsecurity_config)
-            # Report deployment status
-            report_deployment_status(data["deploymentId"], "deployed")
-    
-    return response.status_code == 200
-
-def report_deployment_status(deployment_id, status, error=None):
-    """Report if policy deployment succeeded or failed"""
-    payload = {
-        "deploymentId": deployment_id,
-        "status": status
-    }
-    if error:
-        payload["error"] = error
-    
-    response = requests.post(
-        f"{DASHBOARD_URL}/api/nodes/{NODE_ID}/config",
-        headers=AUTH_HEADERS,
-        json=payload
-    )
-    return response.status_code == 200
-
-# Main loop
-while True:
-    send_heartbeat()
-    check_for_config()
-    time.sleep(30)`}
-            </CodeBlock>
-
-            <InfoBox type="info">
-              <p className="text-sm font-semibold mb-2">📝 Authentication Best Practices:</p>
+            <InfoBox type="danger">
+              <p className="text-sm font-bold mb-2">🔐 API Key Authentication Required</p>
+              <p className="text-sm mb-2">The proxy server authenticates with the dashboard using:</p>
               <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Store credentials securely (environment variables, config file with restricted permissions)</li>
-                <li>Never commit API keys to version control (use <code className="bg-gray-200 px-1 rounded">.gitignore</code>)</li>
-                <li>If you lose your API key, you can rotate it from the dashboard (Nodes page → Key button)</li>
-                <li>Rate limiting is applied per-node - excessive requests may result in <code className="bg-gray-200 px-1 rounded">429 Too Many Requests</code></li>
+                <li><code className="bg-gray-200 px-1 rounded">X-Node-Id</code>: Your Node ID</li>
+                <li><code className="bg-gray-200 px-1 rounded">X-Node-Api-Key</code>: Your API Key</li>
               </ul>
+              <p className="text-sm mt-2">These are automatically included in all API requests from the proxy server.</p>
             </InfoBox>
           </div>
         </Section>
 
         {/* Step 4: Verify */}
-        <Section id="step4" title="✅ STEP 4: Verify Node is Online">
+        <Section id="step4" title="✅ STEP 4: Verify Proxy Node is Online">
           <div className="space-y-4">
             <ol className="list-decimal list-inside space-y-2 text-gray-700">
               <li>Go back to <strong>WAF Nodes</strong> page in the dashboard</li>
@@ -658,76 +609,136 @@ while True:
           </div>
         </Section>
 
-        {/* Step 5: Deploy */}
-        <Section id="step5" title="🚀 STEP 5: Deploy a Policy to Your Node">
+        {/* Step 5: Create Application */}
+        <Section id="step5" title="🚀 STEP 5: Create Application (No Deployment Needed!)">
           <div className="space-y-4">
             <p className="text-gray-700">
-              Deploy a security policy to your node so ModSecurity can protect your website.
+              Create an application in the dashboard. The proxy node will automatically fetch the configuration - <strong>no deployment needed!</strong>
             </p>
 
             <div className="space-y-3">
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">1</div>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">Create or Select a Policy</h4>
-                  <p className="text-sm text-gray-600">Go to <strong>"Security Policies"</strong> page, create a new policy OR select an existing one</p>
+                  <h4 className="font-semibold text-gray-900 mb-1">Go to Applications Page</h4>
+                  <p className="text-sm text-gray-600">Click <strong>"Applications"</strong> in the sidebar, then click <strong>"New Application"</strong></p>
                 </div>
               </div>
 
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">Deploy the Policy</h4>
-                  <p className="text-sm text-gray-600">Click on the policy → Click <strong>"Deploy"</strong> → Select which nodes to deploy to → Click <strong>"Deploy"</strong></p>
+                  <h4 className="font-semibold text-gray-900 mb-1">Configure Application</h4>
+                  <ul className="text-sm text-gray-600 list-disc list-inside space-y-1 mt-2">
+                    <li><strong>Name:</strong> e.g., "My Website"</li>
+                    <li><strong>Domain:</strong> e.g., "example.com" (this is what DNS will point to)</li>
+                    <li><strong>Origin URL:</strong> e.g., "https://origin.example.com" (your actual server)</li>
+                    <li><strong>Policy:</strong> Select a security policy (optional - default OWASP CRS if none)</li>
+                  </ul>
                 </div>
               </div>
 
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0 w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">Watch the Deployment</h4>
-                  <p className="text-sm text-gray-600">You'll see deployment status: <strong>"Pending"</strong> → <strong>"In Progress"</strong> → <strong>"Completed"</strong></p>
+                  <h4 className="font-semibold text-gray-900 mb-1">Node Auto-Fetches</h4>
+                  <p className="text-sm text-gray-600">Your proxy node automatically fetches this application configuration within 30-60 seconds. <strong>No manual deployment needed!</strong></p>
                 </div>
               </div>
             </div>
 
             <InfoBox type="info">
-              <p className="text-sm font-semibold mb-2">What Happens Behind the Scenes (ModSecurity Flow):</p>
+              <p className="text-sm font-semibold mb-2">How Proxy WAF Works:</p>
               <ol className="list-decimal list-inside space-y-1 text-sm">
-                <li>You click "Deploy" in dashboard</li>
-                <li>Dashboard generates ModSecurity configuration file</li>
-                <li>Dashboard stores the ModSecurity config in database</li>
-                <li>Dashboard creates a "deployment" record</li>
-                <li>Node connector checks for config (polls every 30 seconds)</li>
-                <li>Node downloads the ModSecurity configuration</li>
-                <li>Node saves config to <code className="bg-gray-200 px-1 rounded">/etc/modsecurity/atravad-policy.conf</code></li>
-                <li>Node reloads Apache/Nginx (ModSecurity reads new config)</li>
-                <li>ModSecurity engine now actively protects your website</li>
-                <li>Node reports "deployed" or "failed" back to dashboard</li>
+                <li>You create application in dashboard (domain + origin + policy)</li>
+                <li>Proxy node polls dashboard every 30-60 seconds</li>
+                <li>Node fetches all applications for its tenant</li>
+                <li>Node loads application configs into memory</li>
+                <li>When traffic arrives for a domain, node routes it through ModSecurity</li>
+                <li>ModSecurity inspects and blocks attacks</li>
+                <li>Clean traffic forwarded to origin server</li>
+                <li><strong>No deployment, no config files, no reloads needed!</strong></li>
               </ol>
             </InfoBox>
           </div>
         </Section>
 
+        {/* Step 6: Update DNS */}
+        <Section id="step6" title="🌐 STEP 6: Update DNS to Point to WAF">
+          <div className="space-y-4">
+            <p className="text-gray-700">
+              Point your domain's DNS to the proxy WAF node IP address. All traffic will then flow through the WAF.
+            </p>
+
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-1">Get WAF Node IP</h4>
+                  <p className="text-sm text-gray-600">From the WAF Nodes page, note the IP address of your proxy node (e.g., <code className="bg-gray-200 px-1 rounded">1.2.3.4</code>)</p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-1">Update DNS Records</h4>
+                  <p className="text-sm text-gray-600">At your DNS provider, create/update A record:</p>
+                  <CodeBlock>
+{`Type: A
+Name: @ (or example.com)
+Value: 1.2.3.4 (your WAF node IP)
+TTL: 300`}
+                  </CodeBlock>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-1">Wait for DNS Propagation</h4>
+                  <p className="text-sm text-gray-600">Usually takes 5-60 minutes. Check with <code className="bg-gray-200 px-1 rounded">dig example.com</code> or <code className="bg-gray-200 px-1 rounded">nslookup example.com</code></p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">4</div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-1">Test Protection</h4>
+                  <p className="text-sm text-gray-600">Visit your domain - should work normally! Try an attack: <code className="bg-gray-200 px-1 rounded">?id=1' OR '1'='1</code> - should be blocked (403)</p>
+                </div>
+              </div>
+            </div>
+
+            <InfoBox type="success">
+              <p className="text-sm font-semibold mb-2">✅ That's it! Your website is now protected!</p>
+              <p className="text-sm">
+                All traffic for your domain now flows through the proxy WAF. Attacks are automatically blocked, and clean traffic reaches your origin server.
+              </p>
+            </InfoBox>
+          </div>
+        </Section>
+
         {/* Summary */}
-        <Section id="summary" title="📚 Summary: How ATRAVAD WAF Uses ModSecurity" defaultExpanded={true}>
+        <Section id="summary" title="📚 Summary: Proxy WAF Architecture" defaultExpanded={true}>
           <div className="space-y-4">
             <InfoBox type="success">
               <ul className="list-disc list-inside space-y-2 text-sm">
-                <li><strong>ModSecurity is the core engine</strong> - It does all the real protection work</li>
-                <li><strong>Dashboard generates ModSecurity configs</strong> - You use a simple UI, it creates complex ModSecurity rules</li>
-                <li><strong>Nodes run ModSecurity</strong> - Each server has ModSecurity installed and running</li>
-                <li><strong>Centralized control</strong> - One dashboard manages many ModSecurity instances</li>
-                <li><strong>Automatic deployment</strong> - Configs are pushed to nodes automatically</li>
-                <li><strong>OWASP CRS included</strong> - Uses industry-standard security rules</li>
-                <li><strong>No manual rule editing</strong> - Dashboard handles all ModSecurity complexity for you</li>
+                <li><strong>Proxy WAF Architecture</strong> - Nodes act as reverse proxies (like Sucuri/Reblaze)</li>
+                <li><strong>ModSecurity Integration</strong> - Core protection engine inspects all traffic</li>
+                <li><strong>Automatic Configuration</strong> - Nodes fetch application configs automatically</li>
+                <li><strong>No Deployment Needed</strong> - Just create applications, nodes auto-update</li>
+                <li><strong>Multiple Domains</strong> - One node protects many domains</li>
+                <li><strong>DNS-Based Routing</strong> - Point DNS to WAF, traffic flows automatically</li>
+                <li><strong>OWASP CRS Included</strong> - Industry-standard security rules</li>
+                <li><strong>Modern Architecture</strong> - Like Sucuri and Reblaze</li>
               </ul>
             </InfoBox>
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
               <p className="text-sm font-semibold text-gray-900 mb-2">The Complete Flow:</p>
               <p className="text-sm text-gray-700">
-                You configure protection (simple UI) → Dashboard generates ModSecurity rules → Node downloads rules → ModSecurity protects your website
+                Create Application (domain + origin + policy) → Update DNS → Traffic flows through Proxy WAF → ModSecurity inspects → Clean traffic forwarded to origin
               </p>
             </div>
           </div>
@@ -738,18 +749,16 @@ while True:
           <h2 className="text-2xl font-bold text-gray-900 mb-4">🚀 Quick Start Checklist</h2>
           <div className="grid md:grid-cols-2 gap-3">
             {[
-              'Install ModSecurity on your server (Apache or Nginx)',
-              'Register node in dashboard (get Secure Node ID)',
-              'Install node connector software on your server',
-              'Configure connector with Secure Node ID and dashboard URL',
-              'Start connector service',
-              'Verify node shows "Online" in dashboard',
-              'Create a security policy in dashboard',
-              'Dashboard generates ModSecurity config automatically',
-              'Deploy policy to node',
-              'Node downloads and applies ModSecurity config',
-              'Verify deployment status is "Completed"',
-              'Test protection - Try an attack, ModSecurity should block it!',
+              'Register proxy node in dashboard',
+              'Install proxy server software',
+              'Configure with Node ID and API Key',
+              'Start proxy server',
+              'Verify node shows "Online"',
+              'Create application (domain + origin + policy)',
+              'Update DNS to point to node IP',
+              'Wait for DNS propagation',
+              'Test protection - visit your domain',
+              'Verify attacks are blocked',
             ].map((item, index) => (
               <div key={index} className="flex items-start space-x-2">
                 <input type="checkbox" className="mt-1" />

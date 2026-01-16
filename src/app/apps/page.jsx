@@ -8,12 +8,32 @@ export default function AppsPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', domain: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    domain: '',
+    origins: [{ url: '', weight: 100, healthCheck: { path: '/health', interval: 30, timeout: 5 } }],
+    policyId: '',
+    autoSSL: true
+  });
+  const [policies, setPolicies] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchApps();
+    fetchPolicies();
   }, []);
+
+  const fetchPolicies = async () => {
+    try {
+      const response = await fetch('/api/policies');
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setPolicies(data);
+      }
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+    }
+  };
 
   const fetchApps = async () => {
     try {
@@ -42,14 +62,40 @@ export default function AppsPage() {
     setSubmitting(true);
 
     try {
+      // Prepare data for API - ensure origins have valid URLs
+      const validOrigins = formData.origins.filter(origin => origin.url.trim() !== '');
+      
+      if (validOrigins.length === 0) {
+        alert('Please provide at least one origin server URL');
+        setSubmitting(false);
+        return;
+      }
+
+      const apiData = {
+        name: formData.name,
+        domain: formData.domain,
+        origins: validOrigins,
+        policyId: formData.policyId || null,
+        autoSSL: formData.autoSSL,
+        // Set ssl config if autoSSL is enabled (for future Let's Encrypt integration)
+        ssl: formData.autoSSL ? { autoProvision: true } : null,
+        routing: { pathPrefix: '/', stripPath: false },
+      };
+
       const response = await fetch('/api/apps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(apiData),
       });
 
       if (response.ok) {
-        setFormData({ name: '', domain: '' });
+        setFormData({ 
+          name: '', 
+          domain: '',
+          origins: [{ url: '', weight: 100, healthCheck: { path: '/health', interval: 30, timeout: 5 } }],
+          policyId: '',
+          autoSSL: true
+        });
         setShowForm(false);
         fetchApps();
       } else {
@@ -139,8 +185,140 @@ export default function AppsPage() {
                   }
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Enter the domain name that will be protected by this WAF policy
+                  Enter the domain name that will be protected. Point your DNS to ATRAVAD WAF IPs.
                 </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Origin Server(s)
+                </label>
+                <p className="mb-3 text-xs text-gray-500">
+                  Your origin server URL(s) where traffic will be forwarded after WAF inspection.
+                </p>
+                {formData.origins.map((origin, index) => (
+                  <div key={index} className="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Origin URL *
+                        </label>
+                        <input
+                          type="url"
+                          required
+                          placeholder="https://origin.example.com"
+                          className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                          value={origin.url}
+                          onChange={(e) => {
+                            const newOrigins = [...formData.origins];
+                            newOrigins[index].url = e.target.value;
+                            setFormData({ ...formData, origins: newOrigins });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Weight (1-100)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                          value={origin.weight}
+                          onChange={(e) => {
+                            const newOrigins = [...formData.origins];
+                            newOrigins[index].weight = parseInt(e.target.value) || 100;
+                            setFormData({ ...formData, origins: newOrigins });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Health Check Path
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="/health"
+                          className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                          value={origin.healthCheck?.path || '/health'}
+                          onChange={(e) => {
+                            const newOrigins = [...formData.origins];
+                            newOrigins[index].healthCheck = {
+                              ...newOrigins[index].healthCheck,
+                              path: e.target.value || '/health',
+                              interval: newOrigins[index].healthCheck?.interval || 30,
+                              timeout: newOrigins[index].healthCheck?.timeout || 5
+                            };
+                            setFormData({ ...formData, origins: newOrigins });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {formData.origins.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newOrigins = formData.origins.filter((_, i) => i !== index);
+                          setFormData({ ...formData, origins: newOrigins });
+                        }}
+                        className="mt-2 text-xs text-red-600 hover:text-red-700"
+                      >
+                        Remove Origin
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({
+                      ...formData,
+                      origins: [
+                        ...formData.origins,
+                        { url: '', weight: 100, healthCheck: { path: '/health', interval: 30, timeout: 5 } }
+                      ]
+                    });
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  + Add Another Origin
+                </button>
+              </div>
+
+              <div>
+                <label htmlFor="policyId" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Security Policy (Optional)
+                </label>
+                <select
+                  id="policyId"
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-3 border"
+                  value={formData.policyId}
+                  onChange={(e) => setFormData({ ...formData, policyId: e.target.value })}
+                >
+                  <option value="">None (Use Default Protection)</option>
+                  {policies.map((policy) => (
+                    <option key={policy.id} value={policy.id}>
+                      {policy.name} (v{policy.version})
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-xs text-gray-500">
+                  Select a security policy to apply. If none selected, default OWASP CRS protection will be used.
+                </p>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="autoSSL"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  checked={formData.autoSSL}
+                  onChange={(e) => setFormData({ ...formData, autoSSL: e.target.checked })}
+                />
+                <label htmlFor="autoSSL" className="ml-2 block text-sm text-gray-700">
+                  Auto-provision SSL certificate (Let's Encrypt)
+                </label>
               </div>
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button
@@ -210,6 +388,12 @@ export default function AppsPage() {
                       Domain
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Origin Server(s)
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Policy
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Created
                     </th>
                   </tr>
@@ -231,6 +415,33 @@ export default function AppsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 font-mono">{app.domain}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {app.origins && app.origins.length > 0 ? (
+                          <div className="text-sm text-gray-900">
+                            {app.origins.map((origin, idx) => (
+                              <div key={idx} className="font-mono text-xs">
+                                {origin.url}
+                                {origin.weight && origin.weight !== 100 && (
+                                  <span className="ml-2 text-gray-500">(weight: {origin.weight})</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400 italic">No origin configured</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {app.policyId ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Policy Assigned
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Default (OWASP CRS)
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(app.createdAt).toLocaleDateString('en-US', {

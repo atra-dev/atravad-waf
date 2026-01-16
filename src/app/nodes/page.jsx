@@ -130,7 +130,7 @@ export default function NodesPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">WAF Nodes</h1>
             <p className="mt-2 text-sm text-gray-600">
-              Manage and monitor your WAF deployment nodes
+              Manage and monitor your WAF proxy nodes
             </p>
           </div>
           <div className="flex items-center space-x-3">
@@ -242,7 +242,7 @@ export default function NodesPage() {
                   }
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Enter the IP address or hostname where the WAF node is deployed
+                  Enter the IP address or hostname where the WAF proxy node is running
                 </p>
               </div>
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
@@ -293,7 +293,7 @@ export default function NodesPage() {
               </svg>
               <h3 className="mt-4 text-sm font-medium text-gray-900">No nodes registered</h3>
               <p className="mt-2 text-sm text-gray-500">
-                Register your first WAF node to start deploying security policies.
+                Register your first WAF proxy node to start protecting applications.
               </p>
             </div>
           ) : (

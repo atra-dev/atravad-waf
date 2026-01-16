@@ -1,18 +1,39 @@
 # ATRAVAD WAF
 
-A production-ready Web Application Firewall (WAF) management platform built with Next.js, Node.js, and Firebase. This platform allows you to manage WAF policies, applications, and nodes using ModSecurity as the core engine.
+A **modern reverse proxy Web Application Firewall (WAF)** - just like Sucuri and Reblaze! Built with Next.js, Node.js, and Firebase. Protect your websites by simply pointing your DNS to ATRAVAD WAF. All traffic flows through our protection layer before reaching your origin servers.
+
+**🚀 Key Features:**
+- **Seamless DNS-based routing** - Just change DNS, no code changes needed
+- **Modern proxy architecture** - Reverse proxy with SSL termination
+- **ModSecurity-powered** - Full OWASP CRS integration
+- **Real-time protection** - Automatic attack blocking
+- **Health checks & failover** - Multiple origin server support
+- **Auto SSL** - Let's Encrypt integration
 
 ## Features
 
-- 🔐 **Firebase Authentication** - Secure email/password authentication
-- 🏢 **Multi-tenant Support** - Tenant-based organization with role-based access
-- 📱 **Application Management** - Create and manage web applications
-- 🛡️ **Policy Editor** - Create comprehensive WAF policies with multiple protection types
-- 📝 **ModSecurity Core Engine** - Full ModSecurity integration with OWASP CRS support
-- 🔍 **Advanced Rule Generation** - SQL Injection, XSS, File Upload, Path Traversal, RCE, and Rate Limiting
-- 🧪 **Request Testing** - Test HTTP requests against ModSecurity rules before deployment
-- 📊 **Version Control** - Track policy versions with rollback capability
-- 🖥️ **Node Management** - Register and monitor WAF nodes
+### 🎯 Proxy WAF (Modern Architecture)
+- **DNS-based routing** - Point DNS to WAF, all traffic flows through protection
+- **Reverse proxy** - SSL termination, request/response inspection
+- **Origin forwarding** - Multiple origin servers with health checks and failover
+- **Transparent proxying** - Users don't notice any difference
+
+### 🛡️ Security Protection
+- **ModSecurity Core Engine** - Full ModSecurity v3 integration with OWASP CRS support
+- **Advanced Rule Generation** - SQL Injection, XSS, File Upload, Path Traversal, RCE, and more
+- **Real-time blocking** - Automatic attack detection and blocking
+- **Bot detection** - Advanced bot and crawler detection
+- **DDoS protection** - Rate limiting and traffic shaping
+
+### 📊 Management & Monitoring
+- **Firebase Authentication** - Secure email/password authentication
+- **Multi-tenant Support** - Tenant-based organization with role-based access
+- **Application Management** - Create and manage protected applications
+- **Policy Editor** - Create comprehensive WAF policies with multiple protection types
+- **Request Testing** - Test HTTP requests against ModSecurity rules before deployment
+- **Version Control** - Track policy versions with rollback capability
+- **Real-time Logs** - Monitor all traffic and security events
+- **Node Management** - Register and monitor WAF proxy nodes
 
 ## Tech Stack
 
@@ -182,9 +203,31 @@ atravad-waf/
 - **analyst**: Can view and analyze data
 - **viewer**: Read-only access
 
+## How It Works
+
+### 1. DNS Configuration
+Point your domain's DNS to ATRAVAD WAF IP addresses. All traffic for your domain now routes through our protection layer.
+
+### 2. Request Flow
+```
+User → DNS → ATRAVAD WAF Proxy → ModSecurity Inspection → Origin Server
+                              ↓
+                    If attack detected → Block (403)
+                    If safe → Forward to origin
+```
+
+### 3. Protection
+- **ModSecurity** inspects every request using OWASP CRS and custom rules
+- **Attacks are blocked** before reaching your origin server
+- **Clean traffic** is forwarded transparently
+- **Real-time monitoring** in the dashboard
+
+### 4. No Code Changes
+Just change DNS - that's it! Your application code doesn't need any modifications.
+
 ## ModSecurity Core Engine Integration
 
-ATRAVAD WAF uses **ModSecurity** as its core WAF engine, providing enterprise-grade web application protection. The platform generates comprehensive ModSecurity configurations with full OWASP Core Rule Set (CRS) integration.
+ATRAVAD WAF uses **ModSecurity v3** as its core WAF engine, providing enterprise-grade web application protection. The platform generates comprehensive ModSecurity configurations with full OWASP Core Rule Set (CRS) integration.
 
 ### Important: OWASP CRS is Enabled by Default
 
@@ -285,12 +328,48 @@ npm start
 3. **Authentication**: Ensure middleware properly protects routes
 4. **API Security**: All API routes verify authentication tokens
 
+## Quick Start
+
+1. **Create Application** in dashboard with your domain and origin server
+2. **Get WAF IP addresses** from the WAF Nodes page
+3. **Update DNS** to point to WAF IPs
+4. **Wait for propagation** (5-60 minutes)
+5. **You're protected!** All traffic now flows through ATRAVAD WAF
+
+See [Quick Start Guide](./docs/PROXY_WAF_QUICKSTART.md) for detailed instructions.
+
+## Documentation
+
+- [Quick Start Guide](./docs/PROXY_WAF_QUICKSTART.md) - Get protected in 5 minutes
+- [DNS Setup Guide](./docs/DNS_SETUP_GUIDE.md) - Detailed DNS configuration
+- [Proxy WAF Architecture](./docs/PROXY_WAF_ARCHITECTURE.md) - Technical architecture
+- [Implementation Guide](./docs/PROXY_WAF_IMPLEMENTATION.md) - Deployment details
+- [WAF Nodes Guide](./docs/WAF_NODES_GUIDE.md) - Node setup and management
+- [ModSecurity Integration](./docs/MODSECURITY_INTEGRATION.md) - ModSecurity details
+
+## Architecture
+
+ATRAVAD WAF uses a **modern proxy WAF architecture** (like Sucuri and Reblaze):
+
+- **Proxy WAF**: Reverse proxy that sits in front of origin servers
+- **DNS-based routing**: Point DNS to WAF, all traffic flows through protection
+- **Application-based**: Configure applications with domains and origins
+- **Policy assignment**: Assign security policies to applications
+- **Automatic updates**: Nodes fetch application configs automatically
+
+**Legacy architecture (ModSecurity on origin servers) has been removed.**
+
 ## Future Enhancements
 
-- Real-time node status monitoring
-- Policy deployment automation
-- Advanced rule customization
-- Attack analytics and reporting
+- ✅ Proxy WAF architecture (completed)
+- ✅ DNS-based routing (completed)
+- ✅ Health checks and failover (completed)
+- ✅ Legacy architecture removed (completed)
+- 🔄 Full ModSecurity v3 native integration (in progress)
+- 🔄 Let's Encrypt auto-provisioning (in progress)
+- Advanced load balancing algorithms
+- Global CDN distribution
+- Advanced bot detection with CAPTCHA
 - Webhook integrations
 - Multi-factor authentication
 

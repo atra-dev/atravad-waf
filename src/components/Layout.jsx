@@ -75,11 +75,6 @@ const AnalyticsIcon = ({ className }) => (
   </svg>
 );
 
-const DeploymentsIcon = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-  </svg>
-);
 
 export default function Layout({ children }) {
   const pathname = usePathname();
@@ -223,7 +218,6 @@ export default function Layout({ children }) {
     { href: '/nodes', label: 'WAF Nodes', icon: NodesIcon, requiresRole: true },
     { href: '/logs', label: 'Security Logs', icon: LogsIcon, requiresRole: true },
     { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon, requiresRole: true },
-    { href: '/deployments', label: 'Deployments', icon: DeploymentsIcon, requiresRole: true },
     { href: '/admin', label: 'Super Admin', icon: SuperAdminIcon, requiresSuperAdmin: true, separator: true },
   ], []);
 

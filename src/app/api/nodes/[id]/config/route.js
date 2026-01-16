@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { verifyNodeApiKey, extractNodeCredentials } from '@/lib/node-auth';
 import { rateLimit } from '@/lib/rate-limit';
 
 /**
  * GET /api/nodes/[id]/config
- * Endpoint for nodes to fetch their current policy configuration
- * Nodes should poll this endpoint or use webhooks
+ * Endpoint for proxy nodes to fetch application configurations
+ * Proxy nodes poll this endpoint to get applications they should protect
  * 
  * Authentication: Requires valid node API key
  */
@@ -59,76 +58,42 @@ export async function GET(request, { params }) {
     }
 
     const nodeData = nodeDoc.data();
+    const tenantName = nodeData.tenantName;
 
-    // Get latest deployment for this node
-    // Fetch without orderBy to avoid index requirement, then sort in memory
-    const deploymentSnapshot = await adminDb
-      .collection('deployments')
-      .where('nodeIds', 'array-contains', id)
-      .where('tenantName', '==', nodeData.tenantName)
+    // Get all applications for this tenant (proxy nodes protect all applications in tenant)
+    const appsSnapshot = await adminDb
+      .collection('applications')
+      .where('tenantName', '==', tenantName)
       .get();
 
-    if (deploymentSnapshot.empty) {
-      return NextResponse.json({
-        nodeId: id,
-        hasConfig: false,
-        message: 'No policy deployed to this node',
-      });
-    }
-
-    // Sort by createdAt descending and get the latest
-    const deployments = deploymentSnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      });
-
-    const deployment = deployments[0];
-    const policyId = deployment.policyId;
-
-    // Get policy configuration
-    const policyDoc = await adminDb.collection('policies').doc(policyId).get();
-    if (!policyDoc.exists) {
-      return NextResponse.json(
-        { error: 'Policy not found' },
-        { status: 404 }
-      );
-    }
-
-    const policyData = policyDoc.data();
-
-    // Update deployment status if needed
-    const deploymentId = deployment.id;
-    const nodeDeploymentResult = deployment.results?.find((r) => r.nodeId === id);
+    const applications = [];
     
-    if (!nodeDeploymentResult || nodeDeploymentResult.status === 'pending') {
-      // Mark as fetched (node will update to 'deployed' after successful application)
-      const existingResults = deployment.results || [];
-      const updatedResults = existingResults.filter((r) => r.nodeId !== id);
-      updatedResults.push({
-        nodeId: id,
-        status: 'fetched',
-        fetchedAt: new Date().toISOString(),
-      });
-      await adminDb.collection('deployments').doc(deploymentId).update({
-        results: updatedResults,
-      });
+    for (const appDoc of appsSnapshot.docs) {
+      const app = { id: appDoc.id, ...appDoc.data() };
+      
+      // If application has a policy, fetch it
+      if (app.policyId) {
+        const policyDoc = await adminDb.collection('policies').doc(app.policyId).get();
+        if (policyDoc.exists) {
+          app.policy = {
+            id: policyDoc.id,
+            name: policyDoc.data().name,
+            version: policyDoc.data().version,
+            modSecurityConfig: policyDoc.data().modSecurityConfig,
+            mode: policyDoc.data().mode,
+            includeOWASPCRS: policyDoc.data().includeOWASPCRS,
+          };
+        }
+      }
+      
+      applications.push(app);
     }
 
     return NextResponse.json({
       nodeId: id,
-      hasConfig: true,
-      deploymentId,
-      policy: {
-        id: policyId,
-        name: policyData.name,
-        version: policyData.version,
-        modSecurityConfig: policyData.modSecurityConfig,
-        mode: policyData.mode,
-        includeOWASPCRS: policyData.includeOWASPCRS,
-      },
+      hasConfig: applications.length > 0,
+      applications: applications,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error fetching node config:', error);
@@ -141,7 +106,7 @@ export async function GET(request, { params }) {
 
 /**
  * POST /api/nodes/[id]/config
- * Endpoint for nodes to report deployment status
+ * Endpoint for nodes to report configuration status (optional)
  * 
  * Authentication: Requires valid node API key
  */
@@ -157,7 +122,7 @@ export async function POST(request, { params }) {
     const { id } = await params;
     const body = await request.json();
     
-    // Extract API key from headers or body (backward compatibility)
+    // Extract API key from headers
     const headerCreds = extractNodeCredentials(request);
     const apiKey = headerCreds?.apiKey || body.nodeApiKey;
 
@@ -170,7 +135,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Apply rate limiting (per-node for config endpoints)
+    // Apply rate limiting
     const rateLimitResult = await rateLimit(request, {
       routeGroup: '/api/nodes',
       nodeId: id,
@@ -179,58 +144,19 @@ export async function POST(request, { params }) {
       return rateLimitResult.response;
     }
 
-    const { deploymentId, status, error: errorMessage } = body;
-
-    if (!deploymentId || !status) {
-      return NextResponse.json(
-        { error: 'deploymentId and status are required' },
-        { status: 400 }
-      );
-    }
-
-    // Update deployment result
-    const deploymentDoc = await adminDb.collection('deployments').doc(deploymentId).get();
-    if (!deploymentDoc.exists) {
-      return NextResponse.json(
-        { error: 'Deployment not found' },
-        { status: 404 }
-      );
-    }
-
-    const deployment = deploymentDoc.data();
-    const existingResults = deployment.results || [];
-    const updatedResults = existingResults.filter((r) => r.nodeId !== id);
-    
-    updatedResults.push({
-      nodeId: id,
-      status,
-      error: errorMessage || null,
-      updatedAt: new Date().toISOString(),
-    });
-
-    // Update deployment
-    await adminDb.collection('deployments').doc(deploymentId).update({
-      results: updatedResults,
-      // If all nodes have completed, update overall status
-      status: updatedResults.every((r) => r.status !== 'pending' && r.status !== 'fetched')
-        ? (updatedResults.some((r) => r.status === 'failed') ? 'partial' : 'completed')
-        : 'in_progress',
-    });
-
-    // Update node deployment status
+    // Update node last config fetch time
     await adminDb.collection('nodes').doc(id).update({
-      'lastDeployment.status': status,
-      'lastDeployment.completedAt': new Date().toISOString(),
+      lastConfigFetch: new Date().toISOString(),
+      configStatus: body.status || 'active',
     });
 
     return NextResponse.json({
       success: true,
-      deploymentId,
       nodeId: id,
-      status,
+      message: 'Configuration status updated',
     });
   } catch (error) {
-    console.error('Error updating deployment status:', error);
+    console.error('Error updating config status:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

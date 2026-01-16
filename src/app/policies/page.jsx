@@ -30,6 +30,34 @@ export default function PoliciesPage() {
     sensitiveDataExposure: false,
     brokenAccessControl: false,
     securityHeaders: false,
+    // OWASP CRS Rule Sets
+    owaspCRSRules: {
+      REQUEST_901_INITIALIZATION: true,
+      REQUEST_905_COMMON_EXCEPTIONS: true,
+      REQUEST_910_IP_REPUTATION: true,
+      REQUEST_911_METHOD_ENFORCEMENT: true,
+      REQUEST_912_DOS_PROTECTION: true,
+      REQUEST_913_SCANNER_DETECTION: true,
+      REQUEST_920_PROTOCOL_ENFORCEMENT: true,
+      REQUEST_921_PROTOCOL_ATTACK: true,
+      REQUEST_930_APPLICATION_ATTACK_LFI: true,
+      REQUEST_931_APPLICATION_ATTACK_RFI: true,
+      REQUEST_932_APPLICATION_ATTACK_RCE: true,
+      REQUEST_933_APPLICATION_ATTACK_PHP: true,
+      REQUEST_934_APPLICATION_ATTACK_NODEJS: true,
+      REQUEST_941_APPLICATION_ATTACK_XSS: true,
+      REQUEST_942_APPLICATION_ATTACK_SQLI: true,
+      REQUEST_943_APPLICATION_ATTACK_SESSION_FIXATION: true,
+      REQUEST_944_APPLICATION_ATTACK_JAVA: true,
+      REQUEST_949_BLOCKING_EVALUATION: true,
+      RESPONSE_950_DATA_LEAKAGES: true,
+      RESPONSE_951_DATA_LEAKAGES_SQL: true,
+      RESPONSE_952_DATA_LEAKAGES_JAVA: true,
+      RESPONSE_953_DATA_LEAKAGES_PHP: true,
+      RESPONSE_954_DATA_LEAKAGES_IIS: true,
+      RESPONSE_959_BLOCKING_EVALUATION: true,
+      RESPONSE_980_CORRELATION: true,
+    },
     // Rate Limiting
     rateLimiting: {
       enabled: false,
@@ -74,31 +102,24 @@ export default function PoliciesPage() {
       oauthValidation: false,
       jwtValidation: false,
     },
+    exceptionHandling: {
+      enabled: false,
+      excludedPaths: [],
+      excludedRules: [],
+    },
+    virtualPatching: {
+      enabled: false,
+      cveRules: [],
+    },
     applicationId: '',
-    deployAfterCreate: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
-  const [nodes, setNodes] = useState([]);
-  const [selectedNodes, setSelectedNodes] = useState([]);
 
   useEffect(() => {
     fetchPolicies();
     fetchApps();
-    fetchNodes();
   }, []);
-
-  const fetchNodes = async () => {
-    try {
-      const response = await fetch('/api/nodes');
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setNodes(data);
-      }
-    } catch (error) {
-      console.error('Error fetching nodes:', error);
-    }
-  };
 
   const fetchPolicies = async () => {
     try {
@@ -152,6 +173,7 @@ export default function PoliciesPage() {
         name: formData.name,
         mode: formData.mode,
         includeOWASPCRS: formData.includeOWASPCRS,
+        owaspCRSRules: formData.owaspCRSRules,
         sqlInjection: formData.sqlInjection,
         xss: formData.xss,
         fileUpload: formData.fileUpload,
@@ -174,6 +196,8 @@ export default function PoliciesPage() {
         botDetection: formData.botDetection.enabled ? formData.botDetection : null,
         advancedFileUpload: formData.advancedFileUpload.enabled ? formData.advancedFileUpload : null,
         apiProtection: formData.apiProtection.enabled ? formData.apiProtection : null,
+        exceptionHandling: formData.exceptionHandling.enabled ? formData.exceptionHandling : null,
+        virtualPatching: formData.virtualPatching.enabled ? formData.virtualPatching : null,
         applicationId: formData.applicationId || null,
       };
 
@@ -184,31 +208,7 @@ export default function PoliciesPage() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        
-        // Deploy to nodes if requested
-        if (formData.deployAfterCreate && selectedNodes.length > 0 && result.id) {
-          try {
-            const deployResponse = await fetch(`/api/deploy/${result.id}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nodeIds: selectedNodes }),
-            });
-            
-            if (deployResponse.ok) {
-              alert(`Policy created and deployment initiated to ${selectedNodes.length} node(s)!`);
-            } else {
-              alert('Policy created successfully, but deployment failed. You can deploy it manually from the policy details page.');
-            }
-          } catch (deployError) {
-            console.error('Deployment error:', deployError);
-            alert('Policy created successfully, but deployment failed. You can deploy it manually from the policy details page.');
-          }
-        } else if (formData.deployAfterCreate && selectedNodes.length === 0) {
-          alert('Policy created successfully! Please select nodes to deploy to.');
-        } else {
-          alert('Policy created successfully!');
-        }
+        alert('Policy created successfully! Assign it to an application in the Applications page to use it with the proxy WAF.');
 
         // Reset form
         setFormData({
@@ -230,6 +230,33 @@ export default function PoliciesPage() {
           sensitiveDataExposure: false,
           brokenAccessControl: false,
           securityHeaders: false,
+          owaspCRSRules: {
+            REQUEST_901_INITIALIZATION: true,
+            REQUEST_905_COMMON_EXCEPTIONS: true,
+            REQUEST_910_IP_REPUTATION: true,
+            REQUEST_911_METHOD_ENFORCEMENT: true,
+            REQUEST_912_DOS_PROTECTION: true,
+            REQUEST_913_SCANNER_DETECTION: true,
+            REQUEST_920_PROTOCOL_ENFORCEMENT: true,
+            REQUEST_921_PROTOCOL_ATTACK: true,
+            REQUEST_930_APPLICATION_ATTACK_LFI: true,
+            REQUEST_931_APPLICATION_ATTACK_RFI: true,
+            REQUEST_932_APPLICATION_ATTACK_RCE: true,
+            REQUEST_933_APPLICATION_ATTACK_PHP: true,
+            REQUEST_934_APPLICATION_ATTACK_NODEJS: true,
+            REQUEST_941_APPLICATION_ATTACK_XSS: true,
+            REQUEST_942_APPLICATION_ATTACK_SQLI: true,
+            REQUEST_943_APPLICATION_ATTACK_SESSION_FIXATION: true,
+            REQUEST_944_APPLICATION_ATTACK_JAVA: true,
+            REQUEST_949_BLOCKING_EVALUATION: true,
+            RESPONSE_950_DATA_LEAKAGES: true,
+            RESPONSE_951_DATA_LEAKAGES_SQL: true,
+            RESPONSE_952_DATA_LEAKAGES_JAVA: true,
+            RESPONSE_953_DATA_LEAKAGES_PHP: true,
+            RESPONSE_954_DATA_LEAKAGES_IIS: true,
+            RESPONSE_959_BLOCKING_EVALUATION: true,
+            RESPONSE_980_CORRELATION: true,
+          },
           rateLimiting: { enabled: false, requestsPerMinute: 60, requestsPerHour: 1000, burstSize: 10 },
           ipAccessControl: { enabled: false, whitelist: [], blacklist: [], whitelistCIDR: [], blacklistCIDR: [] },
           geoBlocking: { enabled: false, blockedCountries: [], allowedCountries: [] },
@@ -237,10 +264,10 @@ export default function PoliciesPage() {
           botDetection: { enabled: false, userAgentFiltering: true, botSignatureDetection: true, crawlerBlocking: false },
           advancedFileUpload: { enabled: false, mimeTypeValidation: true, maxFileSize: 10485760, allowedExtensions: [], blockedExtensions: [] },
           apiProtection: { enabled: false, apiKeyValidation: false, oauthValidation: false, jwtValidation: false },
+          exceptionHandling: { enabled: false, excludedPaths: [], excludedRules: [] },
+          virtualPatching: { enabled: false, cveRules: [] },
           applicationId: '',
-          deployAfterCreate: false,
         });
-        setSelectedNodes([]);
         setActiveTab('basic');
         setShowForm(false);
         fetchPolicies();
@@ -514,7 +541,6 @@ export default function PoliciesPage() {
               onClick={() => {
                 setShowForm(false);
                 setActiveTab('basic');
-                setSelectedNodes([]);
               }}
             ></div>
             
@@ -532,7 +558,6 @@ export default function PoliciesPage() {
                     onClick={() => {
                       setShowForm(false);
                       setActiveTab('basic');
-                      setSelectedNodes([]);
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
@@ -629,8 +654,8 @@ export default function PoliciesPage() {
                   {[
                     { id: 'basic', name: 'Basic Protections', icon: '🛡️' },
                     { id: 'owasp', name: 'OWASP Top 10', icon: '🔒' },
+                    { id: 'owaspCRS', name: 'OWASP CRS', icon: '🟢' },
                     { id: 'advanced', name: 'Advanced Features', icon: '⚡' },
-                    { id: 'deploy', name: 'Deployment', icon: '🚀' },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -774,10 +799,74 @@ export default function PoliciesPage() {
                   </div>
                 )}
 
+                {/* OWASP CRS Tab */}
+                {activeTab === 'owaspCRS' && (
+                  <div className="space-y-6">
+                    {/* OWASP CRS Rule Sets */}
+                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-gray-900 mb-1">OWASP Core Rule Set (CRS) 3.3.0</h3>
+                          <p className="text-xs text-gray-600">Select which OWASP CRS rule sets to enable (all enabled by default)</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allEnabled = Object.values(formData.owaspCRSRules).every(v => v === true);
+                            const newRules = {};
+                            allSecurityRules.owaspCRS.rules.forEach((rule) => {
+                              const key = rule.name.replace(/-/g, '_');
+                              newRules[key] = !allEnabled;
+                            });
+                            setFormData({
+                              ...formData,
+                              owaspCRSRules: newRules
+                            });
+                          }}
+                          className="text-xs px-3 py-1.5 bg-white border border-green-300 rounded-md text-green-700 hover:bg-green-50 transition-colors"
+                        >
+                          {Object.values(formData.owaspCRSRules).every(v => v === true) ? 'Deselect All' : 'Select All'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
+                        {allSecurityRules.owaspCRS.rules.map((rule, index) => {
+                          const ruleKey = rule.name.replace(/-/g, '_');
+                          return (
+                            <label key={index} className="flex items-start p-3 bg-white border border-green-200 rounded-lg hover:bg-green-50 cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                checked={formData.owaspCRSRules[ruleKey] !== undefined ? formData.owaspCRSRules[ruleKey] : true}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  owaspCRSRules: {
+                                    ...formData.owaspCRSRules,
+                                    [ruleKey]: e.target.checked
+                                  }
+                                })}
+                              />
+                              <div className="ml-3 flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900">{rule.name}</div>
+                                <div className="text-xs text-gray-500 mt-1">{rule.description}</div>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Advanced Features Tab */}
                 {activeTab === 'advanced' && (
                   <div className="space-y-6">
-                    {/* IP Access Control */}
+                    {/* Advanced Security Features Section Header */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-1">Advanced Security Features</h3>
+                      <p className="text-xs text-gray-600 mb-4">Enterprise-grade advanced security capabilities</p>
+                    </div>
+
+                    {/* 1. IP Access Control */}
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <label className="flex items-center mb-3">
                         <input
@@ -789,10 +878,12 @@ export default function PoliciesPage() {
                             ipAccessControl: { ...formData.ipAccessControl, enabled: e.target.checked }
                           })}
                         />
-                        <span className="ml-2 text-sm font-medium text-gray-900">IP Access Control</span>
+                        <span className="ml-2 text-lg mr-2">🛡️</span>
+                        <span className="text-sm font-medium text-gray-900">IP Access Control</span>
                       </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">IP whitelisting/blacklisting with CIDR block support</p>
                       {formData.ipAccessControl.enabled && (
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-3 space-y-3 ml-8">
                           <div>
                             <label className="block text-xs text-gray-600 mb-1">Whitelist IPs (comma-separated)</label>
                             <input
@@ -827,7 +918,112 @@ export default function PoliciesPage() {
                       )}
                     </div>
 
-                    {/* Bot Detection */}
+                    {/* 2. Geographic Blocking */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.geoBlocking.enabled}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            geoBlocking: { ...formData.geoBlocking, enabled: e.target.checked }
+                          })}
+                        />
+                        <span className="ml-2 text-lg mr-2">🌍</span>
+                        <span className="text-sm font-medium text-gray-900">Geographic Blocking</span>
+                      </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">Country-based access control with GeoIP integration</p>
+                      {formData.geoBlocking.enabled && (
+                        <div className="mt-3 space-y-3 ml-8">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Blocked Countries (comma-separated country codes)</label>
+                            <input
+                              type="text"
+                              placeholder="CN, RU, KP"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                geoBlocking: {
+                                  ...formData.geoBlocking,
+                                  blockedCountries: e.target.value.split(',').map(c => c.trim().toUpperCase()).filter(c => c)
+                                }
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Allowed Countries (comma-separated country codes, empty = all)</label>
+                            <input
+                              type="text"
+                              placeholder="US, CA, GB"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                geoBlocking: {
+                                  ...formData.geoBlocking,
+                                  allowedCountries: e.target.value.split(',').map(c => c.trim().toUpperCase()).filter(c => c)
+                                }
+                              })}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Advanced Rate Limiting */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.advancedRateLimiting.enabled}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            advancedRateLimiting: { ...formData.advancedRateLimiting, enabled: e.target.checked }
+                          })}
+                        />
+                        <span className="ml-2 text-lg mr-2">⚡</span>
+                        <span className="text-sm font-medium text-gray-900">Advanced Rate Limiting</span>
+                      </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">Per-endpoint, per-user, and adaptive rate limiting</p>
+                      {formData.advancedRateLimiting.enabled && (
+                        <div className="mt-3 space-y-2 ml-8">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={formData.advancedRateLimiting.adaptive}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                advancedRateLimiting: { ...formData.advancedRateLimiting, adaptive: e.target.checked }
+                              })}
+                            />
+                            <span className="ml-2 text-xs text-gray-700">Adaptive Rate Limiting</span>
+                          </label>
+                          <div className="mt-2">
+                            <label className="block text-xs text-gray-600 mb-1">Per-Endpoint Rules (JSON format: {"{"}"endpoint": "requests_per_minute"{"}"})</label>
+                            <textarea
+                              placeholder='{"\/api\/users": 100, "\/api\/admin": 50}'
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border font-mono text-xs"
+                              rows={3}
+                              onChange={(e) => {
+                                try {
+                                  const parsed = JSON.parse(e.target.value);
+                                  setFormData({
+                                    ...formData,
+                                    advancedRateLimiting: { ...formData.advancedRateLimiting, perEndpoint: parsed }
+                                  });
+                                } catch (err) {
+                                  // Invalid JSON, keep previous value
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. Bot Detection & Mitigation */}
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <label className="flex items-center mb-3">
                         <input
@@ -839,10 +1035,12 @@ export default function PoliciesPage() {
                             botDetection: { ...formData.botDetection, enabled: e.target.checked }
                           })}
                         />
-                        <span className="ml-2 text-sm font-medium text-gray-900">Bot Detection & Mitigation</span>
+                        <span className="ml-2 text-lg mr-2">🤖</span>
+                        <span className="text-sm font-medium text-gray-900">Bot Detection & Mitigation</span>
                       </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">User-Agent filtering, bot signature detection, crawler blocking</p>
                       {formData.botDetection.enabled && (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-2 ml-8">
                           <label className="flex items-center">
                             <input
                               type="checkbox"
@@ -854,6 +1052,18 @@ export default function PoliciesPage() {
                               })}
                             />
                             <span className="ml-2 text-xs text-gray-700">User-Agent Filtering</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={formData.botDetection.botSignatureDetection}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                botDetection: { ...formData.botDetection, botSignatureDetection: e.target.checked }
+                              })}
+                            />
+                            <span className="ml-2 text-xs text-gray-700">Bot Signature Detection</span>
                           </label>
                           <label className="flex items-center">
                             <input
@@ -871,7 +1081,83 @@ export default function PoliciesPage() {
                       )}
                     </div>
 
-                    {/* API Protection */}
+                    {/* 5. Advanced File Upload Validation */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.advancedFileUpload.enabled}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            advancedFileUpload: { ...formData.advancedFileUpload, enabled: e.target.checked }
+                          })}
+                        />
+                        <span className="ml-2 text-lg mr-2">📁</span>
+                        <span className="text-sm font-medium text-gray-900">Advanced File Upload Validation</span>
+                      </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">MIME type validation, content scanning, magic bytes</p>
+                      {formData.advancedFileUpload.enabled && (
+                        <div className="mt-3 space-y-3 ml-8">
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={formData.advancedFileUpload.mimeTypeValidation}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                advancedFileUpload: { ...formData.advancedFileUpload, mimeTypeValidation: e.target.checked }
+                              })}
+                            />
+                            <span className="ml-2 text-xs text-gray-700">MIME Type Validation</span>
+                          </label>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Max File Size (bytes)</label>
+                            <input
+                              type="number"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              value={formData.advancedFileUpload.maxFileSize}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                advancedFileUpload: { ...formData.advancedFileUpload, maxFileSize: parseInt(e.target.value) || 10485760 }
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Allowed Extensions (comma-separated)</label>
+                            <input
+                              type="text"
+                              placeholder="jpg, png, pdf, docx"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                advancedFileUpload: {
+                                  ...formData.advancedFileUpload,
+                                  allowedExtensions: e.target.value.split(',').map(ext => ext.trim().toLowerCase()).filter(ext => ext)
+                                }
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Blocked Extensions (comma-separated)</label>
+                            <input
+                              type="text"
+                              placeholder="exe, bat, sh, php"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                advancedFileUpload: {
+                                  ...formData.advancedFileUpload,
+                                  blockedExtensions: e.target.value.split(',').map(ext => ext.trim().toLowerCase()).filter(ext => ext)
+                                }
+                              })}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 6. API-Specific Protections */}
                     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <label className="flex items-center mb-3">
                         <input
@@ -883,10 +1169,12 @@ export default function PoliciesPage() {
                             apiProtection: { ...formData.apiProtection, enabled: e.target.checked }
                           })}
                         />
-                        <span className="ml-2 text-sm font-medium text-gray-900">API-Specific Protections</span>
+                        <span className="ml-2 text-lg mr-2">🔑</span>
+                        <span className="text-sm font-medium text-gray-900">API-Specific Protections</span>
                       </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">API key validation, OAuth/JWT validation, API versioning</p>
                       {formData.apiProtection.enabled && (
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-3 space-y-2 ml-8">
                           <label className="flex items-center">
                             <input
                               type="checkbox"
@@ -903,6 +1191,18 @@ export default function PoliciesPage() {
                             <input
                               type="checkbox"
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={formData.apiProtection.oauthValidation}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                apiProtection: { ...formData.apiProtection, oauthValidation: e.target.checked }
+                              })}
+                            />
+                            <span className="ml-2 text-xs text-gray-700">OAuth Validation</span>
+                          </label>
+                          <label className="flex items-center">
+                            <input
+                              type="checkbox"
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               checked={formData.apiProtection.jwtValidation}
                               onChange={(e) => setFormData({
                                 ...formData,
@@ -914,58 +1214,96 @@ export default function PoliciesPage() {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
 
-                {/* Deployment Tab */}
-                {activeTab === 'deploy' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="flex items-center mb-4">
+                    {/* 7. Exception Handling */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center mb-3">
                         <input
                           type="checkbox"
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          checked={formData.deployAfterCreate}
-                          onChange={(e) => setFormData({ ...formData, deployAfterCreate: e.target.checked })}
+                          checked={formData.exceptionHandling.enabled}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            exceptionHandling: { ...formData.exceptionHandling, enabled: e.target.checked }
+                          })}
                         />
-                        <span className="ml-2 text-sm font-medium text-gray-900">Deploy immediately after creation</span>
+                        <span className="ml-2 text-lg mr-2">⚙️</span>
+                        <span className="text-sm font-medium text-gray-900">Exception Handling</span>
                       </label>
-                      {formData.deployAfterCreate && (
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-3">
-                            Select WAF Nodes to Deploy To
-                          </label>
-                          {nodes.length === 0 ? (
-                            <p className="text-sm text-gray-500">No nodes available. Please create nodes first.</p>
-                          ) : (
-                            <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                              {nodes.map((node) => (
-                                <label key={node.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    checked={selectedNodes.includes(node.id)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedNodes([...selectedNodes, node.id]);
-                                      } else {
-                                        setSelectedNodes(selectedNodes.filter(id => id !== node.id));
-                                      }
-                                    }}
-                                  />
-                                  <div className="ml-3 flex-1">
-                                    <div className="text-sm font-medium text-gray-900">{node.name}</div>
-                                    <div className="text-xs text-gray-500">{node.ipAddress}</div>
-                                  </div>
-                                </label>
-                              ))}
-                            </div>
-                          )}
+                      <p className="text-xs text-gray-600 ml-8 mb-3">Path-based rule exclusions and wildcard support</p>
+                      {formData.exceptionHandling.enabled && (
+                        <div className="mt-3 space-y-3 ml-8">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Excluded Paths (comma-separated, supports wildcards)</label>
+                            <input
+                              type="text"
+                              placeholder="/api/health, /static/*, /admin/*"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                exceptionHandling: {
+                                  ...formData.exceptionHandling,
+                                  excludedPaths: e.target.value.split(',').map(p => p.trim()).filter(p => p)
+                                }
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Excluded Rule IDs (comma-separated)</label>
+                            <input
+                              type="text"
+                              placeholder="942100, 941100, 932100"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                exceptionHandling: {
+                                  ...formData.exceptionHandling,
+                                  excludedRules: e.target.value.split(',').map(r => r.trim()).filter(r => r)
+                                }
+                              })}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 8. Virtual Patching */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.virtualPatching.enabled}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            virtualPatching: { ...formData.virtualPatching, enabled: e.target.checked }
+                          })}
+                        />
+                        <span className="ml-2 text-lg mr-2">🔧</span>
+                        <span className="text-sm font-medium text-gray-900">Virtual Patching</span>
+                      </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">CVE-specific rules for zero-day protection</p>
+                      {formData.virtualPatching.enabled && (
+                        <div className="mt-3 ml-8">
+                          <label className="block text-xs text-gray-600 mb-1">CVE Rules (comma-separated CVE IDs)</label>
+                          <input
+                            type="text"
+                            placeholder="CVE-2023-1234, CVE-2023-5678"
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              virtualPatching: {
+                                ...formData.virtualPatching,
+                                cveRules: e.target.value.split(',').map(cve => cve.trim().toUpperCase()).filter(cve => cve)
+                              }
+                            })}
+                          />
                         </div>
                       )}
                     </div>
                   </div>
                 )}
+
               </div>
 
                       {/* Form Actions */}
@@ -975,7 +1313,6 @@ export default function PoliciesPage() {
                           onClick={() => {
                             setShowForm(false);
                             setActiveTab('basic');
-                            setSelectedNodes([]);
                           }}
                           className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
@@ -1023,7 +1360,7 @@ export default function PoliciesPage() {
                       </span>
                     </div>
                     <div>
-                      Step {activeTab === 'basic' ? '1' : activeTab === 'owasp' ? '2' : activeTab === 'advanced' ? '3' : '4'} of 4
+                      Step {activeTab === 'basic' ? '1' : activeTab === 'owasp' ? '2' : activeTab === 'owaspCRS' ? '3' : activeTab === 'advanced' ? '4' : '1'} of 4
                     </div>
                   </div>
                 </div>

@@ -6,7 +6,7 @@
 **Target Completion**: 5-6 months from start  
 **Total Duration**: 24 weeks (6 months) / 20 weeks (5 months compressed)
 
-**Current Status**: Phase 3 is 85% complete, Phase 4 is critical and not started
+**Current Status**: Phase 3 is 90% complete, Phase 4 proxy server core is 60% complete (ModSecurity integration needed)
 
 ---
 
@@ -14,7 +14,7 @@
 
 ```
 PHASE 3: Web Dashboard          [████████] Weeks 1-4
-PHASE 4: Agent & Orchestration [████████████████] Weeks 2-8
+PHASE 4: Proxy WAF Server      [████████████████] Weeks 2-8
 PHASE 5: Centralized Logging   [████████████████████] Weeks 5-14
 PHASE 6: Innovation Features   [████████████████] Weeks 13-20
 PHASE 7: Security & QA         [████████████████████████] Weeks 9-24 (Ongoing)
@@ -32,8 +32,8 @@ Phase 8:                              [████████████]
 
 **Key Milestones:**
 - **Week 4**: Phase 3 Complete (Dashboard ready)
-- **Week 6**: Agent MVP Ready (Nodes can connect)
-- **Week 8**: Phase 4 Complete (Production agent)
+- **Week 6**: Proxy Server MVP Ready (ModSecurity integrated)
+- **Week 8**: Phase 4 Complete (Production proxy server)
 - **Week 12**: Logging & Alerts Operational
 - **Week 16**: Security Testing Complete
 - **Week 20**: Innovation Features Complete
@@ -53,10 +53,10 @@ Week 2:   Deployment History View    [████████] 1 week
 Week 3:   API Key Auth Fix            [████████] 1 week
 Week 3-4: Attack Analytics (Basic)    [████████] 1 week
 
-PHASE 4: Agent & Orchestration (START)
-Week 2:   Agent Architecture Design  [████████] 1 week
-Week 3-4: API Key Generation          [████████] 1 week
-Week 3-4: MVP Agent Development        [████████████████] 2 weeks
+PHASE 4: Proxy WAF Server (START)
+Week 2:   ModSecurity Integration Design [████████] 1 week
+Week 3-4: ModSecurity v3 Integration      [████████████████] 2 weeks
+Week 3-4: Request/Response Inspection     [████████████████] 2 weeks
 
 MILESTONE M1: Phase 3 Complete (Week 4)
 ```
@@ -64,20 +64,20 @@ MILESTONE M1: Phase 3 Complete (Week 4)
 ### Month 2 (Weeks 5-8) - Agent Development & Logging Start
 
 ```
-PHASE 4: Agent & Orchestration (CONTINUE)
-Week 5-6: Heartbeat Mechanism        [████████████] 1.5 weeks
-Week 5-6: Config Polling & Sync      [████████████] 1.5 weeks
-Week 7:   Safe Reload Mechanism      [████████] 1 week
-Week 7:   Error Handling & Retry     [████████] 1 week
-Week 8:   Log Forwarding             [████████] 1 week
-Week 8:   Agent Installer/Packaging  [████████] 1 week
+PHASE 4: Proxy WAF Server (CONTINUE)
+Week 5-6: SSL/TLS Termination        [████████████] 1.5 weeks
+Week 5-6: Certificate Management     [████████████] 1.5 weeks
+Week 7:   Advanced Proxy Features    [████████] 1 week
+Week 7:   Rate Limiting & DDoS       [████████] 1 week
+Week 8:   Production Deployment      [████████] 1 week
+Week 8:   Monitoring & Metrics       [████████] 1 week
 
 PHASE 5: Centralized Logging (START - Parallel)
 Week 5-6: ModSecurity Log Parser     [████████████] 2 weeks
 Week 7-8: Log Normalization          [████████] 1 week
 Week 7-8: Basic Log Dashboard        [████████████] 2 weeks
 
-MILESTONE M2: Agent MVP Ready (Week 6)
+MILESTONE M2: Proxy Server MVP Ready (Week 6)
 MILESTONE M3: Phase 4 Complete (Week 8)
 ```
 
@@ -214,20 +214,20 @@ MILESTONE M13: Production Ready (Week 24)
 
 ---
 
-### **Phase 4: Agent & Orchestration** (Weeks 2-8)
+### **Phase 4: Proxy WAF Server** (Weeks 2-8)
 
 | Task | Duration | Dependencies | Resources |
 |------|----------|--------------|-----------|
-| Agent Architecture Design | 1 week | API Key Auth | Backend Dev, DevOps |
-| MVP Agent (Python/Go) | 2 weeks | Architecture Design | Backend Dev |
-| API Key Generation | 1 week | Node Registration API | Backend Dev |
-| Heartbeat Mechanism | 1.5 weeks | MVP Agent | Backend Dev |
-| Config Polling & Sync | 1.5 weeks | MVP Agent | Backend Dev |
-| Safe Reload Mechanism | 1 week | Config Sync | Backend Dev |
-| Error Handling & Retry | 1 week | Core Features | Backend Dev |
-| Log Forwarding | 1 week | Core Features | Backend Dev |
-| Agent Installer/Packaging | 1 week | Agent Complete | DevOps |
-| Agent Documentation | 1 week | Agent Complete | Technical Writer |
+| ModSecurity Integration Design | 1 week | Proxy Server Core | Backend Dev |
+| ModSecurity v3 Integration | 2 weeks | Integration Design | Backend Dev |
+| Request/Response Inspection | 2 weeks | ModSecurity Integration | Backend Dev |
+| SSL/TLS Termination | 1.5 weeks | Proxy Server Core | Backend Dev |
+| Certificate Management | 1.5 weeks | SSL/TLS Termination | Backend Dev |
+| Advanced Proxy Features | 1 week | Core Features | Backend Dev |
+| Rate Limiting & DDoS Protection | 1 week | Core Features | Backend Dev |
+| Production Deployment Setup | 1 week | All Features | DevOps |
+| Monitoring & Metrics | 1 week | Production Setup | Backend Dev |
+| Proxy Server Documentation | 1 week | Server Complete | Technical Writer |
 
 **Total: 6 weeks (weeks 2-8, overlaps with Phase 3)**
 
@@ -534,10 +534,11 @@ Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
 - ✅ API keys are properly validated
 
 ### **Phase 4 Complete When:**
-- ✅ Agent successfully connects to dashboard
-- ✅ Agent receives and applies ModSecurity configs
-- ✅ Agent sends health reports and logs
-- ✅ Agent can be installed via package/installer
+- ✅ Proxy server successfully connects to dashboard
+- ✅ Proxy server fetches application configs automatically
+- ✅ ModSecurity inspects and blocks attacks
+- ✅ SSL/TLS termination works
+- ✅ Proxy server can be deployed in production
 
 ### **Phase 5 Complete When:**
 - ✅ Logs are normalized and searchable
@@ -565,8 +566,8 @@ Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
 
 | Phase | Duration | Start Week | End Week | Key Deliverables | Dependencies |
 |-------|----------|------------|----------|------------------|--------------|
-| **Phase 3** | 4 weeks | 1 | 4 | Rule testing UI, logs page, API key auth | None |
-| **Phase 4** | 6 weeks | 2 | 8 | Production-ready agent, installer | Phase 3 (API keys) |
+| **Phase 3** | 4 weeks | 1 | 4 | Rule testing UI, logs page, application management | None |
+| **Phase 4** | 6 weeks | 2 | 8 | Production-ready proxy server, ModSecurity integration | Phase 3 (Applications) |
 | **Phase 5** | 8 weeks | 5 | 14 | Log dashboards, alerts, analytics | Phase 4 (agents) |
 | **Phase 6** | 8 weeks | 13 | 20 | Templates, staging, threat intel | Phase 5 (analytics) |
 | **Phase 7** | 14 weeks | 9 | 24 | Security review, pen testing, DR | Ongoing |
@@ -595,16 +596,16 @@ Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
    - Status tracking
    - Rollback UI
 
-### **Priority 2: Start Phase 4 (Week 2)**
-1. **Week 2**: Agent Architecture Design
-   - Choose technology stack (Python/Go recommended)
-   - Design communication protocol
-   - Plan config management
+### **Priority 2: Complete Phase 4 (Week 2-8)**
+1. **Week 2**: ModSecurity Integration Design
+   - Choose ModSecurity v3 library
+   - Design request/response inspection flow
+   - Plan performance optimization
    
-2. **Week 3-4**: Begin MVP Agent
-   - Basic connection to dashboard
-   - Heartbeat mechanism
-   - Config polling
+2. **Week 3-4**: ModSecurity Integration
+   - Integrate ModSecurity v3
+   - Implement request inspection
+   - Test with attack scenarios
 
 ## Success Metrics
 
