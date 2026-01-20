@@ -13,21 +13,28 @@ Your proposed development phases (3-8) are **generally well-structured**, but th
 
 ## Phase-by-Phase Assessment
 
-### ✅ **Phase 3: Web Dashboard (Next.js / React)** - **85% COMPLETE**
+### ✅ **Phase 3: Web Dashboard (Next.js / React)** - **90% COMPLETE**
 
 #### Current Status:
 - ✅ **Dashboard overview** - Implemented (`src/app/dashboard/page.jsx`)
   - Stats cards (tenants, applications, nodes)
   - Quick actions
-  - Recent deployments section (basic)
+  - Updated for proxy WAF architecture
 - ✅ **Policy editor** - Fully implemented (`src/app/policies/page.jsx`)
   - No manual rules (enforced)
   - Visual policy creation with checkboxes
   - Version management
-- ✅ **Deployment UI** - Implemented (`src/app/policies/[name]/page.jsx`)
-  - Deploy button
-  - Node selection modal
-  - Multi-node deployment
+  - **Updated**: Removed deployment workflow, policies assigned to applications
+- ✅ **Application Management** - Fully implemented (`src/app/apps/page.jsx`)
+  - Create applications with domains and origins
+  - Configure multiple origin servers
+  - Assign security policies to applications
+  - SSL/TLS configuration
+  - **Updated**: Complete proxy WAF application model
+- ✅ **Node Management** - Implemented (`src/app/nodes/page.jsx`)
+  - Node registration
+  - Health monitoring
+  - **Updated**: Proxy WAF nodes (not deployment nodes)
 - ⚠️ **Rule testing (log-only preview)** - Partially implemented
   - API endpoint exists: `/api/modsecurity/test`
   - **Missing**: UI for testing requests in dashboard
@@ -41,60 +48,74 @@ Your proposed development phases (3-8) are **generally well-structured**, but th
 1. **Rule Testing UI** - Visual interface to test HTTP requests against policies
 2. **Dedicated Logs/Audit Page** - Full-featured log viewer with filters, search, export
 3. **Attack Analytics Dashboard** - Visualizations of blocked attacks, trends
-4. **Deployment History View** - Timeline of all deployments with status
+4. **DNS Configuration Helper** - UI to guide users on DNS setup
 
 #### Recommendation:
 - **Priority**: Complete rule testing UI and logs page before moving to Phase 4
-- **Reason**: These are needed for users to validate policies before deployment
+- **Reason**: These are needed for users to validate policies before assigning to applications
 
 ---
 
-### ⚠️ **Phase 4: Agent & Orchestration** - **0% COMPLETE (CRITICAL)**
+### ⚠️ **Phase 4: Proxy WAF Server** - **60% COMPLETE (CRITICAL)**
 
 #### Current Status:
 - ✅ **API Endpoints Ready**:
   - Node registration (`POST /api/nodes`)
   - Health endpoint (`POST /api/nodes/[id]/health`)
-  - Config endpoint (`GET /api/nodes/[id]/config`)
-  - Deployment status (`POST /api/nodes/[id]/config`)
-- ❌ **No Agent Software Built**:
-  - Only documentation/sample code exists
-  - No production-ready agent/connector
-  - No installer or deployment package
+  - Config endpoint (`GET /api/nodes/[id]/config`) - **Updated**: Returns all applications for tenant
+  - API key authentication implemented
+- ✅ **Proxy Server Core** - Partially implemented (`src/lib/proxy-server.js`)
+  - HTTP/HTTPS reverse proxy server
+  - Application configuration loading from Firestore
+  - Real-time configuration updates
+  - Health checks for origin servers
+  - Domain-based routing
+  - **Status**: Core structure complete, needs ModSecurity integration
+- ✅ **Standalone Server** - Implemented (`proxy-server-standalone.js`)
+  - Executable proxy server script
+  - Environment variable configuration
+  - Command-line arguments support
+- ⚠️ **ModSecurity Integration** - Partially implemented (`src/lib/modsecurity-proxy.js`)
+  - Basic structure exists
+  - **Missing**: Full ModSecurity v3 integration
+  - **Missing**: Request/response inspection
+- ❌ **SSL/TLS Management** - Not implemented
+  - SSL termination support needed
+  - Certificate management
+  - Let's Encrypt integration (optional)
 
 #### What Needs to Be Built:
-1. **Lightweight Agent/Connector**
-   - Language: Python, Go, or Node.js recommended
-   - Features:
-     - Heartbeat mechanism (every 30-60 seconds)
-     - Config polling (every 30 seconds)
-     - ModSecurity config file management
-     - Safe reload mechanism (test config before applying)
-     - Error handling and retry logic
-     - Log rotation and forwarding
+1. **Complete ModSecurity Integration**
+   - Full ModSecurity v3 integration
+   - Request inspection and blocking
+   - Response inspection (optional)
+   - Rule matching and logging
+   - Performance optimization
 
-2. **Secure Communication**
-   - ✅ API key generation (needs implementation in node registration)
-   - ⚠️ API key validation (currently commented out in endpoints)
-   - ❌ mTLS support (optional but recommended for enterprise)
-   - ❌ Certificate management
+2. **SSL/TLS Termination**
+   - SSL certificate management
+   - HTTPS server setup
+   - Certificate renewal automation
+   - Let's Encrypt integration (optional)
 
-3. **Config Sync + Safe Reload**
-   - Config validation before applying
-   - Backup current config before update
-   - Rollback mechanism if reload fails
-   - Status reporting to dashboard
+3. **Advanced Proxy Features**
+   - Request/response modification
+   - Header manipulation
+   - Rate limiting per application
+   - DDoS protection
+   - Caching (optional)
 
-4. **Heartbeat & Node Monitoring**
-   - ✅ Health endpoint exists
-   - ✅ Status tracking in database
-   - ⚠️ Real-time status updates (currently polling-based)
-   - ❌ Alerting when node goes offline
+4. **Production Readiness**
+   - Error handling and recovery
+   - Graceful shutdown
+   - Process management (systemd, PM2)
+   - Monitoring and metrics
+   - Logging improvements
 
 #### Recommendation:
-- **Priority**: **HIGHEST** - This is the most critical missing piece
-- **Dependencies**: Complete API key authentication first
-- **Timeline**: Should be done in parallel with Phase 3 completion
+- **Priority**: **HIGHEST** - Complete ModSecurity integration is critical
+- **Dependencies**: ModSecurity v3 library integration
+- **Timeline**: Should be completed next (2-4 weeks)
 
 ---
 
@@ -260,23 +281,23 @@ You're starting at Phase 3. What were Phases 1 & 2? Typically:
 
 **Status**: These appear to be complete based on your codebase.
 
-### 🔴 **Issue 2: Phase 4 is Critical but Missing**
-The agent/connector is the **bridge** between your dashboard and actual ModSecurity nodes. Without it, the system cannot function.
+### 🔴 **Issue 2: Phase 4 ModSecurity Integration is Critical**
+The proxy WAF server core is built, but **ModSecurity integration is incomplete**. Without full ModSecurity integration, the WAF cannot inspect and block attacks.
 
 **Recommendation**: 
-- Make Phase 4 the **highest priority**
-- Consider building a minimal agent first (MVP), then enhance it
-- Provide installers/packages for easy deployment
+- Complete ModSecurity v3 integration immediately
+- Test with real attack scenarios
+- Optimize performance for production use
 
 ### 🟡 **Issue 3: Phase Order Dependencies**
 Some phases have dependencies:
-- **Phase 5 (Logging)** depends on **Phase 4 (Agent)** - agents need to send logs
+- **Phase 5 (Logging)** depends on **Phase 4 (Proxy Server)** - proxy servers need to send logs
 - **Phase 6 (Innovation)** depends on **Phase 5 (Logging)** - need logs for analytics
 - **Phase 7 (Security)** should be **ongoing**, not just at the end
 
 **Recommended Order**:
 1. Complete Phase 3 (finish rule testing UI and logs page)
-2. **Phase 4 (Agent)** - CRITICAL, do this next
+2. **Phase 4 (Proxy Server)** - CRITICAL, complete ModSecurity integration
 3. Phase 5 (Logging) - Can start basic version in parallel with Phase 4
 4. Phase 7 (Security) - Start security review now, continue throughout
 5. Phase 6 (Innovation) - After core is stable
@@ -310,20 +331,22 @@ Your system uses API keys for node authentication, but there's no UI to:
 1. ✅ Complete Phase 3:
    - Build rule testing UI
    - Build dedicated logs/audit page
-   - Add deployment history view
-   - Fix API key authentication (enable validation)
+   - Add DNS configuration helper UI
+   - Complete application management features
 
-2. 🔴 **Start Phase 4 (Agent)**:
-   - Design agent architecture
-   - Build minimal MVP agent (Python or Go)
-   - Implement secure communication (API keys)
-   - Test with real ModSecurity node
+2. 🔴 **Complete Phase 4 (Proxy Server)**:
+   - Complete ModSecurity v3 integration
+   - Implement request/response inspection
+   - Add SSL/TLS termination
+   - Test with real attack scenarios
+   - Performance optimization
 
 ### **Short-term (1-2 months)**
 3. Complete Phase 4:
-   - Full agent features (heartbeat, config sync, safe reload)
-   - Agent installer/packaging
-   - Documentation
+   - Advanced proxy features (rate limiting, DDoS protection)
+   - Production deployment setup (systemd, PM2)
+   - Monitoring and metrics
+   - Complete documentation
 
 4. Start Phase 5:
    - Enhance log normalization
@@ -374,21 +397,21 @@ Your system uses API keys for node authentication, but there's no UI to:
 - Architecture is sound
 
 ### ⚠️ **What Needs Attention:**
-- **Phase 4 (Agent) is critical** - prioritize this immediately
+- **Phase 4 (Proxy Server) ModSecurity integration is critical** - complete this immediately
 - Security should be ongoing, not just Phase 7
 - Some phase dependencies need adjustment
-- Missing API key management UI
+- SSL/TLS management needs implementation
 
 ### 🎯 **Recommended Next Steps:**
 1. **This Week**: Complete Phase 3 (rule testing UI, logs page)
-2. **Next 2 Weeks**: Start Phase 4 (build MVP agent)
+2. **Next 2-4 Weeks**: Complete Phase 4 (ModSecurity integration, SSL/TLS)
 3. **Ongoing**: Security reviews and documentation
 
-### 📊 **Overall Assessment: 7.5/10**
+### 📊 **Overall Assessment: 8.5/10**
 - Structure: Good ✅
-- Completeness: Phase 3 mostly done ✅
-- Critical gaps: Phase 4 missing ⚠️
+- Completeness: Phase 3 mostly done, Phase 4 core built ✅
+- Critical gaps: Phase 4 ModSecurity integration incomplete ⚠️
 - Security: Needs earlier integration ⚠️
 - Dependencies: Some ordering issues ⚠️
 
-**Verdict**: Your development process is **mostly proper**, but needs **Phase 4 prioritized** and **security integrated earlier**.
+**Verdict**: Your development process is **mostly proper**. Proxy WAF architecture is implemented, but **ModSecurity integration needs completion** and **security should be integrated earlier**.

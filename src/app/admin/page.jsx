@@ -63,7 +63,7 @@ export default function SuperAdminPage() {
   });
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
-  const [activity, setActivity] = useState({ deployments: [], logs: [] });
+  const [activity, setActivity] = useState({ logs: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -135,7 +135,6 @@ export default function SuperAdminPage() {
       setTenants(tenantsData || []);
       setUsers(usersData || []);
       setActivity({
-        deployments: activityData.deployments || [],
         logs: activityData.logs || [],
       });
       setStats(activityData.stats || {
@@ -314,18 +313,18 @@ export default function SuperAdminPage() {
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
                   <div className="space-y-3">
-                    {activity.deployments.slice(0, 5).map((deployment) => (
-                      <div key={deployment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    {activity.logs.slice(0, 5).map((log) => (
+                      <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
-                          <p className="font-medium text-gray-900">{deployment.policyName || 'Deployment'}</p>
+                          <p className="font-medium text-gray-900">{log.message || 'Log Entry'}</p>
                           <p className="text-xs text-gray-500">
-                            {deployment.tenant?.name || 'Unknown tenant'} • {new Date(deployment.deployedAt).toLocaleString()}
+                            {log.tenant?.name || 'Unknown tenant'} • {new Date(log.timestamp).toLocaleString()}
                           </p>
                         </div>
                       </div>
                     ))}
-                    {activity.deployments.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No recent deployments</p>
+                    {activity.logs.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
                     )}
                   </div>
                 </div>
@@ -453,25 +452,6 @@ export default function SuperAdminPage() {
               </div>
             ) : (
               <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Deployments</h3>
-              <div className="space-y-3">
-                {activity.deployments.map((deployment) => (
-                  <div key={deployment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{deployment.policyName || 'Policy Deployment'}</p>
-                      <p className="text-sm text-gray-500">
-                        Tenant: {deployment.tenant?.name || 'Unknown'} • {new Date(deployment.deployedAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <StatusBadge status="online" />
-                  </div>
-                ))}
-                {activity.deployments.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">No deployments found</p>
-                )}
-              </div>
-            </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Logs</h3>

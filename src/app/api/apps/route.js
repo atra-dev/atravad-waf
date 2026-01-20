@@ -32,7 +32,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, domain } = body;
+    const { name, domain, origins, ssl, routing, policyId } = body;
 
     if (!name || !domain) {
       return NextResponse.json(
@@ -41,9 +41,33 @@ export async function POST(request) {
       );
     }
 
+    // Validate origins if provided
+    if (origins && Array.isArray(origins)) {
+      for (const origin of origins) {
+        if (!origin.url) {
+          return NextResponse.json(
+            { error: 'Each origin must have a URL' },
+            { status: 400 }
+          );
+        }
+        try {
+          new URL(origin.url);
+        } catch (error) {
+          return NextResponse.json(
+            { error: `Invalid origin URL: ${origin.url}` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const appRef = await adminDb.collection('applications').add({
       name,
       domain,
+      origins: origins || [],
+      ssl: ssl || null,
+      routing: routing || { pathPrefix: '/', stripPath: false },
+      policyId: policyId || null,
       tenantName,
       createdAt: new Date().toISOString(),
       createdBy: user.uid,
@@ -53,6 +77,10 @@ export async function POST(request) {
       id: appRef.id,
       name,
       domain,
+      origins: origins || [],
+      ssl: ssl || null,
+      routing: routing || { pathPrefix: '/', stripPath: false },
+      policyId: policyId || null,
     });
   } catch (error) {
     console.error('Error creating application:', error);

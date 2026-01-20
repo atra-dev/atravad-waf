@@ -33,47 +33,12 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Get recent deployments across all tenants
-    const deploymentsSnapshot = await adminDb
-      .collection('deployments')
-      .orderBy('deployedAt', 'desc')
-      .limit(limit)
-      .get();
-
     // Get recent logs across all tenants
     const logsSnapshot = await adminDb
       .collection('logs')
       .orderBy('timestamp', 'desc')
       .limit(limit)
       .get();
-
-    // Get tenant info for each deployment
-    const deployments = await Promise.all(
-      deploymentsSnapshot.docs.map(async (doc) => {
-        const data = doc.data();
-        let tenantData = null;
-        
-        if (data.tenantName) {
-          const tenantDoc = await adminDb
-            .collection('tenants')
-            .doc(data.tenantName)
-            .get();
-          
-          if (tenantDoc.exists) {
-            tenantData = {
-              id: tenantDoc.id,
-              name: tenantDoc.data().name,
-            };
-          }
-        }
-
-        return {
-          id: doc.id,
-          ...data,
-          tenant: tenantData,
-        };
-      })
-    );
 
     // Get tenant info for each log entry
     const logs = await Promise.all(
@@ -122,7 +87,6 @@ export async function GET(request) {
     };
 
     return NextResponse.json({
-      deployments,
       logs,
       stats,
     });
