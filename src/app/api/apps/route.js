@@ -32,11 +32,42 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, domain, origins, ssl, routing, policyId } = body;
+    const {
+      name,
+      domain,
+      origins,
+      ssl,
+      routing,
+      policyId,
+      trafficMode = 'detection',
+      canaryPercent = 0,
+      bodyLimitBytes = null,
+    } = body;
 
     if (!name || !domain) {
       return NextResponse.json(
         { error: 'Name and domain are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!['off', 'detection', 'prevention'].includes(trafficMode)) {
+      return NextResponse.json(
+        { error: 'Invalid trafficMode. Use off, detection, or prevention.' },
+        { status: 400 }
+      );
+    }
+
+    if (canaryPercent < 0 || canaryPercent > 100) {
+      return NextResponse.json(
+        { error: 'canaryPercent must be between 0 and 100' },
+        { status: 400 }
+      );
+    }
+
+    if (bodyLimitBytes !== null && (isNaN(bodyLimitBytes) || bodyLimitBytes <= 0)) {
+      return NextResponse.json(
+        { error: 'bodyLimitBytes must be a positive number when provided' },
         { status: 400 }
       );
     }
@@ -68,6 +99,9 @@ export async function POST(request) {
       ssl: ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
+      trafficMode,
+      canaryPercent,
+      bodyLimitBytes,
       tenantName,
       createdAt: new Date().toISOString(),
       createdBy: user.uid,
@@ -81,6 +115,9 @@ export async function POST(request) {
       ssl: ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
+      trafficMode,
+      canaryPercent,
+      bodyLimitBytes,
     });
   } catch (error) {
     console.error('Error creating application:', error);

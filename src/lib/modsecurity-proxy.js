@@ -24,6 +24,7 @@ export class ModSecurityProxy {
     this.modSecurityPath = options.modSecurityPath || '/usr/local/bin/modsec-rules-checker';
     this.useStandalone = options.useStandalone !== false; // Use standalone ModSecurity
     this.cacheSize = options.cacheSize || 1000;
+    this.defaultMode = options.defaultMode || 'prevention';
   }
 
   /**
@@ -53,6 +54,78 @@ export class ModSecurityProxy {
   }
 
   /**
+   * Lightweight rule evaluation to approximate ModSecurity behaviour when
+   * libmodsecurity is unavailable. This keeps request flow testable in
+   * environments without native bindings.
+   */
+  evaluateRequestFallback(req, policy) {
+    const url = req.url || '';
+    const method = req.method || 'GET';
+    const headers = req.headers || {};
+    const ua = (headers['user-agent'] || '').toLowerCase();
+    const host = headers.host || '';
+    const bodyLength = Number(headers['content-length'] || 0);
+
+    const rules = [];
+    const addRule = (id, message, matchedVar, matchedData, severity = 'CRITICAL') => {
+      rules.push({ id, message, severity, matchedVar, matchedData });
+    };
+
+    // SQLi detection
+    if (policy?.sqlInjection !== false) {
+      const sqlPatterns = [
+        /(\b(SELECT|UNION|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)/i,
+        /(\bOR\b.+\=.+)/i,
+        /(--|#|;)/,
+      ];
+      if (sqlPatterns.some((p) => p.test(url))) {
+        addRule(100000, 'SQL Injection pattern detected in URL', 'REQUEST_URI', url.match(sqlPatterns.find((p) => p.test(url)))?.[0]);
+      }
+      if (sqlPatterns.some((p) => p.test(host))) {
+        addRule(100001, 'SQL Injection pattern detected in Host', 'REQUEST_HEADERS:Host', host);
+      }
+    }
+
+    // XSS detection
+    if (policy?.xss !== false) {
+      const xssPatterns = [
+        /<\s*script/gi,
+        /javascript:/i,
+        /on\w+\s*=/i,
+      ];
+      if (xssPatterns.some((p) => p.test(url))) {
+        addRule(100100, 'XSS pattern detected in URL', 'REQUEST_URI', url.match(xssPatterns.find((p) => p.test(url)))?.[0], 'CRITICAL');
+      }
+    }
+
+    // Path traversal
+    if (policy?.pathTraversal !== false && /\.\.\//.test(url)) {
+      addRule(100200, 'Path traversal detected', 'REQUEST_URI', '../');
+    }
+
+    // RCE / dangerous commands
+    if (policy?.rce !== false) {
+      const rcePatterns = [/(\b(wget|curl|bash|sh|powershell)\b)/i, /(\b(eval|exec|system|passthru)\b)/i];
+      if (rcePatterns.some((p) => p.test(url))) {
+        addRule(100300, 'Remote code execution pattern detected', 'REQUEST_URI', url.match(rcePatterns.find((p) => p.test(url)))?.[0]);
+      }
+    }
+
+    // User-Agent probes
+    if (ua.includes('sqlmap') || ua.includes('nikto') || ua.includes('nmap')) {
+      addRule(100400, 'Suspicious scanner User-Agent', 'REQUEST_HEADERS:User-Agent', headers['user-agent'], 'WARNING');
+    }
+
+    // Basic request size guard (aligns with body buffering limits)
+    if (policy?.maxBodyBytes && bodyLength > policy.maxBodyBytes) {
+      addRule(100500, `Request body exceeds limit (${bodyLength} > ${policy.maxBodyBytes})`, 'REQUEST_HEADERS:Content-Length', String(bodyLength));
+    }
+
+    const blocked = rules.some((r) => r.severity === 'CRITICAL');
+    return { matchedRules: rules, blocked };
+  }
+
+  /**
    * Inspect request using ModSecurity
    * 
    * This is a simplified implementation. In production, you would:
@@ -60,7 +133,7 @@ export class ModSecurityProxy {
    * 2. Or use ModSecurity standalone with proper request formatting
    * 3. Or use a ModSecurity HTTP API service
    */
-  async inspectRequest(req, policyId) {
+  async inspectRequest(req, policyId, overrideMode) {
     // Ensure policy is loaded
     if (!this.policies.has(policyId)) {
       await this.loadPolicy(policyId);
@@ -68,82 +141,22 @@ export class ModSecurityProxy {
     
     const policy = this.policies.get(policyId);
     
-    if (!policy || !policy.modSecurityConfig) {
-      // No policy or ModSecurity config, allow request
+    if (!policy) {
+      // No policy found, allow request
       return { allowed: true, matchedRules: [] };
     }
 
-    // For now, return a basic inspection result
-    // In production, this would call ModSecurity engine
-    // TODO: Implement actual ModSecurity integration
-    
-    // Basic pattern matching as fallback
-    const url = req.url || '';
-    const method = req.method || 'GET';
-    const headers = req.headers || {};
-    
-    // Check for obvious SQL injection patterns
-    const sqlPatterns = [
-      /(\b(SELECT|UNION|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)/i,
-      /('|(\\')|(;)|(\\;)|(\|)|(\\|)|(\*)|(\\*)|(%)|(\\%))/i,
-      /(\bOR\b.*=.*)/i,
-    ];
-    
-    const matchedRules = [];
-    let blocked = false;
-    
-    // Check URL
-    for (const pattern of sqlPatterns) {
-      if (pattern.test(url)) {
-        matchedRules.push({
-          id: 100000,
-          message: 'SQL Injection pattern detected in URL',
-          severity: 'CRITICAL',
-          matchedData: url.match(pattern)?.[0],
-          matchedVar: 'REQUEST_URI',
-        });
-        blocked = true;
-        break;
-      }
-    }
-    
-    // Check query string
-    if (url.includes('?')) {
-      const queryString = url.split('?')[1];
-      for (const pattern of sqlPatterns) {
-        if (pattern.test(queryString)) {
-          matchedRules.push({
-            id: 100001,
-            message: 'SQL Injection pattern detected in query string',
-            severity: 'CRITICAL',
-            matchedData: queryString.match(pattern)?.[0],
-            matchedVar: 'QUERY_STRING',
-          });
-          blocked = true;
-          break;
-        }
-      }
-    }
-    
-    // Check headers
-    const userAgent = headers['user-agent'] || '';
-    if (userAgent.toLowerCase().includes('sqlmap') || 
-        userAgent.toLowerCase().includes('nikto') ||
-        userAgent.toLowerCase().includes('nmap')) {
-      matchedRules.push({
-        id: 100002,
-        message: 'Suspicious User-Agent detected',
-        severity: 'WARNING',
-        matchedData: userAgent,
-        matchedVar: 'REQUEST_HEADERS:User-Agent',
-      });
-    }
+    // Fallback evaluator if native ModSecurity is unavailable
+    const result = this.evaluateRequestFallback(req, policy);
+    const mode = overrideMode || policy.mode || this.defaultMode;
+    const blocked = mode === 'prevention' ? result.blocked : false;
 
     return {
       allowed: !blocked,
       blocked,
-      matchedRules,
-      severity: blocked ? 'CRITICAL' : (matchedRules.length > 0 ? 'WARNING' : 'INFO'),
+      matchedRules: result.matchedRules,
+      severity: blocked ? 'CRITICAL' : (result.matchedRules.length > 0 ? 'WARNING' : 'INFO'),
+      mode,
     };
   }
 

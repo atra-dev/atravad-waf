@@ -13,7 +13,10 @@ export default function AppsPage() {
     domain: '',
     origins: [{ url: '', weight: 100, healthCheck: { path: '/health', interval: 30, timeout: 5 } }],
     policyId: '',
-    autoSSL: true
+    autoSSL: true,
+    trafficMode: 'detection',
+    canaryPercent: 0,
+    bodyLimitBytes: 1048576,
   });
   const [policies, setPolicies] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +83,9 @@ export default function AppsPage() {
         // Set ssl config if autoSSL is enabled (for future Let's Encrypt integration)
         ssl: formData.autoSSL ? { autoProvision: true } : null,
         routing: { pathPrefix: '/', stripPath: false },
+        trafficMode: formData.trafficMode,
+        canaryPercent: formData.canaryPercent,
+        bodyLimitBytes: formData.bodyLimitBytes,
       };
 
       const response = await fetch('/api/apps', {
@@ -94,7 +100,10 @@ export default function AppsPage() {
           domain: '',
           origins: [{ url: '', weight: 100, healthCheck: { path: '/health', interval: 30, timeout: 5 } }],
           policyId: '',
-          autoSSL: true
+          autoSSL: true,
+          trafficMode: 'detection',
+          canaryPercent: 0,
+          bodyLimitBytes: 1048576,
         });
         setShowForm(false);
         fetchApps();
@@ -165,6 +174,59 @@ export default function AppsPage() {
                     setFormData({ ...formData, name: e.target.value })
                   }
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Traffic Mode
+                  </label>
+                  <select
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-3 border"
+                    value={formData.trafficMode}
+                    onChange={(e) => setFormData({ ...formData, trafficMode: e.target.value })}
+                  >
+                    <option value="off">Off (bypass WAF)</option>
+                    <option value="detection">Detection (log only)</option>
+                    <option value="prevention">Prevention (block)</option>
+                  </select>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Start with Detection; switch to Prevention after validation. Use canary for gradual rollout.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Canary Percentage (Prevention rollout)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-3 border"
+                    value={formData.canaryPercent}
+                    onChange={(e) => setFormData({ ...formData, canaryPercent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) })}
+                    disabled={formData.trafficMode !== 'prevention'}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Percentage of traffic enforced in Prevention. Remainder stays in Detection.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Request Body Limit (bytes)
+                </label>
+                <input
+                  type="number"
+                  min="10240"
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-3 border"
+                  value={formData.bodyLimitBytes}
+                  onChange={(e) => setFormData({ ...formData, bodyLimitBytes: parseInt(e.target.value) || 1048576 })}
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  Requests above this size return 413 before WAF inspection. Default 1 MB.
+                </p>
               </div>
               <div>
                 <label
@@ -394,6 +456,9 @@ export default function AppsPage() {
                       Policy
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Traffic
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Created
                     </th>
                   </tr>
@@ -441,6 +506,17 @@ export default function AppsPage() {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                             Default (OWASP CRS)
                           </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs text-gray-900">
+                          Mode: {app.trafficMode || 'detection'}
+                        </div>
+                        {app.trafficMode === 'prevention' && (
+                          <div className="text-[11px] text-gray-500">Canary: {app.canaryPercent ?? 0}%</div>
+                        )}
+                        {app.bodyLimitBytes && (
+                          <div className="text-[11px] text-gray-500">Body limit: {app.bodyLimitBytes} bytes</div>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

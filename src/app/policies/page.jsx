@@ -14,6 +14,12 @@ export default function PoliciesPage() {
     name: '',
     mode: 'detection',
     includeOWASPCRS: true,
+    responseInspection: {
+      enabled: false,
+      maxBodyBytes: 524288, // 512 KB default cap
+      mimeAllowlist: 'text/html,text/plain,application/json',
+    },
+    maxBodyBytes: 1048576, // 1 MB request cap
     // OWASP Top 10 Protections
     sqlInjection: false,
     xss: false,
@@ -173,6 +179,8 @@ export default function PoliciesPage() {
         name: formData.name,
         mode: formData.mode,
         includeOWASPCRS: formData.includeOWASPCRS,
+        responseInspection: formData.responseInspection,
+        maxBodyBytes: formData.maxBodyBytes,
         owaspCRSRules: formData.owaspCRSRules,
         sqlInjection: formData.sqlInjection,
         xss: formData.xss,
@@ -215,6 +223,8 @@ export default function PoliciesPage() {
           name: '',
           mode: 'detection',
           includeOWASPCRS: true,
+          responseInspection: { enabled: false, maxBodyBytes: 524288, mimeAllowlist: 'text/html,text/plain,application/json' },
+          maxBodyBytes: 1048576,
           sqlInjection: false,
           xss: false,
           fileUpload: false,
@@ -656,6 +666,7 @@ export default function PoliciesPage() {
                     { id: 'owasp', name: 'OWASP Top 10', icon: '🔒' },
                     { id: 'owaspCRS', name: 'OWASP CRS', icon: '🟢' },
                     { id: 'advanced', name: 'Advanced Features', icon: '⚡' },
+                    { id: 'inspection', name: 'Inspection & Limits', icon: '🔍' },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -1304,6 +1315,80 @@ export default function PoliciesPage() {
                   </div>
                 )}
 
+                {/* Inspection & Limits Tab */}
+                {activeTab === 'inspection' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-1">Inspection Controls</h3>
+                      <p className="text-xs text-gray-600 mb-4">Configure request/response inspection safety limits for the proxy WAF.</p>
+                    </div>
+
+                    {/* Request body size */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="block text-sm font-medium text-gray-900 mb-2">Request Body Limit (bytes)</label>
+                      <p className="text-xs text-gray-600 mb-2">Caps request body buffering before ModSecurity inspection. Requests above this return 413.</p>
+                      <input
+                        type="number"
+                        min={10240}
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                        value={formData.maxBodyBytes}
+                        onChange={(e) => setFormData({ ...formData, maxBodyBytes: parseInt(e.target.value) || 1048576 })}
+                      />
+                    </div>
+
+                    {/* Response inspection */}
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <label className="flex items-center mb-3">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.responseInspection.enabled}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            responseInspection: { ...formData.responseInspection, enabled: e.target.checked }
+                          })}
+                        />
+                        <span className="ml-2 text-lg mr-2">🔍</span>
+                        <span className="text-sm font-medium text-gray-900">Response Body Inspection</span>
+                      </label>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">
+                        Inspects responses for data leakage when enabled. Uses size and MIME guards to avoid overload.
+                      </p>
+                      {formData.responseInspection.enabled && (
+                        <div className="mt-3 space-y-3 ml-8">
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">Max Response Body (bytes)</label>
+                            <input
+                              type="number"
+                              min={10240}
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              value={formData.responseInspection.maxBodyBytes}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                responseInspection: { ...formData.responseInspection, maxBodyBytes: parseInt(e.target.value) || 524288 }
+                              })}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-600 mb-1">MIME Allowlist (comma-separated)</label>
+                            <input
+                              type="text"
+                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+                              value={formData.responseInspection.mimeAllowlist}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                responseInspection: { ...formData.responseInspection, mimeAllowlist: e.target.value }
+                              })}
+                              placeholder="text/html,text/plain,application/json"
+                            />
+                            <p className="text-[11px] text-gray-500 mt-1">Only responses matching these MIME types are inspected.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
               </div>
 
                       {/* Form Actions */}
@@ -1360,7 +1445,7 @@ export default function PoliciesPage() {
                       </span>
                     </div>
                     <div>
-                      Step {activeTab === 'basic' ? '1' : activeTab === 'owasp' ? '2' : activeTab === 'owaspCRS' ? '3' : activeTab === 'advanced' ? '4' : '1'} of 4
+                      Step {activeTab === 'basic' ? '1' : activeTab === 'owasp' ? '2' : activeTab === 'owaspCRS' ? '3' : activeTab === 'advanced' ? '4' : activeTab === 'inspection' ? '5' : '1'} of 5
                     </div>
                   </div>
                 </div>

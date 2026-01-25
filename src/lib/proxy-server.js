@@ -302,31 +302,52 @@ export class ProxyWAFServer {
         return;
       }
 
-      // ModSecurity inspection
-      if (app.policyId && this.modSecurity) {
-        const inspection = await this.modSecurity.inspectRequest(req, app.policyId);
-        
-        if (!inspection.allowed || inspection.blocked) {
-          // Request blocked by ModSecurity
+      // Request size guard based on app or policy
+      const contentLength = Number(req.headers['content-length'] || 0);
+      const bodyLimit = app.bodyLimitBytes || null;
+      if (bodyLimit && contentLength > bodyLimit) {
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'Payload Too Large',
+          limit: bodyLimit,
+          received: contentLength,
+        }));
+        return;
+      }
+
+      // ModSecurity inspection with traffic mode/canary
+      if (app.policyId && this.modSecurity && app.trafficMode !== 'off') {
+        let effectiveMode = app.trafficMode || 'detection';
+        if (effectiveMode === 'prevention' && app.canaryPercent >= 0 && app.canaryPercent < 100) {
+          const inCanary = Math.random() * 100 < app.canaryPercent;
+          if (!inCanary) {
+            effectiveMode = 'detection';
+          }
+        }
+
+        const inspection = await this.modSecurity.inspectRequest(req, app.policyId, effectiveMode);
+
+        if (effectiveMode === 'prevention' && (!inspection.allowed || inspection.blocked)) {
+          const reason = inspection.matchedRules[0]?.message || 'Security rule violation';
           res.writeHead(403, {
             'Content-Type': 'application/json',
             'X-ATRAVAD-Blocked': 'true',
-            'X-ATRAVAD-Reason': inspection.matchedRules[0]?.message || 'Security rule violation',
+            'X-ATRAVAD-Reason': reason,
           });
-          
+
           res.end(JSON.stringify({
             error: 'Request blocked by WAF',
-            reason: inspection.matchedRules[0]?.message || 'Security rule violation',
+            reason,
             matchedRules: inspection.matchedRules,
+            mode: inspection.mode,
           }));
-          
-          // Log the blocked request
-          console.warn(`Request blocked for ${host}:`, {
+
+          console.warn(`Request blocked for ${host} (${inspection.mode || 'prevention'}):`, {
             url: req.url,
             method: req.method,
             matchedRules: inspection.matchedRules,
           });
-          
+
           return;
         }
       }
