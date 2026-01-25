@@ -70,6 +70,7 @@ export default function SuperAdminPage() {
   const [unauthorized, setUnauthorized] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState(null);
+  const [selectedTenantFilter, setSelectedTenantFilter] = useState('all');
 
   useEffect(() => {
     checkAccessAndFetchData();
@@ -390,54 +391,88 @@ export default function SuperAdminPage() {
             {loading ? (
               <SkeletonLoader variant="table" />
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">All Users</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{user.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
-                          user.role === 'admin' ? 'bg-blue-100 text-blue-800' :
-                          user.role === 'analyst' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {user.role || 'client'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.tenant?.name || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                  {users.length === 0 && (
-                    <tr>
-                      <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
-                        No users found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+              <div className="space-y-4">
+                {/* Header with filter only (read-only for Super Admin) */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">All Users</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Read-only view of all users across tenants. Account creation and management are handled by tenant admins.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <select
+                        value={selectedTenantFilter}
+                        onChange={(e) => setSelectedTenantFilter(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="all">All Tenants</option>
+                        {tenants.map((tenant) => (
+                          <option key={tenant.id} value={tenant.id}>
+                            {tenant.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Users Table - read-only */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {users
+                          .filter((user) => {
+                            if (selectedTenantFilter === 'all') return true;
+                            return user.tenantName === selectedTenantFilter;
+                          })
+                          .map((user) => (
+                            <tr key={user.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="font-medium text-gray-900">{user.email}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                                  user.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                                  user.role === 'analyst' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {user.role || 'client'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {user.tenant?.name || '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        {users.filter((user) => {
+                          if (selectedTenantFilter === 'all') return true;
+                          return user.tenantName === selectedTenantFilter;
+                        }).length === 0 && (
+                          <tr>
+                            <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                              No users found
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </>

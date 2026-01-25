@@ -82,7 +82,7 @@ export function canPerformAction(userRole, action, resourceType) {
       policies: { read: true, create: false, update: false, delete: false, deploy: false },
       nodes: { read: true, create: false, update: false, delete: false },
       apps: { read: true, create: false, update: false, delete: false },
-      logs: { read: false, create: false },
+      logs: { read: true, create: false },
       tenants: { read: true, create: false, update: false },
       users: { read: false, create: false, update: false, delete: false },
     },
