@@ -84,6 +84,9 @@ export default function LoginPage() {
       const secureFlag = isProduction ? '; Secure' : '';
       document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
       
+      // Small delay to ensure cookie is set before verification
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Verify session by calling /api/users/me
       try {
         const verifyResponse = await fetch('/api/users/me', {
@@ -93,8 +96,13 @@ export default function LoginPage() {
         });
         
         if (!verifyResponse.ok) {
-          throw new Error('Session verification failed');
+          const errorData = await verifyResponse.json().catch(() => ({}));
+          console.error('Session verification failed:', verifyResponse.status, errorData);
+          throw new Error(errorData.error || 'Session verification failed');
         }
+        
+        const userData = await verifyResponse.json();
+        console.log('Session verified for user:', userData.email, 'Role:', userData.role);
         
         // User document will be auto-created by Layout component or on first API call
         // Transaction prevents duplicates, so it's safe to call multiple times
@@ -104,7 +112,7 @@ export default function LoginPage() {
         router.push(redirect);
       } catch (verifyError) {
         console.error('Session verification error:', verifyError);
-        setError('Failed to establish session. Please try again.');
+        setError(verifyError.message || 'Failed to establish session. Please try again.');
         document.cookie = 'authToken=; path=/; max-age=0';
       }
     } catch (err) {
@@ -160,6 +168,9 @@ export default function LoginPage() {
       const secureFlag = isProduction ? '; Secure' : '';
       document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
       
+      // Small delay to ensure cookie is set before verification
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       // Verify session by calling /api/users/me
       try {
         const verifyResponse = await fetch('/api/users/me', {
@@ -169,8 +180,13 @@ export default function LoginPage() {
         });
         
         if (!verifyResponse.ok) {
-          throw new Error('Session verification failed');
+          const errorData = await verifyResponse.json().catch(() => ({}));
+          console.error('Session verification failed:', verifyResponse.status, errorData);
+          throw new Error(errorData.error || 'Session verification failed');
         }
+        
+        const userData = await verifyResponse.json();
+        console.log('Session verified for user:', userData.email, 'Role:', userData.role);
         
         // User document will be auto-created by Layout component or on first API call
         // Transaction prevents duplicates, so it's safe to call multiple times
@@ -180,7 +196,7 @@ export default function LoginPage() {
         router.push(redirect);
       } catch (verifyError) {
         console.error('Session verification error:', verifyError);
-        setError('Failed to establish session. Please try again.');
+        setError(verifyError.message || 'Failed to establish session. Please try again.');
         document.cookie = 'authToken=; path=/; max-age=0';
       }
     } catch (err) {

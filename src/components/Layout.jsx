@@ -75,6 +75,12 @@ const AnalyticsIcon = ({ className }) => (
   </svg>
 );
 
+const UsersIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+  </svg>
+);
+
 
 export default function Layout({ children }) {
   const pathname = usePathname();
@@ -218,6 +224,7 @@ export default function Layout({ children }) {
     { href: '/nodes', label: 'WAF Nodes', icon: NodesIcon, requiresRole: true },
     { href: '/logs', label: 'Security Logs', icon: LogsIcon, requiresRole: true },
     { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon, requiresRole: true },
+    { href: '/users', label: 'User Management', icon: UsersIcon, requiresAdmin: true },
     { href: '/admin', label: 'Super Admin', icon: SuperAdminIcon, requiresSuperAdmin: true, separator: true },
   ], []);
 
@@ -231,6 +238,12 @@ export default function Layout({ children }) {
       // Only show if role is loaded AND user is confirmed super admin
       if (!roleLoaded) return false;
       return userRole === 'super_admin';
+    }
+    
+    // User Management - only for admin role (not super_admin, not client/analyst)
+    if (item.requiresAdmin) {
+      if (!roleLoaded) return 'loading';
+      return userRole === 'admin';
     }
     
     // For regular role-based items, show in loading state to prevent flicker
