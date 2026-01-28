@@ -83,6 +83,12 @@ export default function AppsPage() {
   });
   const [policies, setPolicies] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedAppForSetup, setSelectedAppForSetup] = useState(null); // For Continue Setup modal
+  const [openSettingsMenu, setOpenSettingsMenu] = useState(null); // For settings dropdown
+  const [selectedAppForEdit, setSelectedAppForEdit] = useState(null); // For edit modal
+  const [editFormData, setEditFormData] = useState({ originUrl: '', policyId: '' });
+  const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
@@ -91,17 +97,13 @@ export default function AppsPage() {
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
 
-  // WAF IP/CNAME for DNS pointing
-  const wafIp = process.env.NEXT_PUBLIC_ATRAVAD_WAF_IP || '192.124.249.100';
-  const wafCname = process.env.NEXT_PUBLIC_ATRAVAD_WAF_CNAME || '';
-
   useEffect(() => {
     checkTenantAndFetchData();
   }, []);
 
   const checkTenantAndFetchData = async () => {
     try {
-      // Check tenant first
+      // Check tenant status
       const [tenantRes, userRes] = await Promise.all([
         fetch('/api/tenants/current'),
         fetch('/api/users/me'),
@@ -260,9 +262,7 @@ export default function AppsPage() {
         autoSSL: true,
         ssl: { autoProvision: true },
         routing: { pathPrefix: '/', stripPath: false },
-        // DNS not yet activated
-        activated: false,
-        firewallIp: wafIp,
+        // Note: firewallIp and activated are automatically assigned by the API
       };
 
       const response = await fetch('/api/apps', {
@@ -285,6 +285,78 @@ export default function AppsPage() {
       alert('Failed to create site');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Handle opening edit modal
+  const handleOpenEdit = (app) => {
+    setEditFormData({
+      originUrl: app.origins?.[0]?.url || '',
+      policyId: app.policyId || '',
+    });
+    setSelectedAppForEdit(app);
+    setOpenSettingsMenu(null);
+  };
+
+  // Handle delete site
+  const handleDeleteSite = async (app) => {
+    if (!confirm(`Are you sure you want to delete "${app.domain}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/apps/${app.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        setApps(apps.filter(a => a.id !== app.id));
+        setOpenSettingsMenu(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete site');
+      }
+    } catch (error) {
+      console.error('Error deleting site:', error);
+      alert('Failed to delete site');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Handle update site
+  const handleUpdateSite = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    
+    try {
+      const response = await fetch(`/api/apps/${selectedAppForEdit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origins: [{ 
+            url: editFormData.originUrl, 
+            weight: 100, 
+            healthCheck: { path: '/health', interval: 30, timeout: 5 } 
+          }],
+          policyId: editFormData.policyId || null,
+        }),
+      });
+      
+      if (response.ok) {
+        const updatedApp = await response.json();
+        setApps(apps.map(a => a.id === updatedApp.id ? updatedApp : a));
+        setSelectedAppForEdit(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update site');
+      }
+    } catch (error) {
+      console.error('Error updating site:', error);
+      alert('Failed to update site');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -528,7 +600,7 @@ export default function AppsPage() {
                   key={app.id}
                   className={`bg-white rounded-xl border-2 ${
                     activated ? 'border-gray-200' : 'border-red-200'
-                  } overflow-hidden hover:shadow-lg transition-shadow`}
+                  } hover:shadow-lg transition-shadow`}
                 >
                   {/* Card Header */}
                   <div className="p-5">
@@ -541,9 +613,68 @@ export default function AppsPage() {
                       >
                         {app.domain}
                       </a>
-                      <button className="p-1 text-gray-400 hover:text-gray-600">
-                        <SettingsIcon className="h-5 w-5" />
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setOpenSettingsMenu(openSettingsMenu === app.id ? null : app.id)}
+                          className="p-1 text-gray-400 hover:text-gray-600"
+                        >
+                          <SettingsIcon className="h-5 w-5" />
+                        </button>
+                        
+                        {/* Settings Dropdown */}
+                        {openSettingsMenu === app.id && (
+                          <>
+                            {/* Backdrop to close dropdown when clicking outside */}
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setOpenSettingsMenu(null)}
+                            />
+                            <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                            <button
+                              onClick={() => handleOpenEdit(app)}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit Site
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedAppForSetup(app);
+                                setOpenSettingsMenu(null);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                              DNS Setup
+                            </button>
+                            <a
+                              href="/logs"
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              View Logs
+                            </a>
+                            <hr className="my-1 border-gray-200" />
+                            <button
+                              onClick={() => handleDeleteSite(app)}
+                              disabled={deleting}
+                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              {deleting ? 'Deleting...' : 'Delete Site'}
+                            </button>
+                          </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                     
                     {/* IPs */}
@@ -554,7 +685,12 @@ export default function AppsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-gray-500">Firewall IP:</span>
-                        <span className="font-mono text-gray-700">{wafIp}</span>
+                        <span className="font-mono text-gray-700">{app.firewallIp || 'Not assigned'}</span>
+                        {app.wafRegion && (
+                          <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                            {app.wafRegion.toUpperCase()}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -607,7 +743,10 @@ export default function AppsPage() {
                           <WarningIcon className="h-5 w-5" />
                           <span className="font-medium">Not Activated!</span>
                         </div>
-                        <button className="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600">
+                        <button 
+                          onClick={() => setSelectedAppForSetup(app)}
+                          className="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600"
+                        >
                           Continue Setup
                         </button>
                       </div>
@@ -626,6 +765,7 @@ export default function AppsPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Domain</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hosting IP</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Firewall IP</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Region</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Stats</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
@@ -650,7 +790,16 @@ export default function AppsPage() {
                         </a>
                       </td>
                       <td className="px-6 py-4 font-mono text-sm text-gray-700">{hostingIp}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-gray-700">{wafIp}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-gray-700">{app.firewallIp || 'Not assigned'}</td>
+                      <td className="px-6 py-4">
+                        {app.wafRegionName ? (
+                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                            {app.wafRegionName}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         {activated ? (
                           <span className="inline-flex items-center gap-1 text-green-600">
@@ -672,9 +821,67 @@ export default function AppsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button className="text-gray-400 hover:text-gray-600">
-                          <SettingsIcon className="h-5 w-5" />
-                        </button>
+                        <div className="relative inline-block">
+                          <button 
+                            onClick={() => setOpenSettingsMenu(openSettingsMenu === app.id ? null : app.id)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            <SettingsIcon className="h-5 w-5" />
+                          </button>
+                          
+                          {/* Settings Dropdown */}
+                          {openSettingsMenu === app.id && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setOpenSettingsMenu(null)}
+                              />
+                              <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
+                                <button
+                                  onClick={() => handleOpenEdit(app)}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  Edit Site
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedAppForSetup(app);
+                                    setOpenSettingsMenu(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                  </svg>
+                                  DNS Setup
+                                </button>
+                                <a
+                                  href="/logs"
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  View Logs
+                                </a>
+                                <hr className="my-1 border-gray-200" />
+                                <button
+                                  onClick={() => handleDeleteSite(app)}
+                                  disabled={deleting}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  {deleting ? 'Deleting...' : 'Delete Site'}
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -793,16 +1000,11 @@ export default function AppsPage() {
                         <span className="font-mono text-sm">{formData.originUrl}</span>
                       </div>
                       <hr className="border-gray-200" />
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Point A record to:</span>
-                        <span className="font-mono font-bold text-teal-600">{wafIp}</span>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                        <p className="text-sm text-blue-800">
+                          <strong>Next Step:</strong> After adding your site, you'll receive a Firewall IP address based on your origin server's location. Update your DNS to point to this IP.
+                        </p>
                       </div>
-                      {wafCname && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Or CNAME to:</span>
-                          <span className="font-mono font-bold text-teal-600">{wafCname}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -846,6 +1048,231 @@ export default function AppsPage() {
                     )}
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Site Modal */}
+      {selectedAppForEdit && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div 
+              className="fixed inset-0 bg-black/50 transition-opacity"
+              onClick={() => setSelectedAppForEdit(null)}
+            />
+            
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
+                    <SettingsIcon className="h-6 w-6 text-teal-600" />
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">Edit Site</span>
+                </div>
+                <button
+                  onClick={() => setSelectedAppForEdit(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                >
+                  <CloseIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateSite} className="p-6 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Domain</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={selectedAppForEdit.domain}
+                    className="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Domain cannot be changed after creation</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Origin Server URL</label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://origin.example.com"
+                    value={editFormData.originUrl}
+                    onChange={(e) => setEditFormData({ ...editFormData, originUrl: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Security Policy</label>
+                  <select
+                    value={editFormData.policyId}
+                    onChange={(e) => setEditFormData({ ...editFormData, policyId: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  >
+                    <option value="">Default Protection (OWASP CRS)</option>
+                    {policies.map((policy) => (
+                      <option key={policy.id} value={policy.id}>
+                        {policy.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAppForEdit(null)}
+                    className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="px-5 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-lg hover:bg-teal-600 disabled:opacity-50"
+                  >
+                    {updating ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Continue Setup Modal - DNS Instructions */}
+      {selectedAppForSetup && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black/50 transition-opacity"
+              onClick={() => setSelectedAppForSetup(null)}
+            />
+            
+            {/* Modal */}
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
+                    <GlobeIcon className="h-6 w-6 text-teal-600" />
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">Complete Setup</span>
+                </div>
+                <button
+                  onClick={() => setSelectedAppForSetup(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                >
+                  <CloseIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                <div className="text-center">
+                  <WarningIcon className="mx-auto h-12 w-12 text-yellow-500" />
+                  <h2 className="mt-4 text-xl font-bold text-gray-900">DNS Not Configured</h2>
+                  <p className="mt-2 text-gray-600">
+                    Point your domain&apos;s DNS to activate WAF protection for <strong>{selectedAppForSetup.domain}</strong>
+                  </p>
+                </div>
+
+                {/* DNS Instructions */}
+                <div className="bg-gray-50 rounded-xl p-5 space-y-4">
+                  <h3 className="font-semibold text-gray-900">DNS Configuration</h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase font-medium">Domain</span>
+                        <p className="font-mono text-sm font-medium text-gray-900">{selectedAppForSetup.domain}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase font-medium">Origin Server</span>
+                        <p className="font-mono text-sm text-gray-700">{getHostingDisplay(selectedAppForSetup)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-teal-50 rounded-lg border-2 border-teal-200">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-teal-700 uppercase font-medium">Point A Record To</span>
+                          {selectedAppForSetup.wafRegionName && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                              {selectedAppForSetup.wafRegionName}
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-mono text-lg font-bold text-teal-700">{selectedAppForSetup.firewallIp || 'Not configured'}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedAppForSetup.firewallIp || '');
+                          alert('IP copied to clipboard!');
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-100 rounded-lg hover:bg-teal-200"
+                      >
+                        Copy
+                      </button>
+                    </div>
+
+                    {selectedAppForSetup.firewallCname && (
+                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                        <div className="flex-1">
+                          <span className="text-xs text-gray-500 uppercase font-medium">Or CNAME To</span>
+                          <p className="font-mono text-sm text-gray-700">{selectedAppForSetup.firewallCname}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(selectedAppForSetup.firewallCname);
+                            alert('CNAME copied to clipboard!');
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">How to update your DNS:</h4>
+                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                    <li>Log into your domain registrar (GoDaddy, Cloudflare, Namecheap, etc.)</li>
+                    <li>Find DNS settings for <strong>{selectedAppForSetup.domain}</strong></li>
+                    <li>Update the A record to point to <strong>{selectedAppForSetup.firewallIp || 'your WAF IP'}</strong></li>
+                    <li>Save changes and wait for DNS propagation (up to 48 hours)</li>
+                  </ol>
+                </div>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Once DNS propagates, your site will be protected by ATRAVAD WAF. The status will update automatically.
+                </p>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+                <button
+                  onClick={() => setSelectedAppForSetup(null)}
+                  className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Close
+                </button>
+                <a
+                  href="https://www.whatsmydns.net/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-lg hover:bg-teal-600"
+                >
+                  Check DNS Propagation
+                </a>
               </div>
             </div>
           </div>

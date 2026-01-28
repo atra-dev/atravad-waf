@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
+import { getRegionByContinent, getDefaultRegion } from '@/lib/waf-config';
+import { geolocateOrigin } from '@/lib/geolocation';
 
 export async function POST(request) {
   try {
@@ -61,6 +63,22 @@ export async function POST(request) {
       }
     }
 
+    // Auto-assign WAF region based on origin server geolocation
+    let wafRegion = getDefaultRegion();
+    let originGeoData = null;
+
+    // Try to geolocate the first origin to determine best WAF region
+    if (origins && origins.length > 0 && origins[0].url) {
+      try {
+        originGeoData = await geolocateOrigin(origins[0].url);
+        if (originGeoData.success && originGeoData.continentCode) {
+          wafRegion = getRegionByContinent(originGeoData.continentCode);
+        }
+      } catch (geoError) {
+        console.warn('Geolocation failed, using default region:', geoError.message);
+      }
+    }
+
     const appRef = await adminDb.collection('applications').add({
       name,
       domain,
@@ -70,6 +88,15 @@ export async function POST(request) {
       policyId: policyId || null,
       responseInspectionEnabled: responseInspectionEnabled !== false,
       tenantName,
+      // Automatically assigned WAF configuration based on geolocation
+      wafRegion: wafRegion.id,
+      wafRegionName: wafRegion.name,
+      firewallIp: wafRegion.ip,
+      firewallCname: wafRegion.cname || '',
+      // Origin geolocation data (for reference)
+      originCountry: originGeoData?.country || null,
+      originContinent: originGeoData?.continent || null,
+      activated: false, // DNS not yet configured
       createdAt: new Date().toISOString(),
       createdBy: user.uid,
     });
@@ -83,6 +110,13 @@ export async function POST(request) {
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
       responseInspectionEnabled: responseInspectionEnabled !== false,
+      wafRegion: wafRegion.id,
+      wafRegionName: wafRegion.name,
+      firewallIp: wafRegion.ip,
+      firewallCname: wafRegion.cname || '',
+      originCountry: originGeoData?.country || null,
+      originContinent: originGeoData?.continent || null,
+      activated: false,
     });
   } catch (error) {
     console.error('Error creating application:', error);
