@@ -33,7 +33,7 @@ A **modern reverse proxy Web Application Firewall (WAF)** - just like Sucuri and
 - **Request Testing** - Test HTTP requests against ModSecurity rules before deployment
 - **Version Control** - Track policy versions with rollback capability
 - **Real-time Logs** - Monitor all traffic and security events
-- **Node Management** - Register and monitor WAF proxy nodes
+- **Sucuri-style flow** - Add site → point DNS to ATRAVAD WAF → SSL → done (no nodes to deploy)
 
 ## Tech Stack
 
@@ -79,9 +79,15 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 FIREBASE_PROJECT_ID=your_project_id
 FIREBASE_CLIENT_EMAIL=your_service_account_email
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----\n"
+
+# ATRAVAD WAF (Sucuri-style: shown when customers add a site - point DNS here, no server to deploy)
+NEXT_PUBLIC_ATRAVAD_WAF_IP=1.2.3.4
+NEXT_PUBLIC_ATRAVAD_WAF_CNAME=waf.atravad.com
 ```
 
 **Note**: For the `FIREBASE_PRIVATE_KEY`, copy the `private_key` value from your service account JSON file. Make sure to include the `\n` characters and wrap it in quotes.
+
+**ATRAVAD WAF IP/CNAME:** Set `NEXT_PUBLIC_ATRAVAD_WAF_IP` and/or `NEXT_PUBLIC_ATRAVAD_WAF_CNAME` to the address customers point their domain's A or CNAME record to (like Sucuri). The Applications page shows this so customers know where to point DNS — no server or node deployment on their side.
 
 ### 3. Firestore Security Rules
 

@@ -32,7 +32,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, domain, origins, ssl, routing, policyId } = body;
+    const { name, domain, origins, ssl, routing, policyId, responseInspectionEnabled } = body;
 
     if (!name || !domain) {
       return NextResponse.json(
@@ -68,6 +68,7 @@ export async function POST(request) {
       ssl: ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
+      responseInspectionEnabled: responseInspectionEnabled !== false,
       tenantName,
       createdAt: new Date().toISOString(),
       createdBy: user.uid,
@@ -81,6 +82,7 @@ export async function POST(request) {
       ssl: ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
+      responseInspectionEnabled: responseInspectionEnabled !== false,
     });
   } catch (error) {
     console.error('Error creating application:', error);

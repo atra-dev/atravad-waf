@@ -14,23 +14,24 @@ ATRAVAD WAF works as a **reverse proxy** - all you need to do is point your doma
 ## 📋 Prerequisites
 
 1. ✅ **ATRAVAD WAF Account** - You have an account and dashboard access
-2. ✅ **Application Created** - You've created an application in the dashboard
+2. ✅ **Application Created** - You've created an application (site) in the dashboard
 3. ✅ **Origin Server Configured** - Your origin server URL is set in the application settings
-4. ✅ **WAF IP Addresses** - You have the WAF node IP addresses from your dashboard
+4. ✅ **ATRAVAD WAF IP or CNAME** - Shown when you add a site (like Sucuri: we give you our WAF address to point DNS to)
+
+**Like Sucuri:** You do **not** deploy any server or "node." Add your site in the dashboard, then point your domain's A or CNAME to the **ATRAVAD WAF IP or CNAME** we show you.
 
 ---
 
 ## 🚀 Step-by-Step DNS Configuration
 
-### Step 1: Get Your WAF IP Addresses
+### Step 1: Get the ATRAVAD WAF IP or CNAME
 
 1. Log into your ATRAVAD WAF dashboard
-2. Go to **"WAF Nodes"** page
-3. Find your active WAF nodes
-4. Note down the **IP addresses** of your nodes
-   - Example: `1.2.3.4`, `5.6.7.8`, `9.10.11.12`
+2. Go to **Applications** (or **Sites**)
+3. Add your site (domain, origin, policy) or open an existing one
+4. At the top of the Applications page you'll see **"Point A record → X.X.X.X"** or **"Point CNAME → waf.atravad.com"** — that is the **ATRAVAD WAF** address (our edge). Use that when configuring DNS.
 
-**Important**: Use multiple IPs for redundancy and load distribution.
+**Important:** This is **ATRAVAD's** WAF IP or CNAME — the same for all customers. You point your domain to it; no server or node to deploy on your side.
 
 ---
 
@@ -43,27 +44,16 @@ If you want to protect `example.com` (root domain):
 1. Log into your DNS provider (GoDaddy, Cloudflare, Route53, etc.)
 2. Find your DNS management section
 3. **Delete or update** existing A records for `example.com`
-4. **Create new A records** pointing to ATRAVAD WAF:
+4. **Create a new A record** pointing to the **ATRAVAD WAF IP** (the IP shown in the dashboard when you add a site):
 
    ```
    Type: A
    Name: @ (or example.com)
-   Value: 1.2.3.4
+   Value: [ATRAVAD WAF IP from dashboard, e.g. 1.2.3.4]
    TTL: 300 (5 minutes - for faster propagation)
    ```
 
-5. **Add additional A records** for redundancy:
-   ```
-   Type: A
-   Name: @
-   Value: 5.6.7.8
-   TTL: 300
-   
-   Type: A
-   Name: @
-   Value: 9.10.11.12
-   TTL: 300
-   ```
+5. If your administrator provided multiple ATRAVAD WAF IPs, add A records for each for redundancy.
 
 #### Option B: CNAME Records (Recommended for Subdomains)
 
@@ -79,7 +69,7 @@ If you want to protect `www.example.com` or `api.example.com`:
    TTL: 300
    ```
 
-   **Note**: Your WAF hostname will be provided in the dashboard.
+   **Note**: The ATRAVAD WAF CNAME (e.g. `waf.atravad.com`) is shown in the Applications page when you add a site.
 
 #### Option C: ALIAS/ANAME Records (For Root Domain with CNAME-like behavior)
 
@@ -112,7 +102,7 @@ After updating DNS, wait for propagation (usually 5-60 minutes):
    nslookup example.com
    ```
 
-3. **Verify IP addresses** match your WAF nodes
+3. **Verify** the domain resolves to the ATRAVAD WAF IP (or the CNAME resolves to our edge)
 
 ---
 
@@ -121,11 +111,7 @@ After updating DNS, wait for propagation (usually 5-60 minutes):
 Once DNS has propagated:
 
 1. **Visit your website**: `https://example.com`
-2. **Check response headers** - You should see:
-   ```
-   X-ATRAVAD-WAF: enabled
-   X-ATRAVAD-Node: node-id-123
-   ```
+2. **Check response headers** - You should see ATRAVAD WAF headers (e.g. `X-ATRAVAD-WAF: enabled`)
 
 3. **Test protection** - Try accessing:
    ```
@@ -222,9 +208,9 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 - **Tip**: Lower TTL before making changes for faster updates
 
 ### 2. Origin Server Access
-- **Keep origin accessible**: Your origin server should still be accessible directly (for testing)
-- **Firewall rules**: Ensure WAF nodes can reach your origin servers
-- **IP whitelisting**: If your origin has IP restrictions, whitelist WAF node IPs
+- **Keep origin accessible**: Your origin server should still be accessible (for testing)
+- **Firewall rules**: Ensure ATRAVAD WAF edge can reach your origin servers
+- **IP whitelisting**: If your origin has IP restrictions, whitelist the ATRAVAD WAF IP(s) provided by your administrator
 
 ### 3. SSL Certificates
 - **Let's Encrypt**: Automatically renews every 90 days
@@ -240,7 +226,7 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 
 ## 🐛 Troubleshooting
 
-### Issue: DNS not resolving to WAF IPs
+### Issue: DNS not resolving to ATRAVAD WAF
 
 **Solutions**:
 1. Wait longer for propagation (up to 48 hours)
@@ -267,15 +253,15 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 ### Issue: 502 Bad Gateway
 
 **Solutions**:
-1. Check origin server is accessible from WAF nodes
+1. Check origin server is accessible from the ATRAVAD WAF edge
 2. Verify origin URL is correct in dashboard
-3. Check firewall rules
-4. Verify health checks are passing
+3. Check firewall rules on your origin
+4. Verify health checks (if configured) are passing
 
 ### Issue: Requests not being blocked
 
 **Solutions**:
-1. Verify policy is deployed to nodes
+1. Verify a security policy is assigned to the application
 2. Check policy mode is "prevention" not "detection"
 3. Review logs in dashboard
 4. Test with known attack patterns
@@ -322,11 +308,11 @@ After DNS change, monitor:
    Policy: Production Security Policy
    ```
 
-2. **DNS Configuration** (at DNS provider):
+2. **DNS Configuration** (at DNS provider): Point your domain to the ATRAVAD WAF IP or CNAME shown in the dashboard when you add the site:
    ```
-   A Record: @ → 1.2.3.4 (WAF Node 1)
-   A Record: @ → 5.6.7.8 (WAF Node 2)
-   A Record: @ → 9.10.11.12 (WAF Node 3)
+   A Record: @ → [ATRAVAD WAF IP from dashboard]
+   or
+   CNAME: @ or www → waf.atravad.com (or CNAME provided in dashboard)
    ```
 
 3. **Wait for propagation** (check with `dig example.com`)
@@ -355,7 +341,7 @@ Before going live:
 - [ ] DNS records updated
 - [ ] DNS propagation verified
 - [ ] SSL certificate provisioned (or uploaded)
-- [ ] Origin server accessible from WAF nodes
+- [ ] Origin server accessible from ATRAVAD WAF edge
 - [ ] Health checks passing
 - [ ] Test requests working
 - [ ] Attack protection verified

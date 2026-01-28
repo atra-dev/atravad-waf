@@ -1,14 +1,12 @@
 /**
  * ATRAVAD Proxy WAF Server
- * 
- * Modern reverse proxy WAF that:
- * - Handles SSL/TLS termination
- * - Routes traffic based on domain (Host header)
- * - Integrates ModSecurity for request inspection
- * - Forwards clean traffic to origin servers
- * - Supports health checks and failover
- * 
- * Architecture similar to Sucuri/Reblaze
+ *
+ * Modern reverse proxy WAF (Sucuri-style):
+ * - SSL/TLS termination, domain-based routing
+ * - ModSecurity (libmodsecurity) request inspection including body
+ * - Buffers request body when needed, then inspects, then forwards
+ * - Optional response inspection (Phase 4)
+ * - Health checks and failover
  */
 
 import http from 'http';
@@ -16,6 +14,64 @@ import https from 'https';
 import { URL } from 'url';
 import { adminDb } from './firebase-admin';
 import { createModSecurityProxy } from './modsecurity-proxy.js';
+
+const BODY_BUFFER_TIMEOUT_MS = 10000;
+
+function hasRequestBody(req) {
+  const method = (req.method || 'GET').toUpperCase();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return false;
+  const cl = parseInt(req.headers['content-length'], 10);
+  const te = (req.headers['transfer-encoding'] || '').toLowerCase();
+  return (Number.isFinite(cl) && cl > 0) || te === 'chunked';
+}
+
+function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const contentLength = parseInt(req.headers['content-length'], 10);
+    const isChunked = (req.headers['transfer-encoding'] || '').toLowerCase() === 'chunked';
+    if (!isChunked && !Number.isFinite(contentLength)) {
+      resolve(null);
+      return;
+    }
+    if (!isChunked && contentLength === 0) {
+      resolve(Buffer.alloc(0));
+      return;
+    }
+    const chunks = [];
+    let total = 0;
+    const timer = setTimeout(() => {
+      req.destroy();
+      reject(new Error('Request body timeout'));
+    }, timeoutMs);
+    const cleanup = () => {
+      clearTimeout(timer);
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onError);
+    };
+    const onData = (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        cleanup();
+        req.destroy();
+        reject(new Error('Request body too large'));
+        return;
+      }
+      chunks.push(chunk);
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(Buffer.concat(chunks));
+    };
+    const onError = (err) => {
+      cleanup();
+      reject(err);
+    };
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+  });
+}
 
 /**
  * Proxy Server Class
@@ -29,9 +85,7 @@ export class ProxyWAFServer {
     this.httpServer = null;
     this.httpsServer = null;
     this.healthCheckIntervals = new Map();
-    this.nodeId = options.nodeId;
-    this.apiKey = options.apiKey;
-    this.dashboardUrl = options.dashboardUrl;
+    this.tenantName = options.tenantName || null;
     this.modSecurity = options.modSecurity || createModSecurityProxy();
     
     // Load applications from Firestore
@@ -71,21 +125,14 @@ export class ProxyWAFServer {
         return;
       }
 
-      // Get node's tenant for filtering
-      let tenantName = null;
-      if (this.nodeId) {
-        try {
-          const nodeDoc = await adminDb.collection('nodes').doc(this.nodeId).get();
-          if (nodeDoc.exists) {
-            tenantName = nodeDoc.data().tenantName;
-            console.log(`Loading applications for tenant: ${tenantName}`);
-          }
-        } catch (error) {
-          console.warn('Could not fetch node tenant, loading all applications:', error.message);
-        }
+      const tenantName = this.tenantName;
+      if (tenantName) {
+        console.log(`Loading applications for tenant: ${tenantName}`);
+      } else {
+        console.log('Loading all applications (no tenant filter)');
       }
 
-      // Load applications (filtered by tenant if available)
+      // Load applications (filtered by tenant if set)
       let appsSnapshot;
       if (tenantName) {
         appsSnapshot = await adminDb
@@ -273,86 +320,94 @@ export class ProxyWAFServer {
 
   /**
    * Handle incoming HTTP request
+   * Buffers request body when needed for ModSecurity, then inspects, then forwards.
    */
   async handleRequest(req, res) {
     try {
-      const host = req.headers.host?.split(':')[0]; // Remove port if present
-      
+      const host = req.headers.host?.split(':')[0];
       if (!host) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Missing Host header');
         return;
       }
 
-      // Find application by domain
       const app = this.applications.get(host);
-      
       if (!app) {
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end(`Application not found for domain: ${host}`);
         return;
       }
 
-      // Get healthy origin
       const origin = this.getHealthyOrigin(app);
-      
       if (!origin || !origin.url) {
         res.writeHead(503, { 'Content-Type': 'text/plain' });
         res.end('No origin server configured');
         return;
       }
 
-      // ModSecurity inspection
+      let bodyBuffer = null;
+      if (app.policyId && this.modSecurity && hasRequestBody(req)) {
+        try {
+          const limit = typeof this.modSecurity.getBodyLimit === 'function'
+            ? this.modSecurity.getBodyLimit()
+            : 13107200;
+          bodyBuffer = await collectRequestBody(req, limit, BODY_BUFFER_TIMEOUT_MS);
+        } catch (err) {
+          console.warn('Request body buffer error:', err.message);
+          if (!res.headersSent) {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Request body too large or timeout' }));
+          }
+          return;
+        }
+      }
+
       if (app.policyId && this.modSecurity) {
-        const inspection = await this.modSecurity.inspectRequest(req, app.policyId);
-        
+        const inspection = await this.modSecurity.inspectRequest(req, app.policyId, bodyBuffer);
         if (!inspection.allowed || inspection.blocked) {
-          // Request blocked by ModSecurity
           res.writeHead(403, {
             'Content-Type': 'application/json',
             'X-ATRAVAD-Blocked': 'true',
             'X-ATRAVAD-Reason': inspection.matchedRules[0]?.message || 'Security rule violation',
           });
-          
           res.end(JSON.stringify({
             error: 'Request blocked by WAF',
             reason: inspection.matchedRules[0]?.message || 'Security rule violation',
             matchedRules: inspection.matchedRules,
           }));
-          
-          // Log the blocked request
           console.warn(`Request blocked for ${host}:`, {
             url: req.url,
             method: req.method,
             matchedRules: inspection.matchedRules,
+            engine: inspection.engine,
           });
-          
           return;
         }
       }
-      
-      // Forward clean request to origin
-      await this.forwardRequest(req, res, origin.url, app);
-      
+
+      await this.forwardRequest(req, res, origin.url, app, bodyBuffer);
     } catch (error) {
       console.error('Error handling request:', error);
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Internal server error');
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal server error');
+      }
     }
   }
 
   /**
-   * Forward request to origin server
+   * Forward request to origin server.
+   * @param {object} clientReq - Incoming request
+   * @param {object} clientRes - Response to client
+   * @param {string} originUrl - Origin base URL
+   * @param {object} app - Application config (policyId, etc.)
+   * @param {Buffer|null} bodyBuffer - Buffered request body when already consumed for inspection
    */
-  async forwardRequest(clientReq, clientRes, originUrl, app) {
+  forwardRequest(clientReq, clientRes, originUrl, app, bodyBuffer = null) {
     try {
       const originUrlObj = new URL(originUrl);
       const targetPath = clientReq.url;
-      
-      // Build target URL
-      const targetUrl = `${originUrlObj.protocol}//${originUrlObj.host}${targetPath}${originUrlObj.search || ''}`;
 
-      // Prepare request options
       const requestOptions = {
         method: clientReq.method,
         hostname: originUrlObj.hostname,
@@ -361,33 +416,81 @@ export class ProxyWAFServer {
         headers: { ...clientReq.headers },
       };
 
-      // Remove hop-by-hop headers
       delete requestOptions.headers['connection'];
       delete requestOptions.headers['host'];
       delete requestOptions.headers['transfer-encoding'];
       delete requestOptions.headers['upgrade'];
-
-      // Set correct host header
       requestOptions.headers['host'] = originUrlObj.host;
-
-      // Add X-Forwarded-* headers
-      requestOptions.headers['x-forwarded-for'] = 
-        (clientReq.headers['x-forwarded-for'] || '') + 
-        (clientReq.headers['x-forwarded-for'] ? ', ' : '') + 
+      requestOptions.headers['x-forwarded-for'] =
+        (clientReq.headers['x-forwarded-for'] || '') +
+        (clientReq.headers['x-forwarded-for'] ? ', ' : '') +
         (clientReq.socket.remoteAddress || 'unknown');
       requestOptions.headers['x-forwarded-proto'] = clientReq.secure ? 'https' : 'http';
       requestOptions.headers['x-forwarded-host'] = clientReq.headers.host;
 
-      // Use appropriate protocol
       const protocol = originUrlObj.protocol === 'https:' ? https : http;
+      const doResponseInspection = Boolean(
+        app.policyId && this.modSecurity && (app.responseInspectionEnabled !== false && this.modSecurity.responseInspectionEnabled !== false)
+      );
+      const responseBodyLimit = typeof this.modSecurity?.getResponseBodyLimit === 'function'
+        ? this.modSecurity.getResponseBodyLimit()
+        : 524288;
 
-      // Forward request
       const proxyReq = protocol.request(requestOptions, (proxyRes) => {
-        // Forward status and headers
-        clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
-
-        // Pipe response
-        proxyRes.pipe(clientRes);
+        if (doResponseInspection) {
+          const chunks = [];
+          let total = 0;
+          proxyRes.on('data', (chunk) => {
+            if (total < responseBodyLimit) {
+              const want = Math.min(chunk.length, responseBodyLimit - total);
+              chunks.push(chunk.subarray(0, want));
+            }
+            total += chunk.length;
+          });
+          proxyRes.on('end', async () => {
+            const body = Buffer.concat(chunks);
+            try {
+              const inspection = await this.modSecurity.inspectResponse(
+                {
+                  statusCode: proxyRes.statusCode,
+                  httpVersion: proxyRes.httpVersion || '1.1',
+                  headers: proxyRes.headers,
+                  rawHeaders: proxyRes.rawHeaders || [],
+                  body,
+                },
+                app.policyId
+              );
+              if (!inspection.allowed) {
+                if (!clientRes.headersSent) {
+                  clientRes.writeHead(502, { 'Content-Type': 'application/json' });
+                  clientRes.end(JSON.stringify({
+                    error: 'Response blocked by WAF',
+                    matchedRules: inspection.matchedRules || [],
+                  }));
+                }
+                return;
+              }
+            } catch (err) {
+              console.warn('Response inspection error:', err.message);
+            }
+            if (!clientRes.headersSent) {
+              clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
+              clientRes.end(body);
+            }
+          });
+          proxyRes.on('error', (err) => {
+            console.error('Proxy response error:', err);
+            if (!clientRes.headersSent) {
+              clientRes.writeHead(502, { 'Content-Type': 'text/plain' });
+              clientRes.end('Bad Gateway');
+            }
+          });
+        } else {
+          if (!clientRes.headersSent) {
+            clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
+          }
+          proxyRes.pipe(clientRes);
+        }
       });
 
       proxyReq.on('error', (error) => {
@@ -398,9 +501,12 @@ export class ProxyWAFServer {
         }
       });
 
-      // Pipe request body
-      clientReq.pipe(proxyReq);
-
+      if (bodyBuffer && bodyBuffer.length >= 0) {
+        proxyReq.write(bodyBuffer);
+        proxyReq.end();
+      } else {
+        clientReq.pipe(proxyReq);
+      }
     } catch (error) {
       console.error('Error forwarding request:', error);
       if (!clientRes.headersSent) {

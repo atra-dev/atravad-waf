@@ -4,7 +4,6 @@
  * Enterprise-grade rate limiting for ATRAVAD WAF API endpoints.
  * Implements tiered rate limiting strategy:
  * - Edge/middleware level: per-IP and per-route-group limits
- * - Endpoint-level: semantics-aware limits (per-node, per-tenant)
  * 
  * Architecture:
  * - Uses Firestore for distributed rate limit tracking (works across serverless instances)
@@ -19,15 +18,9 @@ import { adminDb } from '@/lib/firebase-admin';
  * Rate limit configuration per route group
  */
 const RATE_LIMIT_CONFIG = {
-  // Node endpoints - stricter limits
-  '/api/nodes': {
-    perIP: { requests: 100, windowSeconds: 60 }, // 100 req/min per IP
-    perNode: { requests: 10, windowSeconds: 60 }, // 10 req/min per node (for health/config)
-  },
-  // Log ingestion - very strict to prevent flooding
+  // Log ingestion - strict to prevent flooding
   '/api/logs': {
     perIP: { requests: 200, windowSeconds: 60 }, // 200 req/min per IP
-    perNode: { requests: 1000, windowSeconds: 60 }, // 1000 logs/min per node
   },
   // General API endpoints
   '/api': {
@@ -64,9 +57,6 @@ function getClientIP(request) {
  * @returns {string} Route group
  */
 function getRouteGroup(pathname) {
-  if (pathname.startsWith('/api/nodes')) {
-    return '/api/nodes';
-  }
   if (pathname.startsWith('/api/logs')) {
     return '/api/logs';
   }
@@ -77,9 +67,9 @@ function getRouteGroup(pathname) {
 }
 
 /**
- * Check rate limit for a key (IP, node, etc.)
+ * Check rate limit for a key (e.g. IP)
  * 
- * @param {string} key - Rate limit key (e.g., "ip:1.2.3.4", "node:node123")
+ * @param {string} key - Rate limit key (e.g., "ip:1.2.3.4")
  * @param {number} maxRequests - Maximum requests allowed
  * @param {number} windowSeconds - Time window in seconds
  * @returns {Promise<{allowed: boolean, remaining: number, resetAt: Date}>}
@@ -175,7 +165,6 @@ async function cleanupOldRateLimits() {
  * @param {Request} request - Next.js request object
  * @param {Object} options - Rate limit options
  * @param {string} options.routeGroup - Route group (auto-detected if not provided)
- * @param {string} options.nodeId - Node ID (for per-node limits)
  * @returns {Promise<{allowed: boolean, response?: Response, remaining?: number, resetAt?: Date}>}
  */
 export async function rateLimit(request, options = {}) {
@@ -213,37 +202,6 @@ export async function rateLimit(request, options = {}) {
           ),
           remaining: 0,
           resetAt: ipResult.resetAt,
-        };
-      }
-    }
-
-    // Check per-node rate limit (if nodeId provided)
-    if (config.perNode && options.nodeId) {
-      const nodeKey = `node:${options.nodeId}`;
-      const nodeResult = await checkRateLimit(nodeKey, config.perNode.requests, config.perNode.windowSeconds);
-      
-      if (!nodeResult.allowed) {
-        return {
-          allowed: false,
-          response: new Response(
-            JSON.stringify({
-              error: 'Rate limit exceeded',
-              message: `Too many requests from this node. Limit: ${config.perNode.requests} requests per ${config.perNode.windowSeconds} seconds.`,
-              retryAfter: Math.ceil((nodeResult.resetAt.getTime() - Date.now()) / 1000),
-            }),
-            {
-              status: 429,
-              headers: {
-                'Content-Type': 'application/json',
-                'X-RateLimit-Limit': config.perNode.requests.toString(),
-                'X-RateLimit-Remaining': '0',
-                'X-RateLimit-Reset': Math.ceil(nodeResult.resetAt.getTime() / 1000).toString(),
-                'Retry-After': Math.ceil((nodeResult.resetAt.getTime() - Date.now()) / 1000).toString(),
-              },
-            }
-          ),
-          remaining: 0,
-          resetAt: nodeResult.resetAt,
         };
       }
     }

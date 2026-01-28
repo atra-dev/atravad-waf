@@ -5,6 +5,19 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 
+// Icons for tenant creation
+const BuildingIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
+
+const PlusIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+);
+
 export default function LogsPage() {
   // Verify authentication
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -12,30 +25,92 @@ export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    nodeId: '',
     level: '',
     severity: '',
     search: '',
   });
-  const [nodes, setNodes] = useState([]);
   const [exporting, setExporting] = useState(false);
+  
+  // Multi-tenancy state
+  const [hasTenant, setHasTenant] = useState(false);
+  const [tenantName, setTenantName] = useState('');
+  const [showTenantForm, setShowTenantForm] = useState(false);
+  const [tenantFormData, setTenantFormData] = useState({ name: '' });
+  const [submittingTenant, setSubmittingTenant] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchLogs();
-      fetchNodes();
+      checkTenantAndFetchData();
     }
-  }, [filters, isAuthenticated]);
+  }, [isAuthenticated]);
 
-  const fetchNodes = async () => {
+  // Refetch logs when filters change (only if authenticated and has tenant)
+  useEffect(() => {
+    if (isAuthenticated && hasTenant) {
+      fetchLogs();
+    }
+  }, [filters, hasTenant]);
+
+  const checkTenantAndFetchData = async () => {
     try {
-      const response = await fetch('/api/nodes');
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setNodes(data);
+      const [tenantRes, userRes] = await Promise.all([
+        fetch('/api/tenants/current'),
+        fetch('/api/users/me'),
+      ]);
+      
+      const tenant = await tenantRes.json();
+      const user = await userRes.json();
+      
+      const userHasTenantName = user?.tenantName && 
+        typeof user.tenantName === 'string' && 
+        user.tenantName.trim() !== '';
+      const hasValidTenantFromAPI = !!(tenant?.id && 
+        tenant?.name && 
+        tenant.name !== 'Default Tenant');
+      const userHasTenant = !!userHasTenantName || hasValidTenantFromAPI;
+      
+      setHasTenant(userHasTenant);
+      setTenantName(tenant?.name || '');
+      
+      if (userHasTenant) {
+        await fetchLogs();
+      } else {
+        setLoading(false);
       }
     } catch (error) {
-      console.error('Error fetching nodes:', error);
+      console.error('Error checking tenant:', error);
+      setHasTenant(false);
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTenant = async (e) => {
+    e.preventDefault();
+    setSubmittingTenant(true);
+
+    try {
+      const response = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tenantFormData.name }),
+      });
+
+      if (response.ok) {
+        const tenantData = await response.json();
+        setHasTenant(true);
+        setTenantName(tenantData.name);
+        setShowTenantForm(false);
+        setTenantFormData({ name: '' });
+        await fetchLogs();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create organization');
+      }
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      alert('Failed to create organization');
+    } finally {
+      setSubmittingTenant(false);
     }
   };
 
@@ -43,7 +118,6 @@ export default function LogsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filters.nodeId) params.append('nodeId', filters.nodeId);
       if (filters.level) params.append('level', filters.level);
       if (filters.severity) params.append('severity', filters.severity);
       params.append('limit', '100');
@@ -58,6 +132,7 @@ export default function LogsPage() {
           const searchLower = filters.search.toLowerCase();
           filteredLogs = filteredLogs.filter(log =>
             (log.message && log.message.toLowerCase().includes(searchLower)) ||
+            (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
             (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
             (log.ruleId && log.ruleId.toString().includes(searchLower))
           );
@@ -76,7 +151,7 @@ export default function LogsPage() {
     setExporting(true);
     try {
       const csvContent = [
-        ['Timestamp', 'Severity', 'Level', 'Node ID', 'Rule ID', 'Message', 'IP Address'].join(','),
+        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address'].join(','),
         ...logs.map(log => [
           new Date(log.timestamp).toISOString(),
           log.severity || '',
@@ -120,6 +195,109 @@ export default function LogsPage() {
     }
   };
 
+  // If user doesn't have a tenant, show onboarding
+  if (!hasTenant && !loading && !authLoading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Security Logs & Audit</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                View and analyze security events and audit logs
+              </p>
+            </div>
+          </div>
+
+          {!showTenantForm ? (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                  <BuildingIcon className="h-10 w-10 text-white" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                Create Your Organization First
+              </h2>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Before viewing security logs, you need to create an organization. This keeps your logs isolated from other users.
+              </p>
+              <button
+                onClick={() => setShowTenantForm(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Create Organization
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-xl mx-auto">
+              <div className="text-center mb-6">
+                <div className="flex justify-center mb-4">
+                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                    <BuildingIcon className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Create Your Organization
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Enter a name for your organization to get started
+                </p>
+              </div>
+              <form onSubmit={handleCreateTenant} className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="tenantName"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
+                    Organization Name
+                  </label>
+                  <input
+                    type="text"
+                    id="tenantName"
+                    required
+                    placeholder="e.g., Acme Corporation, My Company"
+                    value={tenantFormData.name}
+                    onChange={(e) => setTenantFormData({ name: e.target.value })}
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTenantForm(false);
+                      setTenantFormData({ name: '' });
+                    }}
+                    className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTenant || !tenantFormData.name.trim()}
+                    className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow transition-all"
+                  >
+                    {submittingTenant ? (
+                      <span className="flex items-center gap-2">
+                        <LoadingSpinner size="sm" />
+                        Creating...
+                      </span>
+                    ) : (
+                      'Create & Continue'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -129,6 +307,7 @@ export default function LogsPage() {
             <p className="mt-2 text-sm text-gray-600">
               View and analyze security events, blocked attacks, and audit logs
             </p>
+            {tenantName && <p className="mt-1 text-xs text-gray-500">Organization: <span className="font-medium text-gray-700">{tenantName}</span></p>}
           </div>
           <button
             onClick={handleExport}
@@ -145,7 +324,7 @@ export default function LogsPage() {
         {/* Filters */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
               <input
@@ -155,21 +334,6 @@ export default function LogsPage() {
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Node</label>
-              <select
-                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
-                value={filters.nodeId}
-                onChange={(e) => setFilters({ ...filters, nodeId: e.target.value })}
-              >
-                <option value="">All Nodes</option>
-                {nodes.map((node) => (
-                  <option key={node.id} value={node.id}>
-                    {node.name}
-                  </option>
-                ))}
-              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
@@ -233,7 +397,7 @@ export default function LogsPage() {
                       Severity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Node
+                      Source
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Rule ID
