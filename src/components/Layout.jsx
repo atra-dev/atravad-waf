@@ -231,18 +231,22 @@ export default function Layout({ children }) {
   // Check visibility for each item (doesn't change array structure)
   // Security: Super Admin items must be completely hidden until role is confirmed
   const getItemVisibility = (item) => {
+    // Super admin sees ONLY the Super Admin link – no Dashboard, Applications, etc.
+    if (roleLoaded && userRole === 'super_admin') {
+      return item.requiresSuperAdmin === true;
+    }
+
     if (item.alwaysVisible) return true;
     
     // Security: Never show Super Admin items during loading
     if (item.requiresSuperAdmin) {
-      // Only show if role is loaded AND user is confirmed super admin
       if (!roleLoaded) return false;
       return userRole === 'super_admin';
     }
     
-    // User Management - only for admin role (not super_admin, not client/analyst)
+    // User Management - only for admin; hide until role is loaded to avoid flash for client
     if (item.requiresAdmin) {
-      if (!roleLoaded) return 'loading';
+      if (!roleLoaded) return false;
       return userRole === 'admin';
     }
     
