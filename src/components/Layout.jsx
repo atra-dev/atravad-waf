@@ -89,7 +89,6 @@ export default function Layout({ children }) {
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Setup auth interceptor on mount (only once)
   useEffect(() => {
@@ -112,10 +111,6 @@ export default function Layout({ children }) {
         setUserEmail(user.email);
         setUserRole(user.role || null);
         setRoleLoaded(true);
-        // Small delay to ensure smooth transition after initial render
-        requestAnimationFrame(() => {
-          setTimeout(() => setIsInitialLoad(false), 50);
-        });
       } catch (error) {
         console.error('Error initializing user:', error);
         // On error, clear token and redirect to login
@@ -228,36 +223,23 @@ export default function Layout({ children }) {
     { href: '/admin', label: 'Super Admin', icon: SuperAdminIcon, requiresSuperAdmin: true, separator: true },
   ], []);
 
-  // Check visibility for each item (doesn't change array structure)
-  // Security: Super Admin items must be completely hidden until role is confirmed
-  const getItemVisibility = (item) => {
+  // Build the list of nav items allowed for the current role.
+  // CRITICAL: Only compute when roleLoaded — during loading we show ZERO menu labels
+  // so that Super Admin, Admin, Client never see any unrelated menu, even for one frame.
+  const visibleNavItems = useMemo(() => {
+    if (!roleLoaded) return [];
     // Super admin sees ONLY the Super Admin link – no Dashboard, Applications, etc.
-    if (roleLoaded && userRole === 'super_admin') {
-      return item.requiresSuperAdmin === true;
+    if (userRole === 'super_admin') {
+      return allNavItems.filter((item) => item.requiresSuperAdmin === true);
     }
-
-    if (item.alwaysVisible) return true;
-    
-    // Security: Never show Super Admin items during loading
-    if (item.requiresSuperAdmin) {
-      if (!roleLoaded) return false;
-      return userRole === 'super_admin';
-    }
-    
-    // User Management - only for admin; hide until role is loaded to avoid flash for client
-    if (item.requiresAdmin) {
-      if (!roleLoaded) return false;
-      return userRole === 'admin';
-    }
-    
-    // For regular role-based items, show in loading state to prevent flicker
-    if (item.requiresRole) {
-      if (!roleLoaded) return 'loading';
-      return !!userRole;
-    }
-    
-    return false;
-  };
+    return allNavItems.filter((item) => {
+      if (item.requiresSuperAdmin) return false;
+      if (item.alwaysVisible) return true;
+      if (item.requiresAdmin) return userRole === 'admin';
+      if (item.requiresRole) return !!userRole;
+      return false;
+    });
+  }, [roleLoaded, userRole, allNavItems]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -328,100 +310,55 @@ export default function Layout({ children }) {
           style={{ maxHeight: 'calc(100vh - 4rem)' }}
         >
           <nav className="px-3 py-6 space-y-1 h-full overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}>
-            {allNavItems.map((item, index) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              const visibility = getItemVisibility(item);
-              const isVisible = visibility === true;
-              const isLoading = visibility === 'loading';
-              
-              // Track previous visible items to determine separator position
-              const prevVisibleItem = index > 0 ? allNavItems.slice(0, index).reverse().find(i => {
-                const prevVis = getItemVisibility(i);
-                return prevVis === true || prevVis === 'loading';
-              }) : null;
-              const shouldShowSeparator = item.separator && prevVisibleItem && (isVisible || isLoading);
-              
-              // Security: Super Admin items must be completely hidden (not just invisible) until confirmed
-              const isSuperAdminItem = item.requiresSuperAdmin;
-              const shouldRender = isVisible || (isLoading && !isSuperAdminItem);
-              
-              // During initial load, show non-sensitive items immediately to prevent flicker
-              // Super Admin items stay hidden for security
-              const showItem = shouldRender || (isInitialLoad && !isSuperAdminItem && item.requiresRole);
-              
-              // Optimized transitions for flicker-free rendering
-              return (
-                <div 
-                  key={item.href}
-                  className="relative"
-                  style={{ 
-                    height: showItem ? 'auto' : '0',
-                    minHeight: showItem ? '44px' : '0',
-                    overflow: 'hidden',
-                    transition: isInitialLoad ? 'none' : 'height 0.12s cubic-bezier(0.4, 0, 0.2, 1), min-height 0.12s cubic-bezier(0.4, 0, 0.2, 1)',
-                    willChange: isInitialLoad ? 'auto' : 'height',
-                  }}
-                >
-                  <div
-                    className={`${
-                      shouldRender
-                        ? 'opacity-100 translate-y-0' 
-                        : 'opacity-0 -translate-y-0.5 pointer-events-none'
-                    } ${isInitialLoad ? '' : 'transition-all ease-out'}`}
-                    style={{
-                      transitionDuration: isInitialLoad ? '0ms' : '120ms',
-                      willChange: isInitialLoad ? 'auto' : 'opacity, transform',
-                      transitionDelay: isInitialLoad ? '0ms' : shouldRender ? '0ms' : '30ms',
-                    }}
-                  >
+            {!roleLoaded ? (
+              /* During load/reload: show no menu labels — only a neutral loading state.
+                 Prevents any unrelated menu from ever appearing for Super Admin, Admin, Client. */
+              <div className="flex flex-col items-center justify-center py-12 px-4" aria-busy="true" aria-label="Loading navigation">
+                <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+                <span className="mt-3 text-sm text-gray-500">Loading…</span>
+              </div>
+            ) : (
+              visibleNavItems.map((item, index) => {
+                const isActive = pathname === item.href;
+                const Icon = item.icon;
+                const prevItem = index > 0 ? visibleNavItems[index - 1] : null;
+                const shouldShowSeparator = item.separator && prevItem;
+                return (
+                  <div key={item.href} className="relative">
                     {shouldShowSeparator && (
-                      <div className="my-2 mx-4 border-t border-gray-200"></div>
+                      <div className="my-2 mx-4 border-t border-gray-200" />
                     )}
                     <Link
                       href={item.href}
-                      tabIndex={isVisible && !isLoading ? 0 : -1}
+                      tabIndex={0}
                       className={`${
-                        isLoading
-                          ? 'opacity-60 cursor-default pointer-events-none'
-                          : isActive
+                        isActive
                           ? item.href === '/admin'
                             ? 'bg-purple-50 text-purple-700 border-l-4 border-purple-600'
                             : 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
                           : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent'
                       } group flex items-center px-4 py-3 text-sm font-medium rounded-r-lg transition-colors h-11`}
-                    style={{ transitionDuration: '120ms' }}
-                      onClick={(e) => {
-                        if (isLoading) {
-                          e.preventDefault();
-                        }
-                      }}
                     >
                       <Icon
                         className={`${
-                          isLoading
-                            ? 'text-gray-400'
-                            : isActive
+                          isActive
                             ? item.href === '/admin'
                               ? 'text-purple-600'
                               : 'text-blue-600'
                             : 'text-gray-500 group-hover:text-gray-700'
-                        } h-5 w-5 mr-3 transition-colors flex-shrink-0`}
-                        style={{ transitionDuration: '120ms' }}
+                        } h-5 w-5 mr-3 flex-shrink-0`}
                       />
-                      <span className={`flex-1 transition-colors ${isLoading ? 'text-gray-400' : ''}`} style={{ transitionDuration: '120ms' }}>
-                        {item.label}
-                      </span>
-                      {item.href === '/admin' && isVisible && !isLoading && (
+                      <span className="flex-1">{item.label}</span>
+                      {item.href === '/admin' && (
                         <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-purple-100 text-purple-800 rounded flex-shrink-0">
                           SA
                         </span>
                       )}
                     </Link>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </nav>
         </aside>
 
