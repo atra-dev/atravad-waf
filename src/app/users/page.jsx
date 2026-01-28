@@ -39,7 +39,13 @@ export default function TenantUsersPage() {
       const res = await fetch('/api/tenant/users');
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to load users');
+        const msg = data.error || 'Failed to load users';
+        if (msg === 'User is not assigned to a tenant') {
+          setError('You are not assigned to a tenant. Contact your administrator to get access.');
+          setUsers([]);
+          return;
+        }
+        throw new Error(msg);
       }
       setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
