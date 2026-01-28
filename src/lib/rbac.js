@@ -72,7 +72,6 @@ export function canPerformAction(userRole, action, resourceType) {
   const permissions = {
     [ROLES.ANALYST]: {
       policies: { read: true, create: false, update: false, delete: false, deploy: false },
-      nodes: { read: true, create: false, update: false, delete: false },
       apps: { read: true, create: false, update: false, delete: false },
       logs: { read: true, create: false },
       tenants: { read: true, create: false, update: false },
@@ -80,7 +79,6 @@ export function canPerformAction(userRole, action, resourceType) {
     },
     [ROLES.CLIENT]: {
       policies: { read: true, create: false, update: false, delete: false, deploy: false },
-      nodes: { read: true, create: false, update: false, delete: false },
       apps: { read: true, create: false, update: false, delete: false },
       logs: { read: true, create: false },
       tenants: { read: true, create: false, update: false },
@@ -101,7 +99,7 @@ export function canPerformAction(userRole, action, resourceType) {
  * @param {Firestore} adminDb - Firestore instance
  * @param {string} userEmail - User email address
  * @param {string} action - Action to check (read, create, update, delete, deploy)
- * @param {string} resourceType - Resource type (policies, nodes, apps, logs, tenants)
+ * @param {string} resourceType - Resource type (policies, apps, logs, tenants, users)
  */
 export async function checkAuthorization(adminDb, userEmail, action, resourceType) {
   const userRole = await getUserRole(adminDb, userEmail);

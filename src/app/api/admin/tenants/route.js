@@ -50,11 +50,6 @@ export async function GET(request) {
           .where('tenantName', '==', tenant.id)
           .get();
         
-        const nodesSnapshot = await adminDb
-          .collection('nodes')
-          .where('tenantName', '==', tenant.id)
-          .get();
-        
         const policiesSnapshot = await adminDb
           .collection('policies')
           .where('tenantName', '==', tenant.id)
@@ -64,7 +59,6 @@ export async function GET(request) {
           ...tenant,
           userCount: usersSnapshot.size,
           appCount: appsSnapshot.size,
-          nodeCount: nodesSnapshot.size,
           policyCount: policiesSnapshot.size,
         };
       })

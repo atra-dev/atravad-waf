@@ -163,21 +163,3 @@ export async function getTenantIdByUid(adminDb, uid) {
   return getTenantNameByUid(adminDb, uid);
 }
 
-/**
- * Normalize node name for use as document ID
- * - Lowercase
- * - Replace spaces with hyphens
- * - Remove special characters (keep alphanumeric, hyphens, underscores)
- * - Trim whitespace
- * - Firestore document IDs cannot contain: /, \, ?, #, [, ], *, whitespace
- */
-export function normalizeNodeName(name) {
-  if (!name) return null;
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/[^a-z0-9_-]/g, '') // Remove special characters except hyphens and underscores
-    .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
-}

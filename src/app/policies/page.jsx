@@ -5,11 +5,32 @@ import Layout from '@/components/Layout';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
+// Building icon for tenant creation
+const BuildingIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
+
+const PlusIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+);
+
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState([]);
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  
+  // Multi-tenancy state
+  const [hasTenant, setHasTenant] = useState(false);
+  const [tenantName, setTenantName] = useState('');
+  const [showTenantForm, setShowTenantForm] = useState(false);
+  const [tenantFormData, setTenantFormData] = useState({ name: '' });
+  const [submittingTenant, setSubmittingTenant] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     mode: 'detection',
@@ -117,9 +138,74 @@ export default function PoliciesPage() {
   const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
-    fetchPolicies();
-    fetchApps();
+    checkTenantAndFetchData();
   }, []);
+
+  const checkTenantAndFetchData = async () => {
+    try {
+      // Check tenant first
+      const [tenantRes, userRes] = await Promise.all([
+        fetch('/api/tenants/current'),
+        fetch('/api/users/me'),
+      ]);
+      
+      const tenant = await tenantRes.json();
+      const user = await userRes.json();
+      
+      // Check if user has a valid tenant
+      const userHasTenantName = user?.tenantName && 
+        typeof user.tenantName === 'string' && 
+        user.tenantName.trim() !== '';
+      const hasValidTenantFromAPI = !!(tenant?.id && 
+        tenant?.name && 
+        tenant.name !== 'Default Tenant');
+      const userHasTenant = !!userHasTenantName || hasValidTenantFromAPI;
+      
+      setHasTenant(userHasTenant);
+      setTenantName(tenant?.name || '');
+      
+      // Only fetch policies and apps if user has a tenant
+      if (userHasTenant) {
+        await Promise.all([fetchPolicies(), fetchApps()]);
+      }
+    } catch (error) {
+      console.error('Error checking tenant:', error);
+      setHasTenant(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTenant = async (e) => {
+    e.preventDefault();
+    setSubmittingTenant(true);
+
+    try {
+      const response = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: tenantFormData.name }),
+      });
+
+      if (response.ok) {
+        const tenantData = await response.json();
+        setHasTenant(true);
+        setTenantName(tenantData.name);
+        setShowTenantForm(false);
+        setTenantFormData({ name: '' });
+        // Now fetch policies and apps
+        await Promise.all([fetchPolicies(), fetchApps()]);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create organization');
+      }
+    } catch (error) {
+      console.error('Error creating tenant:', error);
+      alert('Failed to create organization');
+    } finally {
+      setSubmittingTenant(false);
+    }
+  };
 
   const fetchPolicies = async () => {
     try {
@@ -307,6 +393,122 @@ export default function PoliciesPage() {
   const uniquePolicies = new Set(policies.map(p => p.name));
   const policyCount = uniquePolicies.size;
 
+  // If user doesn't have a tenant, show onboarding
+  if (!hasTenant) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Security Policies</h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Configure and manage WAF security policies
+              </p>
+            </div>
+          </div>
+
+          {!showTenantForm ? (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                  <BuildingIcon className="h-10 w-10 text-white" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                Create Your Organization First
+              </h2>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Before creating security policies, you need to create an organization. This keeps your policies isolated from other users.
+              </p>
+              <button
+                onClick={() => setShowTenantForm(true)}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Create Organization
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-xl mx-auto">
+              <div className="text-center mb-6">
+                <div className="flex justify-center mb-4">
+                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+                    <BuildingIcon className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Create Your Organization
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Enter a name for your organization to get started
+                </p>
+              </div>
+              <form onSubmit={handleCreateTenant} className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="tenantName"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
+                    Organization Name
+                  </label>
+                  <input
+                    type="text"
+                    id="tenantName"
+                    required
+                    placeholder="e.g., Acme Corporation, My Company"
+                    value={tenantFormData.name}
+                    onChange={(e) => setTenantFormData({ name: e.target.value })}
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    autoFocus
+                  />
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <svg className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">Multi-tenant Isolation</p>
+                      <p className="text-blue-700">
+                        All your security policies will be isolated within this organization. You&apos;ll become the administrator.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTenantForm(false);
+                      setTenantFormData({ name: '' });
+                    }}
+                    className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTenant || !tenantFormData.name.trim()}
+                    className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow transition-all"
+                  >
+                    {submittingTenant ? (
+                      <span className="flex items-center gap-2">
+                        <LoadingSpinner size="sm" />
+                        Creating...
+                      </span>
+                    ) : (
+                      'Create & Continue'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      </Layout>
+    );
+  }
+
   // All available security rules and protections
   const allSecurityRules = {
     owaspCRS: {
@@ -386,6 +588,7 @@ export default function PoliciesPage() {
             <p className="mt-2 text-sm text-gray-600">
               Manage WAF security policies and protection rules
             </p>
+            <p className="mt-1 text-xs text-gray-500">Organization: <span className="font-medium text-gray-700">{tenantName}</span></p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
