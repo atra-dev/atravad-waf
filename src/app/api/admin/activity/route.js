@@ -68,12 +68,11 @@ export async function GET(request) {
       })
     );
 
-    // Get platform statistics
-    const [tenantsSnapshot, usersSnapshot, appsSnapshot, nodesSnapshot, policiesSnapshot] = await Promise.all([
+    // Get platform statistics (no nodes — Sucuri-style: add site → point DNS → done)
+    const [tenantsSnapshot, usersSnapshot, appsSnapshot, policiesSnapshot] = await Promise.all([
       adminDb.collection('tenants').get(),
       adminDb.collection('users').get(),
       adminDb.collection('applications').get(),
-      adminDb.collection('nodes').get(),
       adminDb.collection('policies').get(),
     ]);
 
@@ -81,9 +80,7 @@ export async function GET(request) {
       totalTenants: tenantsSnapshot.size,
       totalUsers: usersSnapshot.size,
       totalApps: appsSnapshot.size,
-      totalNodes: nodesSnapshot.size,
       totalPolicies: policiesSnapshot.size,
-      onlineNodes: nodesSnapshot.docs.filter(doc => doc.data().status === 'online').length,
     };
 
     return NextResponse.json({

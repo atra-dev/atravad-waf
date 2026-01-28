@@ -2,15 +2,14 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
-import { verifyNodeApiKey, extractNodeCredentials } from '@/lib/node-auth';
 import { rateLimit } from '@/lib/rate-limit';
+
+const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 
 /**
  * POST /api/logs
- * Endpoint for WAF nodes to send logs (basic log ingestion)
- * This is called by nodes, authenticated via node API key
- * 
- * Authentication: Requires valid node API key
+ * Log ingestion for WAF edge. Auth via LOG_INGEST_API_KEY + tenant name.
+ * No nodes; Sucuri-style flow.
  */
 export async function POST(request) {
   try {
@@ -22,36 +21,25 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    
-    // Extract API key from headers or body (backward compatibility)
-    const headerCreds = extractNodeCredentials(request);
-    const nodeId = headerCreds?.nodeId || body.nodeId;
-    const apiKey = headerCreds?.apiKey || body.nodeApiKey;
+    const ingestKey = request.headers.get('x-log-api-key') || request.headers.get('X-Log-Api-Key') || body.logApiKey;
+    const tenantName = request.headers.get('x-tenant-name') || request.headers.get('X-Tenant-Name') || body.tenantName;
     const { logs } = body;
 
-    if (!nodeId || !apiKey) {
+    if (!LOG_INGEST_API_KEY || ingestKey !== LOG_INGEST_API_KEY) {
       return NextResponse.json(
-        { error: 'nodeId and nodeApiKey are required' },
+        { error: 'Invalid or missing log API key. Set LOG_INGEST_API_KEY and send it via X-Log-Api-Key or body.logApiKey.' },
         { status: 401 }
       );
     }
 
-    // Verify node API key using centralized authentication
-    const authResult = await verifyNodeApiKey(nodeId, apiKey);
-    if (!authResult.ok) {
+    if (!tenantName || typeof tenantName !== 'string' || !tenantName.trim()) {
       return NextResponse.json(
-        { error: authResult.error || 'Authentication failed' },
-        { status: authResult.error?.includes('disabled') || authResult.error?.includes('revoked') ? 403 : 401 }
+        { error: 'tenantName is required (X-Tenant-Name header or body.tenantName)' },
+        { status: 400 }
       );
     }
 
-    const nodeData = authResult.node;
-
-    // Apply rate limiting (strict per-node limits for log ingestion)
-    const rateLimitResult = await rateLimit(request, {
-      routeGroup: '/api/logs',
-      nodeId: nodeId,
-    });
+    const rateLimitResult = await rateLimit(request, { routeGroup: '/api/logs' });
     if (!rateLimitResult.allowed) {
       return rateLimitResult.response;
     }
@@ -66,12 +54,11 @@ export async function POST(request) {
     const now = new Date().toISOString();
     const batch = adminDb.batch();
 
-    // Store logs
     logs.forEach((log) => {
       const logRef = adminDb.collection('logs').doc();
       batch.set(logRef, {
-        nodeId,
-        tenantName: nodeData.tenantName,
+        source: tenantName,
+        tenantName: tenantName.trim(),
         timestamp: log.timestamp || now,
         level: log.level || 'info',
         message: log.message,
@@ -87,15 +74,11 @@ export async function POST(request) {
         statusCode: log.statusCode || null,
         blocked: log.blocked || false,
         ingestedAt: now,
+        ipAddress: log.clientIp || log.ipAddress || null,
       });
     });
 
     await batch.commit();
-
-    // Update node's last log time
-    await adminDb.collection('nodes').doc(nodeId).update({
-      lastLogTime: now,
-    });
 
     return NextResponse.json({
       success: true,
@@ -113,7 +96,7 @@ export async function POST(request) {
 
 /**
  * GET /api/logs
- * Retrieve logs (analysts and admins only)
+ * Retrieve logs (analysts and admins only). Filter by tenant; no nodeId.
  */
 export async function GET(request) {
   try {
@@ -129,7 +112,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check authorization - analysts and admins can view logs
     const authCheck = await checkAuthorization(adminDb, user.email, 'read', 'logs');
     if (!authCheck.authorized) {
       return NextResponse.json(
@@ -140,34 +122,26 @@ export async function GET(request) {
 
     const tenantName = await getTenantName(user);
     if (!tenantName) {
-      return NextResponse.json([]);
+      return NextResponse.json({ logs: [] });
     }
 
     const { searchParams } = new URL(request.url);
-    const nodeId = searchParams.get('nodeId');
     const level = searchParams.get('level');
     const severity = searchParams.get('severity');
-    const limit = parseInt(searchParams.get('limit') || '100');
+    const limit = parseInt(searchParams.get('limit') || '100', 10);
     const startAfter = searchParams.get('startAfter');
 
     let query = adminDb
       .collection('logs')
       .where('tenantName', '==', tenantName);
 
-    if (nodeId) {
-      query = query.where('nodeId', '==', nodeId);
-    }
-
     if (level) {
       query = query.where('level', '==', level);
     }
-
     if (severity) {
       query = query.where('severity', '==', severity);
     }
 
-    // Fetch without orderBy to avoid index requirement, then sort in memory
-    // Fetch more than needed to handle pagination
     const fetchLimit = startAfter ? limit * 2 : limit;
     const logsSnapshot = await query.limit(fetchLimit).get();
 
@@ -175,23 +149,21 @@ export async function GET(request) {
       .map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        nodeId: doc.data().source ?? doc.data().nodeId,
       }))
       .sort((a, b) => {
-        // Sort by timestamp descending (newest first)
         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return timeB - timeA;
       });
 
-    // Handle pagination (startAfter)
     if (startAfter) {
-      const startAfterIndex = logs.findIndex(log => log.id === startAfter);
+      const startAfterIndex = logs.findIndex((log) => log.id === startAfter);
       if (startAfterIndex !== -1) {
         logs = logs.slice(startAfterIndex + 1);
       }
     }
 
-    // Apply limit after sorting
     const hasMore = logs.length > limit;
     logs = logs.slice(0, limit);
 

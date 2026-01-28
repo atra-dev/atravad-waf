@@ -1512,3 +1512,19 @@ export function getOWASPCRSInfo() {
     ],
   };
 }
+
+/**
+ * Produce a proxy-safe ModSecurity config usable by libmodsecurity Rules.add()
+ * Strips Include directives so rules work without CRS on disk.
+ * @param {string} fullConfig - Full config (may contain Include /path/to/crs)
+ * @returns {string} Config with Include lines removed, suitable for rules.add()
+ */
+export function getStandaloneConfigForProxy(fullConfig) {
+  if (!fullConfig || typeof fullConfig !== 'string') return '';
+  return fullConfig
+    .split('\n')
+    .filter((line) => !/^\s*Include\s+/i.test(line.trim()))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

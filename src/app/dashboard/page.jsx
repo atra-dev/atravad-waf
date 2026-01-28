@@ -35,9 +35,7 @@ export default function DashboardPage() {
     tenantName: '',
     tenantId: null,
     appCount: 0,
-    nodeCount: 0,
     policyCount: 0,
-    onlineNodes: 0,
     hasTenant: false,
   });
   const [loading, setLoading] = useState(true);
@@ -62,27 +60,21 @@ export default function DashboardPage() {
     }
 
     try {
-      const [tenantRes, appsRes, nodesRes, policiesRes, userRes] = await Promise.all([
+      const [tenantRes, appsRes, policiesRes, userRes] = await Promise.all([
         fetch('/api/tenants/current'),
         fetch('/api/apps'),
-        fetch('/api/nodes'),
         fetch('/api/policies'),
         fetch('/api/users/me'),
       ]);
 
       const tenant = await tenantRes.json();
       const apps = await appsRes.json();
-      const nodes = await nodesRes.json();
       const policies = await policiesRes.json();
       const user = await userRes.json();
 
       const appsArray = Array.isArray(apps) ? apps : [];
-      const nodesArray = Array.isArray(nodes) ? nodes : [];
       const policiesArray = Array.isArray(policies) ? policies : [];
-      
-      // Get unique policy names
       const uniquePolicies = new Set(policiesArray.map(p => p.name));
-      const onlineNodes = nodesArray.filter(n => n.status === 'online').length;
       
       // Check if user has a tenant
       // Tenant is valid if:
@@ -100,9 +92,7 @@ export default function DashboardPage() {
         tenantName: tenant?.name || 'No Tenant',
         tenantId: tenant?.id || null,
         appCount: appsArray.length,
-        nodeCount: nodesArray.length,
         policyCount: uniquePolicies.size,
-        onlineNodes,
         hasTenant,
       });
 
@@ -121,9 +111,7 @@ export default function DashboardPage() {
         tenantName: 'No Tenant',
         tenantId: null,
         appCount: 0,
-        nodeCount: 0,
         policyCount: 0,
-        onlineNodes: 0,
         hasTenant: false,
       });
     } finally {
@@ -213,7 +201,7 @@ export default function DashboardPage() {
                       Welcome to ATRAVAD WAF
                     </h3>
                     <p className="text-sm text-gray-700 mb-4">
-                      To get started, you need to create an organization (tenant). This will allow you to manage applications, policies, and WAF nodes.
+                      To get started, you need to create an organization (tenant). This will allow you to manage sites and policies.
                     </p>
                     <button
                       onClick={() => setShowTenantForm(true)}
@@ -268,7 +256,7 @@ export default function DashboardPage() {
                       <div className="flex-1 text-sm text-blue-800">
                         <p className="font-medium mb-1">What is an Organization?</p>
                         <p className="text-blue-700">
-                          An organization (tenant) isolates your resources from others. All your applications, policies, and nodes will be associated with this organization. You'll become the administrator of this organization.
+                          An organization (tenant) isolates your resources from others. All your sites and policies will be associated with this organization. You'll become the administrator of this organization.
                         </p>
                       </div>
                     </div>
@@ -308,7 +296,7 @@ export default function DashboardPage() {
         {/* Stats Grid - Only show if user has a tenant */}
         {data.hasTenant && (
           <>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <StatCard
                 title="Organization"
                 value={data.tenantName}
@@ -316,10 +304,10 @@ export default function DashboardPage() {
                 subtitle="Active tenant"
               />
           <StatCard
-            title="Applications"
+            title="Sites"
             value={data.appCount}
             icon={AppsIcon}
-            subtitle="Protected applications"
+            subtitle="Protected sites"
           />
           <StatCard
             title="Security Policies"
@@ -327,13 +315,6 @@ export default function DashboardPage() {
             icon={ShieldIcon}
             subtitle="Active policies"
           />
-              <StatCard
-                title="WAF Nodes"
-                value={data.nodeCount}
-                icon={ServerIcon}
-                subtitle={`${data.onlineNodes} online`}
-                trend={data.onlineNodes > 0 ? { type: 'up', value: `${data.onlineNodes} active` } : null}
-              />
             </div>
 
             {/* Quick Actions */}
@@ -359,16 +340,16 @@ export default function DashboardPage() {
                     </svg>
                   </a>
                   <a
-                    href="/nodes"
+                    href="/apps"
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-10 h-10 bg-gray-600 rounded-lg">
-                        <ServerIcon className="h-5 w-5 text-white" />
+                      <div className="flex items-center justify-center w-10 h-10 bg-blue-600 rounded-lg">
+                        <AppsIcon className="h-5 w-5 text-white" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">Register WAF Node</p>
-                        <p className="text-xs text-gray-500">Add new proxy WAF node</p>
+                        <p className="text-sm font-medium text-gray-900">Add site</p>
+                        <p className="text-xs text-gray-500">Add site → point DNS → SSL → done</p>
                       </div>
                     </div>
                     <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -397,16 +378,10 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Node Connectivity</span>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                      data.onlineNodes > 0 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full mr-2 ${
-                        data.onlineNodes > 0 ? 'bg-green-400' : 'bg-yellow-400'
-                      }`}></span>
-                      {data.onlineNodes > 0 ? `${data.onlineNodes}/${data.nodeCount} online` : 'No nodes online'}
+                    <span className="text-sm text-gray-600">WAF Protection</span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                      Active
                     </span>
                   </div>
                 </div>

@@ -57,9 +57,7 @@ export default function SuperAdminPage() {
     totalTenants: 0,
     totalUsers: 0,
     totalApps: 0,
-    totalNodes: 0,
     totalPolicies: 0,
-    onlineNodes: 0,
   });
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
@@ -142,9 +140,7 @@ export default function SuperAdminPage() {
         totalTenants: tenantsData?.length || 0,
         totalUsers: usersData?.length || 0,
         totalApps: 0,
-        totalNodes: 0,
         totalPolicies: 0,
-        onlineNodes: 0,
       });
     } catch (error) {
       console.error('Error fetching super admin data:', error);
@@ -242,17 +238,10 @@ export default function SuperAdminPage() {
               subtitle="Platform users"
             />
             <StatCard
-              title="Total Apps"
+              title="Total Sites"
               value={stats.totalApps || tenants.reduce((sum, t) => sum + (t.appCount || 0), 0)}
               icon={AppsIcon}
-              subtitle="Applications"
-            />
-            <StatCard
-              title="WAF Nodes"
-              value={stats.totalNodes || tenants.reduce((sum, t) => sum + (t.nodeCount || 0), 0)}
-              icon={ServerIcon}
-              subtitle={`${stats.onlineNodes || 0} online`}
-              trend={stats.onlineNodes > 0 ? { type: 'up', value: `${stats.onlineNodes} active` } : null}
+              subtitle="Protected sites"
             />
           </div>
         )}
@@ -294,7 +283,7 @@ export default function SuperAdminPage() {
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{tenant.name}</p>
                       <p className="text-xs text-gray-500">
-                        {tenant.userCount || 0} users • {tenant.appCount || 0} apps • {tenant.nodeCount || 0} nodes
+                        {tenant.userCount || 0} users • {tenant.appCount || 0} sites • {tenant.policyCount || 0} policies
                       </p>
                     </div>
                     <StatusBadge status="online" />
@@ -349,8 +338,7 @@ export default function SuperAdminPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Apps</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nodes</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sites</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                   </tr>
@@ -364,7 +352,6 @@ export default function SuperAdminPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.userCount || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.appCount || 0}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.nodeCount || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.policyCount || 0}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
@@ -373,7 +360,7 @@ export default function SuperAdminPage() {
                   ))}
                   {tenants.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">
+                      <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
                         No tenants found
                       </td>
                     </tr>

@@ -1,215 +1,293 @@
 /**
  * ModSecurity Integration for Proxy WAF
- * 
- * Integrates ModSecurity v3 with the proxy server for request/response inspection.
- * 
- * Note: This requires ModSecurity v3 (libmodsecurity) to be installed.
- * For Node.js, we can use:
- * 1. Native bindings (if available)
- * 2. Child process execution
- * 3. HTTP API to ModSecurity service
- * 
- * This implementation uses a hybrid approach with fallbacks.
+ *
+ * Uses libmodsecurity v3 via Node bindings (modsecurity npm).
+ * - Request inspection (Phase 1–2) with full body
+ * - Response inspection (Phase 4) when enabled
+ * - Fallback to pattern-based stub if native bindings are unavailable
  */
 
-import { spawn } from 'child_process';
+import { createRequire } from 'module';
+import { getStandaloneConfigForProxy } from './modsecurity.js';
 import { adminDb } from './firebase-admin';
 
-/**
- * ModSecurity Proxy Integration
- */
+const requireMod = createRequire(import.meta.url);
+let ModSecurityNapi = null;
+let RulesNapi = null;
+let TransactionNapi = null;
+try {
+  const mod = requireMod('modsecurity');
+  ModSecurityNapi = mod.ModSecurity;
+  RulesNapi = mod.Rules;
+  TransactionNapi = mod.Transaction;
+} catch {
+  ModSecurityNapi = null;
+  RulesNapi = null;
+  TransactionNapi = null;
+}
+
+const useNativeModSecurity = Boolean(ModSecurityNapi && RulesNapi && TransactionNapi);
+
+function interventionToMatchedRules(intervention) {
+  const matchedRules = [];
+  if (!intervention || typeof intervention !== 'object') return matchedRules;
+  if (intervention.log && typeof intervention.log === 'string') {
+    matchedRules.push({
+      id: 0,
+      message: intervention.log,
+      severity: intervention.status >= 400 ? 'CRITICAL' : 'WARNING',
+      matchedData: null,
+      matchedVar: null,
+    });
+  }
+  if (intervention.status) {
+    matchedRules.push({
+      id: 0,
+      message: `ModSecurity intervention: ${intervention.status}`,
+      severity: intervention.status >= 400 ? 'CRITICAL' : 'WARNING',
+      matchedData: null,
+      matchedVar: null,
+    });
+  }
+  return matchedRules;
+}
+
+function runFallbackInspectRequest(req, _policyId, bodyBuffer = null) {
+  const url = req.url || '';
+  const headers = req.headers || {};
+  const body = (bodyBuffer && Buffer.isBuffer(bodyBuffer))
+    ? bodyBuffer.toString('utf8', 0, 65536)
+    : ((req.body && Buffer.isBuffer(req.body)) ? req.body.toString('utf8', 0, 65536) : '');
+
+  const sqlPatterns = [
+    /\b(SELECT|UNION|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b/i,
+    /'|(\\)|;|(\|)|(\*)|(%)/,
+    /\bOR\s*=\s*/i,
+  ];
+  const matchedRules = [];
+  let blocked = false;
+
+  for (const pattern of sqlPatterns) {
+    if (pattern.test(url) || pattern.test(body)) {
+      matchedRules.push({
+        id: 100000,
+        message: 'SQL Injection pattern detected (fallback)',
+        severity: 'CRITICAL',
+        matchedData: (url.match(pattern) || body.match(pattern))?.[0],
+        matchedVar: 'REQUEST_URI/REQUEST_BODY',
+      });
+      blocked = true;
+      break;
+    }
+  }
+  const ua = (headers['user-agent'] || '').toLowerCase();
+  if (ua.includes('sqlmap') || ua.includes('nikto') || ua.includes('nmap')) {
+    matchedRules.push({
+      id: 100002,
+      message: 'Suspicious User-Agent detected',
+      severity: 'WARNING',
+      matchedData: headers['user-agent'],
+      matchedVar: 'REQUEST_HEADERS:User-Agent',
+    });
+  }
+  return {
+    allowed: !blocked,
+    blocked,
+    matchedRules,
+    severity: blocked ? 'CRITICAL' : (matchedRules.length ? 'WARNING' : 'INFO'),
+    engine: 'fallback',
+  };
+}
+
 export class ModSecurityProxy {
   constructor(options = {}) {
-    this.policies = new Map(); // policyId -> ModSecurity config
-    this.modSecurityPath = options.modSecurityPath || '/usr/local/bin/modsec-rules-checker';
-    this.useStandalone = options.useStandalone !== false; // Use standalone ModSecurity
-    this.cacheSize = options.cacheSize || 1000;
+    this.policies = new Map();
+    this.rulesCache = new Map(); // policyId -> { modsec, rules }
+    this.modsec = null;
+    this.bodyLimit = options.bodyLimit ?? 13107200;
+    this.responseBodyLimit = options.responseBodyLimit ?? 524288;
+    this.inspectionTimeout = options.inspectionTimeout ?? 5000;
+    this.failOpen = options.failOpen !== false;
+    this.responseInspectionEnabled = options.responseInspectionEnabled !== false;
+    if (useNativeModSecurity) {
+      try {
+        this.modsec = new ModSecurityNapi();
+        this.modsec.setLogCallback && this.modsec.setLogCallback(() => {});
+      } catch {
+        this.modsec = null;
+      }
+    }
   }
 
-  /**
-   * Load policy configuration
-   */
   async loadPolicy(policyId) {
     try {
-      if (!adminDb) {
-        console.warn('Firebase Admin not initialized');
-        return null;
-      }
-
+      if (!adminDb) return null;
       const policyDoc = await adminDb.collection('policies').doc(policyId).get();
-      
-      if (!policyDoc.exists) {
-        return null;
-      }
-
+      if (!policyDoc.exists) return null;
       const policy = policyDoc.data();
       this.policies.set(policyId, policy);
-      
+
+      if (useNativeModSecurity && this.modsec && policy.modSecurityConfig) {
+        const standalone = getStandaloneConfigForProxy(policy.modSecurityConfig);
+        if (standalone) {
+          try {
+            const rules = new RulesNapi();
+            const ok = rules.add(standalone);
+            if (ok) {
+              this.rulesCache.set(policyId, { modsec: this.modsec, rules });
+            }
+          } catch (err) {
+            console.warn('ModSecurity rules load failed for policy', policyId, err.message);
+          }
+        }
+      }
       return policy;
-    } catch (error) {
-      console.error('Error loading policy:', error);
+    } catch (err) {
+      console.error('loadPolicy error:', err);
       return null;
     }
   }
 
-  /**
-   * Inspect request using ModSecurity
-   * 
-   * This is a simplified implementation. In production, you would:
-   * 1. Use libmodsecurity Node.js bindings (if available)
-   * 2. Or use ModSecurity standalone with proper request formatting
-   * 3. Or use a ModSecurity HTTP API service
-   */
-  async inspectRequest(req, policyId) {
-    // Ensure policy is loaded
-    if (!this.policies.has(policyId)) {
-      await this.loadPolicy(policyId);
-    }
-    
+  _getRules(policyId) {
+    return this.rulesCache.get(policyId) || null;
+  }
+
+  async inspectRequest(req, policyId, bodyBuffer = null) {
+    if (!this.policies.has(policyId)) await this.loadPolicy(policyId);
     const policy = this.policies.get(policyId);
-    
     if (!policy || !policy.modSecurityConfig) {
-      // No policy or ModSecurity config, allow request
-      return { allowed: true, matchedRules: [] };
+      return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
     }
 
-    // For now, return a basic inspection result
-    // In production, this would call ModSecurity engine
-    // TODO: Implement actual ModSecurity integration
-    
-    // Basic pattern matching as fallback
-    const url = req.url || '';
-    const method = req.method || 'GET';
-    const headers = req.headers || {};
-    
-    // Check for obvious SQL injection patterns
-    const sqlPatterns = [
-      /(\b(SELECT|UNION|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)/i,
-      /('|(\\')|(;)|(\\;)|(\|)|(\\|)|(\*)|(\\*)|(%)|(\\%))/i,
-      /(\bOR\b.*=.*)/i,
-    ];
-    
-    const matchedRules = [];
-    let blocked = false;
-    
-    // Check URL
-    for (const pattern of sqlPatterns) {
-      if (pattern.test(url)) {
-        matchedRules.push({
-          id: 100000,
-          message: 'SQL Injection pattern detected in URL',
-          severity: 'CRITICAL',
-          matchedData: url.match(pattern)?.[0],
-          matchedVar: 'REQUEST_URI',
-        });
-        blocked = true;
-        break;
-      }
-    }
-    
-    // Check query string
-    if (url.includes('?')) {
-      const queryString = url.split('?')[1];
-      for (const pattern of sqlPatterns) {
-        if (pattern.test(queryString)) {
-          matchedRules.push({
-            id: 100001,
-            message: 'SQL Injection pattern detected in query string',
-            severity: 'CRITICAL',
-            matchedData: queryString.match(pattern)?.[0],
-            matchedVar: 'QUERY_STRING',
-          });
-          blocked = true;
-          break;
+    if (useNativeModSecurity && this.modsec) {
+      const cached = this._getRules(policyId);
+      if (!cached) await this.loadPolicy(policyId);
+      const { rules } = this._getRules(policyId) || {};
+      if (!rules) return runFallbackInspectRequest(req, policyId, bodyBuffer);
+
+      const run = () => {
+        const tx = new TransactionNapi(this.modsec, rules);
+        const remoteAddr = req.socket?.remoteAddress || '127.0.0.1';
+        const remotePort = req.socket?.remotePort || 0;
+        const localAddr = req.socket?.localAddress || '127.0.0.1';
+        const localPort = req.socket?.localPort || 0;
+
+        let res = tx.processConnection(remoteAddr, remotePort, localAddr, localPort);
+        if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
         }
+
+        res = tx.processURI(req.url || '/', req.method || 'GET', req.httpVersion || '1.1');
+        if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+        }
+
+        const raw = req.rawHeaders || [];
+        for (let i = 0; i < raw.length; i += 2) {
+          tx.addRequestHeader(raw[i], raw[i + 1] ?? '');
+        }
+        res = tx.processRequestHeaders();
+        if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+        }
+
+        if (bodyBuffer && bodyBuffer.length > 0) {
+          res = tx.appendRequestBody(bodyBuffer);
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          }
+          res = tx.processRequestBody();
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          }
+        }
+
+        tx.processLogging && tx.processLogging();
+        return { allowed: true, blocked: false, matchedRules: [], engine: 'libmodsecurity' };
+      };
+
+      try {
+        return await Promise.race([
+          Promise.resolve(run()),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('inspection timeout')), this.inspectionTimeout)),
+        ]);
+      } catch (err) {
+        if (this.failOpen) {
+          console.warn('ModSecurity inspectRequest failed, fail-open:', err.message);
+          return { allowed: true, blocked: false, matchedRules: [], engine: 'fail-open' };
+        }
+        console.warn('ModSecurity inspectRequest failed, fail-closed:', err.message);
+        return {
+          allowed: false,
+          blocked: true,
+          matchedRules: [{ id: 0, message: err.message, severity: 'WARNING', matchedData: null, matchedVar: null }],
+          engine: 'fail-closed',
+        };
       }
     }
-    
-    // Check headers
-    const userAgent = headers['user-agent'] || '';
-    if (userAgent.toLowerCase().includes('sqlmap') || 
-        userAgent.toLowerCase().includes('nikto') ||
-        userAgent.toLowerCase().includes('nmap')) {
-      matchedRules.push({
-        id: 100002,
-        message: 'Suspicious User-Agent detected',
-        severity: 'WARNING',
-        matchedData: userAgent,
-        matchedVar: 'REQUEST_HEADERS:User-Agent',
-      });
-    }
 
-    return {
-      allowed: !blocked,
-      blocked,
-      matchedRules,
-      severity: blocked ? 'CRITICAL' : (matchedRules.length > 0 ? 'WARNING' : 'INFO'),
-    };
+    return runFallbackInspectRequest(req, policyId, bodyBuffer);
   }
 
-  /**
-   * Inspect response using ModSecurity (Phase 4)
-   */
-  async inspectResponse(res, req, policyId) {
+  async inspectResponse(responseMeta, policyId) {
+    if (!this.responseInspectionEnabled) return { allowed: true, matchedRules: [] };
+    if (!this.policies.has(policyId)) await this.loadPolicy(policyId);
     const policy = this.policies.get(policyId);
-    
-    if (!policy || !policy.modSecurityConfig) {
-      return { allowed: true, matchedRules: [] };
-    }
+    if (!policy || !policy.modSecurityConfig) return { allowed: true, matchedRules: [] };
 
-    // Response inspection would check for:
-    // - Data leakage (credit cards, SSNs, etc.)
-    // - Sensitive information exposure
-    // - Security headers presence
-    
-    // For now, return basic inspection
-    // TODO: Implement actual ModSecurity response inspection
-    
-    return {
-      allowed: true,
-      matchedRules: [],
-    };
-  }
+    if (useNativeModSecurity && this.modsec) {
+      const cached = this._getRules(policyId);
+      if (!cached) return { allowed: true, matchedRules: [] };
+      const { rules } = cached;
+      if (!rules) return { allowed: true, matchedRules: [] };
 
-  /**
-   * Format request for ModSecurity standalone
-   */
-  formatRequestForModSecurity(req) {
-    // Format request in ModSecurity audit log format
-    // This is a simplified version
-    const lines = [];
-    
-    lines.push(`[${new Date().toISOString()}] ${req.method} ${req.url} HTTP/1.1`);
-    lines.push(`Host: ${req.headers.host || ''}`);
-    
-    // Add other headers
-    Object.entries(req.headers).forEach(([key, value]) => {
-      if (key.toLowerCase() !== 'host') {
-        lines.push(`${key}: ${value}`);
+      try {
+        const tx = new TransactionNapi(this.modsec, rules);
+        const status = responseMeta.statusCode ?? 200;
+        const protocol = responseMeta.httpVersion || '1.1';
+        const headers = responseMeta.headers || {};
+        const rawHeaders = responseMeta.rawHeaders || [];
+        for (let i = 0; i < rawHeaders.length; i += 2) {
+          tx.addResponseHeader(rawHeaders[i], rawHeaders[i + 1] ?? '');
+        }
+        let res = tx.processResponseHeaders(status, protocol);
+        if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+          return { allowed: false, matchedRules: interventionToMatchedRules(res) };
+        }
+        const body = responseMeta.body;
+        if (body && body.length > 0) {
+          const chunk = body.length > this.responseBodyLimit ? body.subarray(0, this.responseBodyLimit) : body;
+          res = tx.appendResponseBody(chunk);
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, matchedRules: interventionToMatchedRules(res) };
+          }
+          res = tx.processResponseBody();
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, matchedRules: interventionToMatchedRules(res) };
+          }
+        }
+        tx.processLogging && tx.processLogging();
+        return { allowed: true, matchedRules: [] };
+      } catch {
+        return { allowed: true, matchedRules: [] };
       }
-    });
-    
-    return lines.join('\n');
+    }
+    return { allowed: true, matchedRules: [] };
   }
 
-  /**
-   * Execute ModSecurity standalone (if available)
-   */
-  async executeModSecurityStandalone(requestData, configPath) {
-    return new Promise((resolve, reject) => {
-      // This would execute modsec-rules-checker or similar
-      // For now, return a mock result
-      resolve({
-        allowed: true,
-        matchedRules: [],
-      });
-    });
+  getBodyLimit() {
+    return this.bodyLimit;
+  }
+
+  getResponseBodyLimit() {
+    return this.responseBodyLimit;
+  }
+
+  isNativeEngineAvailable() {
+    return useNativeModSecurity && Boolean(this.modsec);
   }
 }
 
-/**
- * Create ModSecurity proxy instance
- */
 export function createModSecurityProxy(options = {}) {
   return new ModSecurityProxy(options);
 }

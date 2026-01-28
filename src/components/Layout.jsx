@@ -26,12 +26,6 @@ const PoliciesIcon = ({ className }) => (
   </svg>
 );
 
-const NodesIcon = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-  </svg>
-);
-
 const MenuIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -54,12 +48,6 @@ const SuperAdminIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-  </svg>
-);
-
-const TestIcon = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -213,10 +201,8 @@ export default function Layout({ children }) {
   // These are always in the DOM to prevent flickering
   const allNavItems = useMemo(() => [
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon, alwaysVisible: true },
-    { href: '/apps', label: 'Applications', icon: AppsIcon, requiresRole: true },
+    { href: '/apps', label: 'Sites', icon: AppsIcon, requiresRole: true },
     { href: '/policies', label: 'Security Policies', icon: PoliciesIcon, requiresRole: true },
-    { href: '/test', label: 'Rule Testing', icon: TestIcon, requiresRole: true },
-    { href: '/nodes', label: 'WAF Nodes', icon: NodesIcon, requiresRole: true },
     { href: '/logs', label: 'Security Logs', icon: LogsIcon, requiresRole: true },
     { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon, requiresRole: true },
     { href: '/users', label: 'User Management', icon: UsersIcon, requiresAdmin: true },
