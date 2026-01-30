@@ -6,34 +6,40 @@
 **Target Completion**: 5-6 months from start  
 **Total Duration**: 24 weeks (6 months) / 20 weeks (5 months compressed)
 
-**Current Status**: Phase 3 is 90% complete, Phase 4 proxy server core is 60% complete (ModSecurity integration needed)
+**Current Status (aligned with actual progress):**
+- **Phase 3 (Web Dashboard):** ✅ **Complete** — Login, dashboard, apps, policies, logs, analytics, users, admin, rule testing, ModSecurity test API.
+- **Phase 4 (Proxy WAF Server code):** ✅ **Complete** — `proxy-server-standalone.js` with reverse proxy, ModSecurity v3, OWASP CRS, SSL termination, Let's Encrypt + custom certs, Firestore config sync (real-time), health checks, failover; AWS and Data Center deployment guides written.
+- **Next step:** **Deploy WAF Edge** — Run the proxy in production on **AWS** (EC2 or ECS) or **on-prem Data Center**; set Dashboard `WAF_REGIONS`; verify first app and “point DNS here” flow. Then proceed to Phase 5 (Centralized Logging).
+
+**Architecture note:** The WAF uses a single proxy process that reads apps/policies from **Firestore** in real time. There is no separate “agent” or installer; deployment is “run proxy-server-standalone.js on a server (AWS or DC) and point DNS to it.”
 
 ---
 
 ## Quick Reference: 6-Month Timeline Overview
 
 ```
-PHASE 3: Web Dashboard          [████████] Weeks 1-4
-PHASE 4: Proxy WAF Server      [████████████████] Weeks 2-8
-PHASE 5: Centralized Logging   [████████████████████] Weeks 5-14
-PHASE 6: Innovation Features   [████████████████] Weeks 13-20
-PHASE 7: Security & QA         [████████████████████████] Weeks 9-24 (Ongoing)
-PHASE 8: Productization        [████████████] Weeks 17-24
+PHASE 3: Web Dashboard          [████████] ✅ DONE
+PHASE 4: Proxy WAF Server (code) [████████████████] ✅ DONE
+         WAF Edge Deployment    [████████] ← CURRENT (Weeks 1-2 from now)
+PHASE 5: Centralized Logging   [████████████████████] Weeks 3-12
+PHASE 6: Innovation Features   [████████████████] Weeks 11-18
+PHASE 7: Security & QA         [████████████████████████] Weeks 5-24 (Ongoing)
+PHASE 8: Productization        [████████████] Weeks 15-24
 
+From today:
 Weeks:    1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
          ──────────────────────────────────────────────────────────────────────────
-Phase 3:  [████████]
-Phase 4:    [████████████████]
-Phase 5:        [████████████████████]
+Edge Deploy: [████]
+Phase 5:     [████████████████████]
 Phase 6:                    [████████████████]
-Phase 7:              [████████████████████████]
+Phase 7:         [████████████████████████]
 Phase 8:                              [████████████]
 ```
 
 **Key Milestones:**
-- **Week 4**: Phase 3 Complete (Dashboard ready)
-- **Week 6**: Proxy Server MVP Ready (ModSecurity integrated)
-- **Week 8**: Phase 4 Complete (Production proxy server)
+- ~~**Week 4**: Phase 3 Complete~~ ✅ **Done** (Dashboard ready)
+- ~~**Week 6**: Proxy Server code complete~~ ✅ **Done** (ModSecurity, SSL, Firestore sync)
+- **Next**: **WAF Edge Deployed** — First production WAF edge (AWS or Data Center) live; Dashboard `WAF_REGIONS` set; customers can point DNS.
 - **Week 12**: Logging & Alerts Operational
 - **Week 16**: Security Testing Complete
 - **Week 20**: Innovation Features Complete
@@ -43,61 +49,54 @@ Phase 8:                              [████████████]
 
 ## Visual Gantt Chart (6-Month Timeline)
 
-### Month 1 (Weeks 1-4) - Foundation & Critical Path Start
+### Completed (Before “From Today”)
 
 ```
-PHASE 3: Web Dashboard Completion
-Week 1-2: Rule Testing UI            [████████████████████] 2 weeks
-Week 1-2: Logs/Audit Page            [████████████████████] 2 weeks
-Week 2:   Deployment History View    [████████] 1 week
-Week 3:   API Key Auth Fix            [████████] 1 week
-Week 3-4: Attack Analytics (Basic)    [████████] 1 week
+PHASE 3: Web Dashboard — ✅ COMPLETE
+├─ Rule Testing UI                    ✅
+├─ Logs/Audit Page                    ✅
+├─ Deployment History / Analytics     ✅
+├─ API Key Auth                       ✅
+└─ Attack Analytics (Basic)          ✅
 
-PHASE 4: Proxy WAF Server (START)
-Week 2:   ModSecurity Integration Design [████████] 1 week
-Week 3-4: ModSecurity v3 Integration      [████████████████] 2 weeks
-Week 3-4: Request/Response Inspection     [████████████████] 2 weeks
+PHASE 4: Proxy WAF Server (code) — ✅ COMPLETE
+├─ ModSecurity v3 + OWASP CRS         ✅
+├─ Request/Response Inspection        ✅
+├─ SSL/TLS Termination                ✅
+├─ Certificate Management (Let's Encrypt + custom) ✅
+├─ Firestore config sync (real-time)   ✅ (no separate agent)
+├─ Health checks & failover           ✅
+├─ Rate limiting                      ✅
+└─ AWS + Data Center deployment docs  ✅
 
-MILESTONE M1: Phase 3 Complete (Week 4)
+MILESTONE M1: Phase 3 Complete ✅
+MILESTONE M2: Proxy Server code complete ✅
 ```
 
-### Month 2 (Weeks 5-8) - Agent Development & Logging Start
+### From Today — Current Focus: WAF Edge Deployment (Weeks 1-2)
 
 ```
-PHASE 4: Proxy WAF Server (CONTINUE)
-Week 5-6: SSL/TLS Termination        [████████████] 1.5 weeks
-Week 5-6: Certificate Management     [████████████] 1.5 weeks
-Week 7:   Advanced Proxy Features    [████████] 1 week
-Week 7:   Rate Limiting & DDoS       [████████] 1 week
-Week 8:   Production Deployment      [████████] 1 week
-Week 8:   Monitoring & Metrics       [████████] 1 week
+WAF EDGE DEPLOYMENT (choose one: AWS or Data Center)
+Week 1:   Choose deployment target (AWS vs on-prem); provision server/ALB
+Week 1:   Deploy proxy-server-standalone.js per deployment guide
+Week 1:   Configure Firebase env (.env.waf), ports (80/443 or 8080 if Nginx/ALB)
+Week 2:   SSL for WAF host (ACM on ALB, or Nginx + Certbot on-prem)
+Week 2:   Set Dashboard WAF_REGIONS to WAF public IP / CNAME
+Week 2:   Verify /health, add first app in Dashboard, point DNS, test flow
 
-PHASE 5: Centralized Logging (START - Parallel)
-Week 5-6: ModSecurity Log Parser     [████████████] 2 weeks
-Week 7-8: Log Normalization          [████████] 1 week
-Week 7-8: Basic Log Dashboard        [████████████] 2 weeks
-
-MILESTONE M2: Proxy Server MVP Ready (Week 6)
-MILESTONE M3: Phase 4 Complete (Week 8)
+MILESTONE M3: WAF Edge Deployed (first production edge live)
 ```
 
-### Month 2 (Weeks 5-8)
+### Month 2 (Weeks 3-8) - Logging Start
 
 ```
-Week 5-6: Phase 4 Core Features
-├─ Heartbeat Mechanism                [████████████] 1.5 weeks
-├─ Config Polling & Sync              [████████████] 1.5 weeks
-└─ Safe Reload Mechanism              [████████] 1 week
+PHASE 5: Centralized Logging (START)
+Week 3-4: ModSecurity Log Parser     [████████████] 2 weeks
+Week 5:   Log Normalization          [████████] 1 week
+Week 5-6: Basic Log Dashboard        [████████████] 2 weeks
 
-Week 6-8: Phase 4 Completion
-├─ Error Handling & Retry Logic       [████████] 1 week
-├─ Log Forwarding                     [████████] 1 week
-├─ Agent Installer/Packaging          [████████] 1 week
-└─ Agent Documentation                [████████] 1 week
-
-Week 5-8: Phase 5 Start (Logging - Parallel)
-├─ Log Normalization                  [████████████████] 2 weeks
-└─ Basic Log Dashboard                [████████████████] 2 weeks
+PHASE 7: Security & QA (START - Parallel)
+Week 3-4: Security Architecture Review [████████████] 2 weeks
 ```
 
 ### Month 3 (Weeks 9-12) - Logging & Security
@@ -200,44 +199,56 @@ MILESTONE M13: Production Ready (Week 24)
 
 ## Detailed Task Breakdown
 
-### **Phase 3: Web Dashboard Completion** (Weeks 1-4)
+### **Phase 3: Web Dashboard Completion** — ✅ COMPLETE
 
-| Task | Duration | Dependencies | Resources |
-|------|----------|--------------|-----------|
-| Rule Testing UI | 2 weeks | None | Frontend Dev |
-| Logs/Audit Page | 2 weeks | None | Frontend Dev |
-| Deployment History View | 1 week | None | Frontend Dev |
-| API Key Auth Fix | 1 week | None | Backend Dev |
-| Attack Analytics (Basic) | 1 week | Logs Page | Frontend Dev |
+| Task | Duration | Status |
+|------|----------|--------|
+| Rule Testing UI | 2 weeks | ✅ Done |
+| Logs/Audit Page | 2 weeks | ✅ Done |
+| Deployment History / Analytics | 1 week | ✅ Done |
+| API Key Auth | 1 week | ✅ Done |
+| Attack Analytics (Basic) | 1 week | ✅ Done |
 
-**Total: 4 weeks (can overlap with Phase 4 start)**
-
----
-
-### **Phase 4: Proxy WAF Server** (Weeks 2-8)
-
-| Task | Duration | Dependencies | Resources |
-|------|----------|--------------|-----------|
-| ModSecurity Integration Design | 1 week | Proxy Server Core | Backend Dev |
-| ModSecurity v3 Integration | 2 weeks | Integration Design | Backend Dev |
-| Request/Response Inspection | 2 weeks | ModSecurity Integration | Backend Dev |
-| SSL/TLS Termination | 1.5 weeks | Proxy Server Core | Backend Dev |
-| Certificate Management | 1.5 weeks | SSL/TLS Termination | Backend Dev |
-| Advanced Proxy Features | 1 week | Core Features | Backend Dev |
-| Rate Limiting & DDoS Protection | 1 week | Core Features | Backend Dev |
-| Production Deployment Setup | 1 week | All Features | DevOps |
-| Monitoring & Metrics | 1 week | Production Setup | Backend Dev |
-| Proxy Server Documentation | 1 week | Server Complete | Technical Writer |
-
-**Total: 6 weeks (weeks 2-8, overlaps with Phase 3)**
+**Phase 3 is complete.** Dashboard includes login, apps, policies, logs, analytics, users, admin, and ModSecurity test API.
 
 ---
 
-### **Phase 5: Centralized Logging** (Weeks 5-12)
+### **Phase 4: Proxy WAF Server & WAF Edge Deployment**
+
+**4a) Proxy server code** — ✅ COMPLETE (no separate “agent”; proxy reads Firestore in real time)
+
+| Task | Status |
+|------|--------|
+| ModSecurity v3 + OWASP CRS Integration | ✅ Done |
+| Request/Response Inspection | ✅ Done |
+| SSL/TLS Termination | ✅ Done |
+| Certificate Management (Let's Encrypt + custom per app) | ✅ Done |
+| Firestore config sync (real-time listener) | ✅ Done |
+| Health checks & failover | ✅ Done |
+| Rate limiting | ✅ Done |
+| AWS + Data Center deployment guides | ✅ Done |
+
+**4b) WAF Edge Deployment** — ← CURRENT (next 1–2 weeks)
 
 | Task | Duration | Dependencies | Resources |
 |------|----------|--------------|-----------|
-| ModSecurity Log Parser | 2 weeks | Phase 4 (agents sending logs) | Backend Dev |
+| Choose deployment target (AWS or on-prem Data Center) | 0.5 week | None | DevOps / PM |
+| Provision server or ALB (EC2/ECS or DC VM) | 0.5 week | Choice made | DevOps |
+| Deploy proxy-server-standalone.js per [AWS](AWS_WAF_DEPLOYMENT.md) or [Data Center](DATA_CENTER_WAF_DEPLOYMENT.md) guide | 1 week | Server/ALB ready | Backend / DevOps |
+| Configure Firebase env (.env.waf), ports (80/443 or 8080) | 0.5 week | Deploy started | Backend |
+| SSL for WAF host (ACM on ALB, or Nginx + Certbot on-prem) | 0.5 week | Proxy running | DevOps |
+| Set Dashboard WAF_REGIONS to WAF public IP / CNAME | 0.5 week | WAF edge live | Backend |
+| Verify /health, first app, DNS, end-to-end flow | 0.5 week | WAF_REGIONS set | QA / Backend |
+
+**Total: ~2 weeks.** After this, first production WAF edge is live and customers can point DNS.
+
+---
+
+### **Phase 5: Centralized Logging** (Weeks 3-12 from today)
+
+| Task | Duration | Dependencies | Resources |
+|------|----------|--------------|-----------|
+| ModSecurity Log Parser | 2 weeks | Phase 4 WAF edge deployed (proxy running; logs from proxy or existing logs API) | Backend Dev |
 | Log Normalization | 1 week | Log Parser | Backend Dev |
 | Basic Log Dashboard | 2 weeks | Log Normalization | Frontend Dev |
 | Attack Analytics Dashboard | 1.5 weeks | Basic Dashboard | Frontend Dev |
@@ -277,11 +288,11 @@ MILESTONE M13: Production Ready (Week 24)
 
 ---
 
-### **Phase 7: Security & QA** (Weeks 9-24, Ongoing)
+### **Phase 7: Security & QA** (Weeks 5-24, Ongoing)
 
 | Task | Duration | Dependencies | Resources |
 |------|----------|--------------|-----------|
-| Security Architecture Review | 2 weeks | Phase 4 Complete | Security Engineer |
+| Security Architecture Review | 2 weeks | WAF Edge Deployed (or in parallel) | Security Engineer |
 | API Security Audit | 1 week | Architecture Review | Security Engineer |
 | Threat Modeling | 1 week | Architecture Review | Security Engineer |
 | Penetration Testing | 2 weeks | Core Features Complete | Pen Tester |
@@ -319,29 +330,28 @@ MILESTONE M13: Production Ready (Week 24)
 
 ## Critical Path Analysis
 
-### **Critical Path (Longest Path)**
-1. Phase 3 Completion (4 weeks) → 
-2. Phase 4 Agent MVP (2 weeks) → 
-3. Phase 4 Core Features (3 weeks) → 
-4. Phase 4 Completion (2 weeks) → 
-5. Phase 5 Log Normalization (2 weeks) → 
-6. Phase 5 Dashboards (2 weeks) → 
-7. Phase 5 Alerts (3 weeks) → 
-8. Phase 6 Templates (3 weeks) → 
-9. Phase 6 Staging (2 weeks) → 
-10. Phase 6 Advanced (3 weeks) → 
-11. Phase 8 Documentation (4 weeks) → 
-12. Final Polish (2 weeks)
+### **Critical Path (from today)**
+1. ~~Phase 3 Completion~~ ✅ Done  
+2. ~~Phase 4 Proxy Server code~~ ✅ Done  
+3. **WAF Edge Deployment** (1–2 weeks) ← current  
+4. Phase 5 Log Normalization (2 weeks) →  
+5. Phase 5 Dashboards (2 weeks) →  
+6. Phase 5 Alerts (3 weeks) →  
+7. Phase 6 Templates (3 weeks) →  
+8. Phase 6 Staging (2 weeks) →  
+9. Phase 6 Advanced (3 weeks) →  
+10. Phase 8 Documentation (4 weeks) →  
+11. Final Polish (2 weeks)
 
-**Total Critical Path: ~24 weeks (6 months)**
+**Remaining critical path: ~20–22 weeks** (WAF edge deployment + Phase 5–8).
 
-**Note**: With parallel work and proper resource allocation, this can be completed in 6 months. For a 5-month timeline, see "Compressed Timeline" section below.
+**Note**: Phase 5 can start once the WAF edge is deployed (proxy is running; logs come from proxy or existing logs API). Phase 7 (Security) runs in parallel. Phase 8 documentation can start earlier as features complete.
 
 ### **Optimization Opportunities**
-- Phase 5 can start in parallel with Phase 4 (after agents send logs)
-- Phase 7 (Security) can run in parallel throughout
-- Phase 8 documentation can start earlier (as features complete)
-- Some Phase 6 features can be deferred to post-launch
+- Phase 5 can start as soon as WAF edge is deployed (proxy produces logs or uses existing logs API).
+- Phase 7 (Security) can run in parallel throughout.
+- Phase 8 documentation can start earlier (as features complete).
+- Some Phase 6 features can be deferred to post-launch.
 
 ---
 
@@ -352,8 +362,8 @@ MILESTONE M13: Production Ready (Week 24)
 | Role | FTE | Weeks | Key Responsibilities |
 |------|-----|-------|---------------------|
 | **Frontend Developer** | 1.0 | 1-24 | Dashboard UI, logs page, rule testing UI, analytics dashboards |
-| **Backend Developer** | 1.5 | 1-24 | API development, agent development, log processing, integrations |
-| **DevOps Engineer** | 0.5 | 2-8, 13-16, 17-20 | Agent packaging, staging setup, infrastructure |
+| **Backend Developer** | 1.5 | 1-24 | API development, proxy server, log processing, integrations |
+| **DevOps Engineer** | 0.5 | 1-4, 13-16, 17-20 | WAF edge deployment (AWS/DC), staging setup, infrastructure |
 | **Security Engineer** | 0.5 | 9-24 | Security reviews, threat modeling, pen testing |
 | **QA Engineer** | 0.5 | 9-24 | Testing, performance benchmarking, quality assurance |
 | **Technical Writer** | 0.5 | 17-24 | Documentation, user guides, API docs |
@@ -374,8 +384,8 @@ MILESTONE M13: Production Ready (Week 24)
 
 ### **Resource Optimization Tips**
 
-1. **Backend Developer**: Can work on agent and API in parallel
-2. **Frontend Developer**: Can work on multiple UI features simultaneously
+1. **Backend Developer**: Can work on proxy deployment and API/logging in parallel.
+2. **Frontend Developer**: Can work on multiple UI features simultaneously.
 3. **Security Engineer**: Can review code as it's written (not just at end)
 4. **Technical Writer**: Can start documenting features as they're built (Week 15+)
 5. **Consider Contractors**: For specialized tasks (pen testing, video tutorials)
@@ -384,11 +394,11 @@ MILESTONE M13: Production Ready (Week 24)
 
 ## Milestones
 
-| Milestone | Week | Deliverable |
-|-----------|------|-------------|
-| **M1: Phase 3 Complete** | Week 4 | Rule testing UI, logs page, API key auth |
-| **M2: Agent MVP Ready** | Week 6 | Working agent connecting to dashboard |
-| **M3: Phase 4 Complete** | Week 8 | Production-ready agent with all features |
+| Milestone | Status | Deliverable |
+|-----------|--------|-------------|
+| **M1: Phase 3 Complete** | ✅ Done | Dashboard: rule testing UI, logs page, apps, policies, analytics, API key auth |
+| **M2: Proxy Server code complete** | ✅ Done | proxy-server-standalone.js with ModSecurity, SSL, Firestore sync; deployment guides |
+| **M3: WAF Edge Deployed** | ← Next | First production WAF edge (AWS or Data Center) live; WAF_REGIONS set; customers can point DNS |
 | **M4: Logging Dashboard Live** | Week 10 | Basic log viewing and analytics |
 | **M5: Alerts Operational** | Week 12 | Email, webhook, Slack alerts working |
 | **M6: Security Review Complete** | Week 12 | Security audit and threat model done |
@@ -408,33 +418,32 @@ MILESTONE M13: Production Ready (Week 24)
 
 | Risk | Impact | Probability | Mitigation | Contingency Buffer |
 |------|--------|-------------|------------|-------------------|
-| **Agent Development Complexity** | High | Medium | Start with MVP, use proven tech stack (Python/Go), reference existing connectors | +1 week buffer (Week 9) |
-| **Security Vulnerabilities Found Late** | Critical | Medium | Security review early (Week 9), ongoing reviews, security-first approach | +2 weeks buffer (Weeks 22-23) |
-| **ModSecurity Log Parsing Issues** | Medium | High | Test with multiple ModSecurity versions early, create flexible parser | +0.5 week buffer (Week 8) |
+| **WAF Edge deployment (network, Firebase, SSL)** | High | Medium | Follow [AWS](AWS_WAF_DEPLOYMENT.md) or [Data Center](DATA_CENTER_WAF_DEPLOYMENT.md) guides; verify outbound Firebase access and ports 80/443 | +0.5–1 week buffer |
+| **Security Vulnerabilities Found Late** | Critical | Medium | Security review early (Week 5), ongoing reviews, security-first approach | +2 weeks buffer (Weeks 22-23) |
+| **ModSecurity Log Parsing Issues** | Medium | High | Test with multiple ModSecurity versions early, create flexible parser | +0.5 week buffer |
 | **Integration Complexity (Threat Intel)** | Medium | Medium | Use well-documented APIs, start with one provider | +1 week buffer (Week 19) |
 | **Resource Availability** | High | Low | Cross-train team members, document everything, use contractors if needed | Built into timeline |
 | **Scope Creep** | Medium | High | Strict phase gates, MVP-first approach, defer nice-to-haves | Phase 6 can be reduced |
 
 ### **Critical Dependencies to Monitor**
 
-1. **Phase 4 → Phase 5**: Agents must send logs before logging dashboards can be built
-   - **Risk**: If agent delayed, Phase 5 delayed
-   - **Mitigation**: Use mock logs for Phase 5 development initially
+1. **WAF Edge Deployment → Phase 5**: Proxy must be deployed and running so logs (or existing logs API) are available for Phase 5.
+   - **Risk**: If deployment delayed (e.g. network, Firebase, SSL), Phase 5 start slips.
+   - **Mitigation**: Use existing logs API / mock logs for Phase 5 development if needed.
 
-2. **Phase 5 → Phase 6**: Analytics needed for anomaly detection
-   - **Risk**: If analytics incomplete, anomaly detection delayed
-   - **Mitigation**: Defer anomaly detection to post-launch if needed
+2. **Phase 5 → Phase 6**: Analytics needed for anomaly detection.
+   - **Risk**: If analytics incomplete, anomaly detection delayed.
+   - **Mitigation**: Defer anomaly detection to post-launch if needed.
 
-3. **Phase 7 → Launch**: Security issues must be resolved
-   - **Risk**: Critical vulnerabilities found late
-   - **Mitigation**: Security review starts early (Week 9), not at end
+3. **Phase 7 → Launch**: Security issues must be resolved.
+   - **Risk**: Critical vulnerabilities found late.
+   - **Mitigation**: Security review starts early (Week 5), not at end.
 
 ### **Contingency Plans**
 
-**If Agent Development Delayed:**
-- Use mock agent for testing
-- Prioritize core features (heartbeat, config sync)
-- Defer advanced features (log forwarding, advanced error handling)
+**If WAF Edge Deployment Delayed:**
+- Debug per deployment guide (Firebase env, ports, SSL, WAF_REGIONS).
+- Use local/staging proxy for Phase 5 log development; switch to production edge when ready.
 
 **If Security Issues Found:**
 - Allocate 2 weeks for fixes (Weeks 22-23)
@@ -480,17 +489,17 @@ If you need to compress to 5 months, here's the optimized plan:
    - Combine security review and pen testing
    - Reduce beta testing to 1 week (instead of 2)
 
-### **5-Month Timeline Overview:**
+### **5-Month Timeline Overview (from today):**
 
 ```
-Month 1 (Weeks 1-4):     Phase 3 Complete + Phase 4 Start
-Month 2 (Weeks 5-8):     Phase 4 Complete + Phase 5 Start
-Month 3 (Weeks 9-12):    Phase 5 Complete + Phase 7 Start
+Month 1 (Weeks 1-2):     WAF Edge Deployment (AWS or Data Center)
+Month 1-2 (Weeks 3-8):   Phase 5 Start + Phase 7 Start
+Month 3 (Weeks 9-12):    Phase 5 Complete + Phase 7 Continue
 Month 4 (Weeks 13-16):   Phase 6 Core + Phase 7 Continue
 Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
 ```
 
-**Compressed Timeline: 20 weeks (5 months)**
+**Compressed Timeline: 20 weeks (5 months) from today.** Phase 3 and Phase 4 (proxy code) are already complete.
 
 ### **What Gets Deferred:**
 - Advanced anomaly detection
@@ -503,42 +512,34 @@ Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
 
 ## Weekly Schedule Template
 
-### **Week 1-2: Phase 3 Sprint**
-- **Monday-Tuesday**: Rule Testing UI design & implementation
-- **Wednesday-Thursday**: Logs page implementation
-- **Friday**: API key auth fix
+### **Week 1-2: WAF Edge Deployment (current focus)**
+- **Week 1:** Choose AWS or Data Center; provision server/ALB; deploy proxy-server-standalone.js per guide; configure .env.waf (Firebase, ports); verify proxy loads apps from Firestore.
+- **Week 2:** SSL for WAF host (ACM or Nginx+Certbot); set Dashboard WAF_REGIONS to WAF public IP/CNAME; verify /health and first-app DNS flow.
 
-### **Week 3-4: Phase 3 + Phase 4 Start**
-- **Monday-Wednesday**: Deployment history view
-- **Thursday-Friday**: Agent architecture design
-- **Parallel**: API key generation implementation
+### **Week 3-4: Phase 5 Start (after edge deployed)**
+- **Week 3-4:** ModSecurity log parser; log normalization; security architecture review (Phase 7 start).
 
-### **Week 5-6: Phase 4 Core**
-- **Monday-Tuesday**: MVP agent development
-- **Wednesday-Thursday**: Heartbeat mechanism
-- **Friday**: Config polling implementation
-
-### **Week 7-8: Phase 4 Completion**
-- **Monday**: Safe reload mechanism
-- **Tuesday-Wednesday**: Error handling
-- **Thursday**: Log forwarding
-- **Friday**: Agent packaging
+### **Week 5-6: Phase 5 Continue**
+- Basic log dashboard; attack analytics dashboard; API security audit.
 
 ---
 
 ## Success Criteria
 
-### **Phase 3 Complete When:**
-- ✅ Users can test HTTP requests against policies
-- ✅ Users can view and filter logs
-- ✅ API keys are properly validated
+### **Phase 3 Complete When:** ✅ DONE
+- ✅ Users can test HTTP requests against policies (ModSecurity test API)
+- ✅ Users can view and filter logs (logs page)
+- ✅ Dashboard includes apps, policies, analytics, users, admin
 
 ### **Phase 4 Complete When:**
-- ✅ Proxy server successfully connects to dashboard
-- ✅ Proxy server fetches application configs automatically
-- ✅ ModSecurity inspects and blocks attacks
-- ✅ SSL/TLS termination works
-- ✅ Proxy server can be deployed in production
+- **Proxy server code:** ✅ Done — ModSecurity, SSL, Firestore sync, health checks, failover; deployment guides written.
+- **WAF Edge Deployment (current):**
+  - ✅ WAF proxy runs in production (AWS or Data Center).
+  - ✅ Proxy reads application configs from Firestore (real-time).
+  - ✅ ModSecurity inspects and blocks attacks.
+  - ✅ SSL/TLS works for WAF host (ACM or Nginx+Certbot).
+  - ✅ Dashboard `WAF_REGIONS` set; customers can point DNS to WAF IP/CNAME.
+  - ✅ `/health` and first-app flow verified.
 
 ### **Phase 5 Complete When:**
 - ✅ Logs are normalized and searchable
@@ -564,48 +565,42 @@ Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
 
 ## Phase Summary Table
 
-| Phase | Duration | Start Week | End Week | Key Deliverables | Dependencies |
-|-------|----------|------------|----------|------------------|--------------|
-| **Phase 3** | 4 weeks | 1 | 4 | Rule testing UI, logs page, application management | None |
-| **Phase 4** | 6 weeks | 2 | 8 | Production-ready proxy server, ModSecurity integration | Phase 3 (Applications) |
-| **Phase 5** | 8 weeks | 5 | 14 | Log dashboards, alerts, analytics | Phase 4 (agents) |
-| **Phase 6** | 8 weeks | 13 | 20 | Templates, staging, threat intel | Phase 5 (analytics) |
-| **Phase 7** | 14 weeks | 9 | 24 | Security review, pen testing, DR | Ongoing |
-| **Phase 8** | 8 weeks | 17 | 24 | Documentation, support, pilot | Feature complete |
+| Phase | Duration | Status | Key Deliverables | Dependencies |
+|-------|----------|--------|------------------|--------------|
+| **Phase 3** | 4 weeks | ✅ Done | Dashboard: rule testing UI, logs page, apps, policies, analytics | None |
+| **Phase 4 (code)** | — | ✅ Done | Proxy server: ModSecurity, SSL, Firestore sync; deployment guides | Phase 3 |
+| **WAF Edge Deployment** | ~2 weeks | ← Current | First production WAF edge (AWS or Data Center); WAF_REGIONS set | Phase 4 code |
+| **Phase 5** | 8 weeks | Next | Log dashboards, alerts, analytics | WAF edge deployed |
+| **Phase 6** | 8 weeks | — | Templates, staging, threat intel | Phase 5 (analytics) |
+| **Phase 7** | 14 weeks | Ongoing | Security review, pen testing, DR | WAF edge / Phase 4 |
+| **Phase 8** | 8 weeks | — | Documentation, support, pilot | Feature complete |
 
-## Immediate Next Steps (Week 1)
+## Immediate Next Steps (Current Focus)
 
-### **Priority 1: Complete Phase 3 (Weeks 1-4)**
-1. **Week 1-2**: Build Rule Testing UI
-   - Create test request form
-   - Display test results
-   - Show matched rules and severity
-   
-2. **Week 1-2**: Build Logs/Audit Page
-   - Log viewer with filters
-   - Search functionality
-   - Export capability
-   
-3. **Week 3**: Fix API Key Authentication
-   - Enable API key validation in endpoints
-   - Add API key generation to node registration
-   - Test authentication flow
+### **Priority 1: Deploy WAF Edge (Weeks 1-2)**
 
-4. **Week 3-4**: Deployment History View
-   - Timeline of deployments
-   - Status tracking
-   - Rollback UI
+Dashboard and proxy server code are complete. The next step is to **deploy the WAF proxy in production** so customers can point DNS to it.
 
-### **Priority 2: Complete Phase 4 (Week 2-8)**
-1. **Week 2**: ModSecurity Integration Design
-   - Choose ModSecurity v3 library
-   - Design request/response inspection flow
-   - Plan performance optimization
-   
-2. **Week 3-4**: ModSecurity Integration
-   - Integrate ModSecurity v3
-   - Implement request inspection
-   - Test with attack scenarios
+1. **Choose deployment target**
+   - **AWS:** EC2 or ECS Fargate; use [AWS WAF Deployment](AWS_WAF_DEPLOYMENT.md).
+   - **On-prem Data Center:** VM with public IP; use [Data Center WAF Deployment](DATA_CENTER_WAF_DEPLOYMENT.md).
+
+2. **Week 1**
+   - Provision server or ALB (e.g. EC2 with public IP, or ALB + target group).
+   - Deploy `proxy-server-standalone.js` per the chosen guide.
+   - Create `.env.waf` with Firebase Admin vars (`NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL`, `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY`) and ports (e.g. `ATRAVAD_HTTP_PORT=8080` if Nginx/ALB terminates SSL).
+   - Install dependencies, run proxy; verify it loads applications from Firestore.
+
+3. **Week 2**
+   - **SSL for WAF host:** AWS → attach ACM cert to ALB; Data Center → Nginx + Certbot (`certbot --nginx -d waf-dc.yourcompany.com`).
+   - Set **Dashboard** `WAF_REGIONS` (or equivalent) to the WAF edge’s **public IP** and/or **CNAME** so the Applications page shows “point DNS here.”
+   - Verify `/health` (or `/_atravad/health`), add a test app in the Dashboard, point a test domain’s A/CNAME to the WAF, and confirm request flow end-to-end.
+
+4. **Done**
+   - First production WAF edge is live. Proceed to **Phase 5 (Centralized Logging)** or parallel **Phase 7 (Security & QA)**.
+
+### **Priority 2: After WAF Edge — Phase 5 (Logging)**
+- ModSecurity log parser, log normalization, basic log dashboard (see Phase 5 task breakdown above).
 
 ## Success Metrics
 
@@ -616,10 +611,11 @@ Month 5 (Weeks 17-20):   Phase 6 Complete + Phase 8 + Launch
 - ✅ Deployment history is visible
 
 ### **Phase 4 Success Criteria:**
-- ✅ Agent connects to dashboard successfully
-- ✅ Agent receives and applies ModSecurity configs
-- ✅ Agent sends health reports every 30-60 seconds
-- ✅ Agent can be installed via package/installer
+- ✅ Proxy server code: ModSecurity, SSL, Firestore sync, health checks (done).
+- ✅ WAF edge deployed: Proxy runs in production (AWS or Data Center).
+- ✅ Proxy reads application configs from Firestore in real time.
+- ✅ Dashboard WAF_REGIONS set; customers can point DNS to WAF IP/CNAME.
+- ✅ /health and first-app flow verified.
 
 ### **Overall Project Success:**
 - ✅ All 8 phases completed within 24 weeks

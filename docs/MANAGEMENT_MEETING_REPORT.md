@@ -5,6 +5,8 @@
 **Date:** January 30, 2025  
 **Purpose:** Recap of work completed, current agendas, next steps, and architecture overview
 
+**Current status (aligned with [Development Gantt Chart](./DEVELOPMENT_GANTT_CHART.md)):** Phase 3 (Dashboard) and Phase 4 (proxy server code) are **complete**. The **next step** is **deploying the WAF edge** in production (AWS or on-prem Data Center), then Phase 5 (Centralized Logging) and Phase 7 (Security & QA).
+
 ---
 
 ## 1. Quick Recap — What We Have Done
@@ -17,18 +19,19 @@ ATRAVAD WAF is a **modern reverse-proxy Web Application Firewall** (Sucuri/Rebla
 
 | Area | Status | Highlights |
 |------|--------|------------|
-| **Dashboard (Next.js UI)** | ✅ Done | Login, dashboard, apps, policies, logs, analytics, users, admin |
+| **Dashboard (Next.js UI)** | ✅ Done | Login, dashboard, apps, policies, logs, analytics, users, admin, rule testing UI |
 | **Authentication & Multi-tenant** | ✅ Done | Firebase Auth, tenant-based org, RBAC (admin/analyst/viewer) |
 | **Application Management** | ✅ Done | Create/manage protected apps (domain, origin URL, SSL, policy) |
 | **Policy Management** | ✅ Done | Policy editor, OWASP CRS, custom rules, versioning, rollback |
 | **ModSecurity Integration** | ✅ Done | ModSecurity v3 + OWASP CRS 3.3.0, policy test API, native engine with fallback |
-| **WAF Proxy Server** | ✅ Done | `proxy-server-standalone.js` — reverse proxy, SSL termination, health checks, failover |
-| **Config Sync** | ✅ Done | Firebase Firestore as config store; proxy reads apps/policies in real time |
+| **WAF Proxy Server (code)** | ✅ Done | `proxy-server-standalone.js` — reverse proxy, ModSecurity, SSL, Firestore real-time sync, health checks, failover |
+| **Config Sync** | ✅ Done | Firebase Firestore as config store; proxy reads apps/policies in real time (no separate agent) |
 | **SSL / Certificates** | ✅ Done | Let’s Encrypt auto-provisioning, custom certs per app (SNI) |
 | **Logs & Analytics** | ✅ Done | Logs API, logs page, traffic/geographic analytics components |
 | **Admin & Users** | ✅ Done | Admin activity, tenants, users APIs; user/tenant management UI |
 | **Documentation** | ✅ Done | README, architecture diagram, AWS/Data Center deployment, DNS, Gantt chart, advanced policy features |
-| **Deployment Options** | ✅ Done | AWS (EC2/ECS) and Data Center deployment guides; Dockerfile.waf |
+| **Deployment guides** | ✅ Done | AWS (EC2/ECS) and Data Center deployment guides; Dockerfile.waf |
+| **WAF Edge (production)** | ⏳ Next | Deploy proxy in AWS or on-prem; set WAF_REGIONS; first customer “point DNS here” |
 
 ### 1.3 Tech Stack in Place
 
@@ -44,16 +47,16 @@ ATRAVAD WAF is a **modern reverse-proxy Web Application Firewall** (Sucuri/Rebla
 
 ### 2.1 Operational Agendas
 
-- **Go-live readiness:** Confirm production checklist (env, Firebase, DNS, WAF_REGIONS) for first customer or pilot.
-- **WAF edge deployment:** Decide primary deployment (AWS vs. Data Center) and document “point DNS here” (IP/CNAME) for customers.
+- **WAF edge deployment (current):** Execute first production deployment — choose AWS or on-prem Data Center; deploy `proxy-server-standalone.js` per [AWS](AWS_WAF_DEPLOYMENT.md) or [Data Center](DATA_CENTER_WAF_DEPLOYMENT.md) guide; set Dashboard `WAF_REGIONS`; verify `/health` and first-app “point DNS here” flow.
+- **Go-live readiness:** Confirm production checklist (env, Firebase, DNS, WAF_REGIONS) for first customer or pilot once edge is live.
 - **Monitoring & alerts:** Define operational monitoring (proxy health, Firestore connectivity, certificate expiry) and alerting.
 - **Support & escalation:** Align on L1/L2 support, escalation path, and who handles security incidents.
 
 ### 2.2 Product / Roadmap Agendas
 
-- **Phase 5 (Logging):** Log normalization, filters, export, and alerting (email/webhook/Slack) per Gantt chart.
+- **After WAF edge:** Phase 5 (Centralized Logging) — log normalization, filters, export, alerting (email/webhook/Slack).
 - **Phase 6 (Innovation):** Policy templates, staging environment, staging→production workflow, threat intel (if in scope).
-- **Phase 7 (Security & QA):** Security architecture review, API audit, threat modeling, penetration testing.
+- **Phase 7 (Security & QA):** Security architecture review, API audit, threat modeling, penetration testing (can start in parallel).
 - **Phase 8 (Productization):** User guide, API docs, support workflow, pilot program, beta launch.
 
 ### 2.3 Technical Agendas
@@ -66,22 +69,32 @@ ATRAVAD WAF is a **modern reverse-proxy Web Application Firewall** (Sucuri/Rebla
 
 ## 3. What’s Next to Be Done
 
-Priorities below are aligned with the existing Development Gantt Chart and README.
+Priorities below are aligned with the [Development Gantt Chart](./DEVELOPMENT_GANTT_CHART.md): Dashboard and proxy code are complete; **next = WAF edge deployment**, then Phase 5 and Phase 7.
 
-### 3.1 Short Term (Next 2–4 Weeks)
+### 3.1 Immediate (Next 1–2 Weeks) — WAF Edge Deployment
 
-1. **Centralized logging (Phase 5 start)**  
+1. **Deploy WAF edge (AWS or on-prem Data Center)**  
+   - Choose deployment target (AWS EC2/ECS or Data Center VM).  
+   - Provision server or ALB; deploy `proxy-server-standalone.js` per deployment guide.  
+   - Configure `.env.waf` (Firebase Admin, ports); SSL for WAF host (ACM or Nginx + Certbot).  
+   - Set Dashboard **WAF_REGIONS** to WAF public IP / CNAME.  
+   - Verify `/health`, add first app, point DNS, confirm end-to-end flow.
+
+**Milestone:** First production WAF edge live; customers can point DNS to ATRAVAD WAF.
+
+### 3.2 Short Term (Weeks 3–6) — After Edge Deployed
+
+1. **Phase 5 (Centralized Logging) start**  
    - ModSecurity log parser, log normalization, basic log dashboard.  
    - Log filters, search, and export.
 
 2. **Alerting**  
-   - Email alerts, webhook integration, optional Slack.  
-   - Alert management UI.
+   - Email alerts, webhook integration, optional Slack; alert management UI.
 
-3. **Security & QA (Phase 7 start)**  
+3. **Phase 7 (Security & QA) start**  
    - Security architecture review, API security audit, threat modeling.
 
-### 3.2 Medium Term (1–3 Months)
+### 3.3 Medium Term (1–3 Months)
 
 1. **Phase 5 completion**  
    - Attack analytics dashboard, advanced analytics, dashboard polish.
@@ -94,7 +107,7 @@ Priorities below are aligned with the existing Development Gantt Chart and READM
 3. **Phase 7 continuation**  
    - Penetration testing, performance/load testing, DR testing, backup procedures, security hardening.
 
-### 3.3 Longer Term (3–6 Months)
+### 3.4 Longer Term (3–6 Months)
 
 1. **Phase 8 — Productization**  
    - Pricing model, user guide, API documentation, video tutorials, troubleshooting guide.  
@@ -264,10 +277,10 @@ Use this checklist for go-live, new WAF edge deployment, or subscription/onboard
 
 | Topic | Summary |
 |-------|--------|
-| **Recap** | Dashboard, auth, multi-tenant, apps, policies, ModSecurity, proxy server, SSL, logs/analytics, admin, docs, and AWS/DC deployment guides are in place. |
-| **Agendas** | Go-live, WAF edge deployment, monitoring/alerts, support; Phase 5–8 and security/QA; technical topics (ModSecurity fallback, performance, certs). |
-| **Next** | Phase 5 (logging, alerts), Phase 7 (security/QA), then Phase 6 (templates, staging, threat intel), then Phase 8 (docs, support, pilot, beta). |
-| **Architecture** | UI and proxy both use Firestore; no direct UI–proxy link; traffic path: User → DNS → WAF → ModSecurity → Origin (or block). |
+| **Recap** | Phase 3 (Dashboard) and Phase 4 (proxy server code) complete. Dashboard, auth, multi-tenant, apps, policies, ModSecurity, proxy code, SSL, logs/analytics, admin, docs, and AWS/DC deployment guides in place. |
+| **Agendas** | **Current:** WAF edge deployment (AWS or Data Center). Then go-live readiness, monitoring/alerts, support; Phase 5–8 and security/QA. |
+| **Next** | **1.** Deploy WAF edge (1–2 weeks). **2.** Phase 5 (logging, alerts) and Phase 7 (security/QA). **3.** Phase 6 (templates, staging, threat intel), then Phase 8 (docs, support, pilot, beta). |
+| **Architecture** | UI and proxy both use Firestore; no direct UI–proxy link; single proxy process (no separate agent); traffic path: User → DNS → WAF → ModSecurity → Origin (or block). |
 | **Diagrams** | `docs/atravad-waf-architecture.svg` (full visual); Mermaid and ASCII in `docs/ARCHITECTURE_DIAGRAM.md`. |
 | **What we need** | Public IP (WAF edge + Dashboard WAF_REGIONS), certs (WAF host + per-app Let’s Encrypt or custom), Firebase project + service account, Node 18+, ports 80/443, outbound to Firebase; see §6. |
 
