@@ -222,6 +222,19 @@ Use this checklist for go-live, new WAF edge deployment, or subscription/onboard
 
 ---
 
+### 6.1a AWS account (only if deploying on AWS)
+
+| What | Details |
+|------|--------|
+| **AWS account** | **Yes — you need an AWS account** to run the WAF edge on AWS. Sign up at [aws.amazon.com](https://aws.amazon.com). There is no separate “AWS subscription” product; your **AWS account is pay-as-you-go** (you are billed for the resources you use). |
+| **Free Tier** | New AWS accounts get a **12-month Free Tier** (e.g. EC2 t2.micro/t3.micro for limited hours per month). Suitable for **testing** a single small WAF edge; production usually needs larger instances, ALB, and data transfer, which incur cost. |
+| **Production on AWS** | Expect to pay for EC2 (or ECS), Elastic IP (if used), Application Load Balancer (ALB), ACM (free for public certs), and data transfer. No upfront commitment unless you sign an enterprise agreement. |
+| **Alternative** | If you do **not** want to use AWS, deploy on **on-prem Data Center** instead — you need a server/VM with a public IP and Node.js; no AWS account required. See [Data Center WAF Deployment](./DATA_CENTER_WAF_DEPLOYMENT.md). |
+
+**Summary:** For **AWS deployment**, you need an **AWS account** (pay-as-you-go; Free Tier can cover light testing). For **Data Center deployment**, you do **not** need an AWS account or any AWS subscription.
+
+---
+
 ### 6.2 Certificates
 
 | Use case | What you need | Notes |
@@ -266,10 +279,11 @@ Use this checklist for go-live, new WAF edge deployment, or subscription/onboard
 
 | If you are… | You need… |
 |-------------|-----------|
-| **Deploying the WAF edge (first time)** | Public IP (or LB), Node 18+, ports 80/443, Firebase service account in `.env.waf`, optional SSL (Nginx+Certbot or ALB+ACM). Then set Dashboard **WAF_REGIONS** to that IP/cname. |
+| **Deploying the WAF edge on AWS** | **AWS account** (pay-as-you-go; Free Tier ok for testing). VPC, EC2 or ECS, ALB + ACM for SSL, Firebase service account in `.env.waf`. Then set Dashboard **WAF_REGIONS** to ALB/public IP. See [AWS WAF Deployment](./AWS_WAF_DEPLOYMENT.md). |
+| **Deploying the WAF edge on-prem (Data Center)** | No AWS account. Server/VM with public IP, Node 18+, ports 80/443, Firebase service account in `.env.waf`, SSL (Nginx + Certbot or custom). Then set Dashboard **WAF_REGIONS** to that IP/cname. See [Data Center WAF Deployment](./DATA_CENTER_WAF_DEPLOYMENT.md). |
 | **Deploying the Dashboard** | Firebase client + Admin env vars, **WAF_REGIONS** (or NEXT_PUBLIC_ATRAVAD_WAF_IP/CNAME), Node 18+. |
 | **Adding a new customer app with HTTPS** | Either (1) domain points to WAF + Let’s Encrypt (port 80 open, proxy env set), or (2) custom cert + key (PEM) in Application UI. |
-| **Running a paid/subscription offering** | All of the above: public IP, certs for WAF host and per-app (Let’s Encrypt or custom), Firebase project and service account, Firestore rules, and operational monitoring (including cert expiry). |
+| **Running a paid/subscription offering** | All of the above: public IP, certs for WAF host and per-app (Let’s Encrypt or custom), Firebase project and service account, Firestore rules; **if using AWS**, an AWS account. Operational monitoring (including cert expiry). |
 
 ---
 
@@ -282,7 +296,7 @@ Use this checklist for go-live, new WAF edge deployment, or subscription/onboard
 | **Next** | **1.** Deploy WAF edge (1–2 weeks). **2.** Phase 5 (logging, alerts) and Phase 7 (security/QA). **3.** Phase 6 (templates, staging, threat intel), then Phase 8 (docs, support, pilot, beta). |
 | **Architecture** | UI and proxy both use Firestore; no direct UI–proxy link; single proxy process (no separate agent); traffic path: User → DNS → WAF → ModSecurity → Origin (or block). |
 | **Diagrams** | `docs/atravad-waf-architecture.svg` (full visual); Mermaid and ASCII in `docs/ARCHITECTURE_DIAGRAM.md`. |
-| **What we need** | Public IP (WAF edge + Dashboard WAF_REGIONS), certs (WAF host + per-app Let’s Encrypt or custom), Firebase project + service account, Node 18+, ports 80/443, outbound to Firebase; see §6. |
+| **What we need** | Public IP (WAF edge + Dashboard WAF_REGIONS), certs (WAF host + per-app Let’s Encrypt or custom), Firebase project + service account, Node 18+, ports 80/443, outbound to Firebase; **if AWS:** AWS account (pay-as-you-go; no separate subscription). See §6. |
 
 ---
 
