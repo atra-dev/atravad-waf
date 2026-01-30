@@ -1,4 +1,4 @@
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { createOrGetUser, normalizeEmail, getUserByEmail, getTenantNameByEmail } from '@/lib/user-utils';
 
 /**
@@ -10,25 +10,18 @@ export async function getCurrentUser(request) {
   if (!token) {
     return null;
   }
-  
+
+  if (!adminAuth) {
+    return null;
+  }
+
   try {
-    const { adminAuth } = await import('@/lib/firebase-admin');
-    if (!adminAuth) {
-      console.error('Firebase Admin Auth not initialized');
-      return null;
-    }
-    
-    // Verify token - this will throw if token is invalid or expired
     const decodedToken = await adminAuth.verifyIdToken(token, true); // checkRevoked = true
-    
-    // Additional check: ensure token hasn't been revoked
     if (!decodedToken || !decodedToken.email) {
       return null;
     }
-    
     return decodedToken;
   } catch (error) {
-    // Token is invalid, expired, or revoked
     console.error('Error verifying token:', error.message);
     return null;
   }

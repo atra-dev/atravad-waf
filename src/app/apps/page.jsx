@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -80,13 +81,20 @@ export default function AppsPage() {
     domain: '',
     originUrl: '',
     policyId: '',
+    sslMode: 'auto',
+    autoProvisionSSL: true,
+    customCert: '',
+    customKey: '',
+    customFullchain: '',
   });
   const [policies, setPolicies] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedAppForSetup, setSelectedAppForSetup] = useState(null); // For Continue Setup modal
   const [openSettingsMenu, setOpenSettingsMenu] = useState(null); // For settings dropdown
+  const [dropdownPosition, setDropdownPosition] = useState(null); // { top, left } for portal dropdown
   const [selectedAppForEdit, setSelectedAppForEdit] = useState(null); // For edit modal
-  const [editFormData, setEditFormData] = useState({ originUrl: '', policyId: '' });
+  const [editModalTab, setEditModalTab] = useState('general'); // 'general' | 'ssl' - Sucuri-style separation
+  const [editFormData, setEditFormData] = useState({ originUrl: '', policyId: '', sslMode: 'auto', autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
@@ -246,6 +254,10 @@ export default function AppsPage() {
   };
 
   const handleSubmit = async () => {
+    if (formData.sslMode === 'custom' && (!formData.customCert?.trim() || !formData.customKey?.trim())) {
+      alert('Please paste your certificate and private key when using a custom certificate.');
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -259,8 +271,9 @@ export default function AppsPage() {
         }],
         policyId: formData.policyId || null,
         responseInspectionEnabled: true,
-        autoSSL: true,
-        ssl: { autoProvision: true },
+        ssl: formData.sslMode === 'custom'
+          ? { customCert: true, cert: formData.customCert?.trim() || '', key: formData.customKey?.trim() || '', fullchain: formData.customFullchain?.trim() || null }
+          : { autoProvision: formData.autoProvisionSSL !== false, customCert: false },
         routing: { pathPrefix: '/', stripPath: false },
         // Note: firewallIp and activated are automatically assigned by the API
       };
@@ -273,7 +286,7 @@ export default function AppsPage() {
 
       if (response.ok) {
         setShowModal(false);
-        setFormData({ name: '', domain: '', originUrl: '', policyId: '' });
+        setFormData({ name: '', domain: '', originUrl: '', policyId: '', sslMode: 'auto', autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
         setWizardStep(1);
         fetchApps();
       } else {
@@ -290,12 +303,40 @@ export default function AppsPage() {
 
   // Handle opening edit modal
   const handleOpenEdit = (app) => {
+    const useCustom = !!app.ssl?.customCert;
     setEditFormData({
       originUrl: app.origins?.[0]?.url || '',
       policyId: app.policyId || '',
+      sslMode: useCustom ? 'custom' : 'auto',
+      autoProvisionSSL: !useCustom && app.ssl?.autoProvision !== false,
+      customCert: app.ssl?.cert || '',
+      customKey: app.ssl?.key || '',
+      customFullchain: app.ssl?.fullchain || '',
     });
+    setEditModalTab('general');
     setSelectedAppForEdit(app);
     setOpenSettingsMenu(null);
+    setDropdownPosition(null);
+  };
+
+  const closeSettingsMenu = () => {
+    setOpenSettingsMenu(null);
+    setDropdownPosition(null);
+  };
+
+  const openSettingsWithPosition = (e, appId) => {
+    e.stopPropagation();
+    if (openSettingsMenu === appId) {
+      closeSettingsMenu();
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 192; // w-48
+    setDropdownPosition({
+      top: rect.bottom + 4,
+      left: Math.min(rect.right - menuWidth, typeof window !== 'undefined' ? window.innerWidth - menuWidth - 8 : rect.right - menuWidth),
+    });
+    setOpenSettingsMenu(appId);
   };
 
   // Handle delete site
@@ -328,8 +369,12 @@ export default function AppsPage() {
   // Handle update site
   const handleUpdateSite = async (e) => {
     e.preventDefault();
+    if (editFormData.sslMode === 'custom' && (!editFormData.customCert?.trim() || !editFormData.customKey?.trim())) {
+      alert('Please paste your certificate and private key when using a custom certificate.');
+      return;
+    }
     setUpdating(true);
-    
+
     try {
       const response = await fetch(`/api/apps/${selectedAppForEdit.id}`, {
         method: 'PATCH',
@@ -341,6 +386,9 @@ export default function AppsPage() {
             healthCheck: { path: '/health', interval: 30, timeout: 5 } 
           }],
           policyId: editFormData.policyId || null,
+          ssl: editFormData.sslMode === 'custom'
+            ? { customCert: true, cert: editFormData.customCert?.trim() || '', key: editFormData.customKey?.trim() || '', fullchain: editFormData.customFullchain?.trim() || null }
+            : { autoProvision: editFormData.autoProvisionSSL, customCert: false },
         }),
       });
       
@@ -373,12 +421,11 @@ export default function AppsPage() {
     return 'Not configured';
   };
 
-  // Simulate stats - in production these would come from logs
-  const getAppStats = (app) => {
-    // Generate consistent random stats based on app id
-    const seed = app.id?.charCodeAt(0) || 0;
-    const blocked = Math.floor((seed * 7) % 50);
-    const allowed = Math.floor((seed * 13) % 200) + 20;
+  // Only show stats when app has real blocked/allowed data from API (e.g. from logs aggregation)
+  const getRealAppStats = (app) => {
+    const blocked = app.statsBlocked ?? app.blocked;
+    const allowed = app.statsAllowed ?? app.allowed;
+    if (typeof blocked !== 'number' || typeof allowed !== 'number') return null;
     return { blocked, allowed };
   };
 
@@ -591,9 +638,10 @@ export default function AppsPage() {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredApps.map((app) => {
-              const stats = getAppStats(app);
+              const stats = getRealAppStats(app);
               const activated = isActivated(app);
               const hostingIp = getHostingDisplay(app);
+              const hasRealStats = activated && stats !== null;
               
               return (
                 <div
@@ -615,65 +663,12 @@ export default function AppsPage() {
                       </a>
                       <div className="relative">
                         <button 
-                          onClick={() => setOpenSettingsMenu(openSettingsMenu === app.id ? null : app.id)}
+                          onClick={(e) => openSettingsWithPosition(e, app.id)}
                           className="p-1 text-gray-400 hover:text-gray-600"
+                          aria-label="Site settings"
                         >
                           <SettingsIcon className="h-5 w-5" />
                         </button>
-                        
-                        {/* Settings Dropdown */}
-                        {openSettingsMenu === app.id && (
-                          <>
-                            {/* Backdrop to close dropdown when clicking outside */}
-                            <div 
-                              className="fixed inset-0 z-40" 
-                              onClick={() => setOpenSettingsMenu(null)}
-                            />
-                            <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
-                            <button
-                              onClick={() => handleOpenEdit(app)}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit Site
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedAppForSetup(app);
-                                setOpenSettingsMenu(null);
-                              }}
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                              </svg>
-                              DNS Setup
-                            </button>
-                            <a
-                              href="/logs"
-                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              View Logs
-                            </a>
-                            <hr className="my-1 border-gray-200" />
-                            <button
-                              onClick={() => handleDeleteSite(app)}
-                              disabled={deleting}
-                              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                            >
-                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              {deleting ? 'Deleting...' : 'Delete Site'}
-                            </button>
-                          </div>
-                          </>
-                        )}
                       </div>
                     </div>
                     
@@ -711,32 +706,39 @@ export default function AppsPage() {
                   {/* Stats or Not Activated */}
                   <div className="border-t border-gray-100 px-5 py-4">
                     {activated ? (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          {/* Stats Bar */}
-                          <div className="flex items-end gap-1 h-12">
-                            <div 
-                              className="w-4 bg-red-400 rounded-t"
-                              style={{ height: `${Math.min(stats.blocked * 2, 48)}px` }}
-                            />
-                            <div 
-                              className="w-4 bg-teal-400 rounded-t"
-                              style={{ height: `${Math.min(stats.allowed / 4, 48)}px` }}
-                            />
-                          </div>
-                          <div className="text-sm">
-                            <div className="flex items-center gap-3">
-                              <span className="text-red-500 font-semibold">{stats.blocked}</span>
-                              <span className="text-teal-500 font-semibold">{stats.allowed}</span>
+                      hasRealStats ? (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            {/* Stats Bar */}
+                            <div className="flex items-end gap-1 h-12">
+                              <div 
+                                className="w-4 bg-red-400 rounded-t"
+                                style={{ height: `${Math.min(stats.blocked * 2, 48)}px` }}
+                              />
+                              <div 
+                                className="w-4 bg-teal-400 rounded-t"
+                                style={{ height: `${Math.min(stats.allowed / 4, 48)}px` }}
+                              />
                             </div>
-                            <div className="flex items-center gap-3 text-gray-500 text-xs">
-                              <span>Blocked</span>
-                              <span>Allowed</span>
+                            <div className="text-sm">
+                              <div className="flex items-center gap-3">
+                                <span className="text-red-500 font-semibold">{stats.blocked}</span>
+                                <span className="text-teal-500 font-semibold">{stats.allowed}</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-gray-500 text-xs">
+                                <span>Blocked</span>
+                                <span>Allowed</span>
+                              </div>
                             </div>
                           </div>
+                          <CheckCircleIcon className="h-6 w-6 text-green-500" />
                         </div>
-                        <CheckCircleIcon className="h-6 w-6 text-green-500" />
-                      </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500 text-sm">No traffic data yet</span>
+                          <CheckCircleIcon className="h-6 w-6 text-green-500" />
+                        </div>
+                      )
                     ) : (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-red-600">
@@ -773,9 +775,10 @@ export default function AppsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredApps.map((app) => {
-                  const stats = getAppStats(app);
+                  const stats = getRealAppStats(app);
                   const activated = isActivated(app);
                   const hostingIp = getHostingDisplay(app);
+                  const hasRealStats = activated && stats !== null;
                   
                   return (
                     <tr key={app.id} className="hover:bg-gray-50">
@@ -814,74 +817,24 @@ export default function AppsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-red-500">{stats.blocked} blocked</span>
-                          <span className="text-gray-300">|</span>
-                          <span className="text-teal-500">{stats.allowed} allowed</span>
-                        </div>
+                        {hasRealStats ? (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="text-red-500">{stats.blocked} blocked</span>
+                            <span className="text-gray-300">|</span>
+                            <span className="text-teal-500">{stats.allowed} allowed</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="relative inline-block">
-                          <button 
-                            onClick={() => setOpenSettingsMenu(openSettingsMenu === app.id ? null : app.id)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <SettingsIcon className="h-5 w-5" />
-                          </button>
-                          
-                          {/* Settings Dropdown */}
-                          {openSettingsMenu === app.id && (
-                            <>
-                              <div 
-                                className="fixed inset-0 z-40" 
-                                onClick={() => setOpenSettingsMenu(null)}
-                              />
-                              <div className="absolute right-0 top-8 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
-                                <button
-                                  onClick={() => handleOpenEdit(app)}
-                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                  Edit Site
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedAppForSetup(app);
-                                    setOpenSettingsMenu(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                  </svg>
-                                  DNS Setup
-                                </button>
-                                <a
-                                  href="/logs"
-                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                  View Logs
-                                </a>
-                                <hr className="my-1 border-gray-200" />
-                                <button
-                                  onClick={() => handleDeleteSite(app)}
-                                  disabled={deleting}
-                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                  {deleting ? 'Deleting...' : 'Delete Site'}
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <button 
+                          onClick={(e) => openSettingsWithPosition(e, app.id)}
+                          className="text-gray-400 hover:text-gray-600 p-1"
+                          aria-label="Site settings"
+                        >
+                          <SettingsIcon className="h-5 w-5" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -891,6 +844,80 @@ export default function AppsPage() {
           </div>
         )}
       </div>
+
+      {/* Settings dropdown portal - renders outside table/card so it is not clipped */}
+      {typeof document !== 'undefined' &&
+        document.body &&
+        openSettingsMenu &&
+        dropdownPosition &&
+        (() => {
+          const app = filteredApps.find((a) => a.id === openSettingsMenu);
+          if (!app) return null;
+          return createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={closeSettingsMenu}
+                aria-hidden="true"
+              />
+              <div
+                className="fixed z-50 w-48 min-w-[12rem] rounded-lg border border-gray-200 bg-white py-1 shadow-xl"
+                style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                role="menu"
+              >
+                <button
+                  onClick={() => handleOpenEdit(app)}
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  role="menuitem"
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit Site
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedAppForSetup(app);
+                    closeSettingsMenu();
+                  }}
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  role="menuitem"
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  DNS Setup
+                </button>
+                <a
+                  href="/logs"
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  role="menuitem"
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  View Logs
+                </a>
+                <hr className="my-1 border-gray-200" />
+                <button
+                  onClick={() => {
+                    handleDeleteSite(app);
+                    closeSettingsMenu();
+                  }}
+                  disabled={deleting}
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  role="menuitem"
+                >
+                  <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  {deleting ? 'Deleting...' : 'Delete Site'}
+                </button>
+              </div>
+            </>,
+            document.body
+          );
+        })()}
 
       {/* Add Site Modal */}
       {showModal && (
@@ -903,9 +930,9 @@ export default function AppsPage() {
             />
             
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all">
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
                     <GlobeIcon className="h-6 w-6 text-teal-600" />
@@ -921,7 +948,7 @@ export default function AppsPage() {
               </div>
 
               {/* Content */}
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto flex-1 min-h-0">
                 {wizardStep === 1 && (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-gray-900">What&apos;s your domain name?</h2>
@@ -967,6 +994,67 @@ export default function AppsPage() {
                         ))}
                       </select>
                     </div>
+                    <div className="space-y-4">
+                      <label className="block text-sm font-medium text-gray-700">SSL Certificate</label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="create-ssl-mode"
+                            checked={formData.sslMode === 'auto'}
+                            onChange={() => setFormData({ ...formData, sslMode: 'auto', autoProvisionSSL: true })}
+                            className="h-4 w-4 text-teal-600 focus:ring-teal-500"
+                          />
+                          <span className="text-sm font-medium">Let&apos;s Encrypt (auto)</span>
+                        </label>
+                        <p className="text-xs text-gray-500 ml-6">Free TLS certificate. Domain must point to the WAF.</p>
+                        <label className="flex items-center gap-2 cursor-pointer mt-2">
+                          <input
+                            type="radio"
+                            name="create-ssl-mode"
+                            checked={formData.sslMode === 'custom'}
+                            onChange={() => setFormData({ ...formData, sslMode: 'custom' })}
+                            className="h-4 w-4 text-teal-600 focus:ring-teal-500"
+                          />
+                          <span className="text-sm font-medium">My certificate</span>
+                        </label>
+                        <p className="text-xs text-gray-500 ml-6">Upload your own certificate and private key (PEM).</p>
+                      </div>
+                      {formData.sslMode === 'custom' && (
+                        <div className="mt-3 space-y-3 pl-6 border-l-2 border-teal-200">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Certificate (PEM)</label>
+                            <textarea
+                              placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+                              value={formData.customCert}
+                              onChange={(e) => setFormData({ ...formData, customCert: e.target.value })}
+                              rows={4}
+                              className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Private key (PEM)</label>
+                            <textarea
+                              placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+                              value={formData.customKey}
+                              onChange={(e) => setFormData({ ...formData, customKey: e.target.value })}
+                              rows={4}
+                              className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">CA chain / full chain (optional)</label>
+                            <textarea
+                              placeholder="-----BEGIN CERTIFICATE-----\n... (intermediate + root)\n-----END CERTIFICATE-----"
+                              value={formData.customFullchain}
+                              onChange={(e) => setFormData({ ...formData, customFullchain: e.target.value })}
+                              rows={2}
+                              className="w-full min-h-[4rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -999,6 +1087,10 @@ export default function AppsPage() {
                         <span className="text-sm text-gray-600">Origin:</span>
                         <span className="font-mono text-sm">{formData.originUrl}</span>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">SSL:</span>
+                        <span className="text-sm font-medium">{formData.sslMode === 'custom' ? 'Custom certificate' : 'Let\'s Encrypt (auto)'}</span>
+                      </div>
                       <hr className="border-gray-200" />
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                         <p className="text-sm text-blue-800">
@@ -1011,7 +1103,7 @@ export default function AppsPage() {
               </div>
 
               {/* Progress Bar */}
-              <div className="px-6">
+              <div className="px-6 shrink-0">
                 <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-teal-500 transition-all duration-300"
@@ -1021,7 +1113,7 @@ export default function AppsPage() {
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end gap-3 px-6 py-4">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
                 {wizardStep > 1 && wizardStep !== 3 && (
                   <button
                     onClick={() => setWizardStep(wizardStep - 1)}
@@ -1063,8 +1155,8 @@ export default function AppsPage() {
               onClick={() => setSelectedAppForEdit(null)}
             />
             
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
                     <SettingsIcon className="h-6 w-6 text-teal-600" />
@@ -1079,7 +1171,28 @@ export default function AppsPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleUpdateSite} className="p-6 space-y-5">
+              {/* Tabs: General | SSL Certificate (Sucuri-style separation) */}
+              <div className="flex border-b border-gray-200 px-6 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setEditModalTab('general')}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${editModalTab === 'general' ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                >
+                  General
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditModalTab('ssl')}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${editModalTab === 'ssl' ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                >
+                  SSL Certificate
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateSite} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
+                {/* General tab - keep in DOM so form submit includes all fields */}
+                <div className={editModalTab !== 'general' ? 'hidden' : 'space-y-5'}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Domain</label>
                   <input
@@ -1118,8 +1231,75 @@ export default function AppsPage() {
                     ))}
                   </select>
                 </div>
+                </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                {/* SSL Certificate tab - Sucuri-style separation */}
+                <div className={editModalTab !== 'ssl' ? 'hidden' : undefined}>
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">Choose how SSL/TLS is provided for this site.</p>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="edit-ssl-mode"
+                        checked={editFormData.sslMode === 'auto'}
+                        onChange={() => setEditFormData({ ...editFormData, sslMode: 'auto', autoProvisionSSL: true })}
+                        className="h-4 w-4 text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm font-medium">Let&apos;s Encrypt (auto)</span>
+                    </label>
+                    <p className="text-xs text-gray-500 ml-6">Free TLS certificate. Domain must point to the WAF.</p>
+                    <label className="flex items-center gap-2 cursor-pointer mt-2">
+                      <input
+                        type="radio"
+                        name="edit-ssl-mode"
+                        checked={editFormData.sslMode === 'custom'}
+                        onChange={() => setEditFormData({ ...editFormData, sslMode: 'custom' })}
+                        className="h-4 w-4 text-teal-600 focus:ring-teal-500"
+                      />
+                      <span className="text-sm font-medium">My certificate</span>
+                    </label>
+                    <p className="text-xs text-gray-500 ml-6">Upload your own certificate and private key (PEM).</p>
+                  </div>
+                  {editFormData.sslMode === 'custom' && (
+                    <div className="mt-4 space-y-3 pt-4 border-t border-gray-200">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Certificate (PEM)</label>
+                        <textarea
+                          placeholder="-----BEGIN CERTIFICATE-----..."
+                          value={editFormData.customCert}
+                          onChange={(e) => setEditFormData({ ...editFormData, customCert: e.target.value })}
+                          rows={4}
+                          className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Private key (PEM)</label>
+                        <textarea
+                          placeholder="-----BEGIN PRIVATE KEY-----..."
+                          value={editFormData.customKey}
+                          onChange={(e) => setEditFormData({ ...editFormData, customKey: e.target.value })}
+                          rows={4}
+                          className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">CA chain / full chain (optional)</label>
+                        <textarea
+                          placeholder="Optional intermediate + root certificates"
+                          value={editFormData.customFullchain}
+                          onChange={(e) => setEditFormData({ ...editFormData, customFullchain: e.target.value })}
+                          rows={2}
+                          className="w-full min-h-[4rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                </div>
+                </div>
+
+                <div className="flex justify-end gap-3 px-6 py-4 pt-4 border-t border-gray-200 shrink-0 bg-white">
                   <button
                     type="button"
                     onClick={() => setSelectedAppForEdit(null)}
@@ -1152,9 +1332,9 @@ export default function AppsPage() {
             />
             
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all">
+            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
                     <GlobeIcon className="h-6 w-6 text-teal-600" />
@@ -1170,7 +1350,7 @@ export default function AppsPage() {
               </div>
 
               {/* Content */}
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
                 <div className="text-center">
                   <WarningIcon className="mx-auto h-12 w-12 text-yellow-500" />
                   <h2 className="mt-4 text-xl font-bold text-gray-900">DNS Not Configured</h2>
@@ -1258,7 +1438,7 @@ export default function AppsPage() {
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
                 <button
                   onClick={() => setSelectedAppForSetup(null)}
                   className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"

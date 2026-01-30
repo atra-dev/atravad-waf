@@ -4,6 +4,7 @@ import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getRegionByContinent, getDefaultRegion } from '@/lib/waf-config';
 import { geolocateOrigin } from '@/lib/geolocation';
+import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 
 export async function POST(request) {
   try {
@@ -63,6 +64,24 @@ export async function POST(request) {
       }
     }
 
+    // Validate and normalize SSL (custom certificate)
+    let sslConfig = null;
+    if (ssl && ssl.customCert) {
+      const validation = validateCustomSsl(ssl);
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 });
+      }
+      sslConfig = {
+        autoProvision: false,
+        customCert: true,
+        cert: normalizePem(ssl.cert),
+        key: normalizePem(ssl.key),
+        fullchain: ssl.fullchain ? normalizePem(ssl.fullchain) : null,
+      };
+    } else if (ssl) {
+      sslConfig = { autoProvision: ssl.autoProvision !== false, customCert: false };
+    }
+
     // Auto-assign WAF region based on origin server geolocation
     let wafRegion = getDefaultRegion();
     let originGeoData = null;
@@ -83,7 +102,7 @@ export async function POST(request) {
       name,
       domain,
       origins: origins || [],
-      ssl: ssl || null,
+      ssl: sslConfig || ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
       responseInspectionEnabled: responseInspectionEnabled !== false,
@@ -106,7 +125,7 @@ export async function POST(request) {
       name,
       domain,
       origins: origins || [],
-      ssl: ssl || null,
+      ssl: sslConfig || ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
       responseInspectionEnabled: responseInspectionEnabled !== false,

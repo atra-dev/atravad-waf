@@ -11,9 +11,21 @@
 
 import http from 'http';
 import https from 'https';
+import tls from 'tls';
 import { URL } from 'url';
+import { createRequire } from 'module';
 import { adminDb } from './firebase-admin';
 import { createModSecurityProxy } from './modsecurity-proxy.js';
+import { createCertStore } from './cert-store.js';
+import { getAcmeChallengeResponse, ensureCertificate, isLetsEncryptAvailable } from './letsencrypt.js';
+
+const requireMod = createRequire(import.meta.url);
+let selfsigned = null;
+try {
+  selfsigned = requireMod('selfsigned').default || requireMod('selfsigned');
+} catch {
+  selfsigned = null;
+}
 
 const BODY_BUFFER_TIMEOUT_MS = 10000;
 
@@ -86,11 +98,23 @@ export class ProxyWAFServer {
     this.httpsServer = null;
     this.healthCheckIntervals = new Map();
     this.tenantName = options.tenantName || null;
+    // Multi-tenant: support single name or comma-separated list (Firestore 'in' max 10)
+    this.tenantNames = this.tenantName
+      ? this.tenantName.split(',').map((s) => s.trim()).filter(Boolean)
+      : null;
+    if (this.tenantNames && this.tenantNames.length > 10) {
+      console.warn('ATRAVAD: Firestore "in" query limited to 10 tenants; using first 10.');
+      this.tenantNames = this.tenantNames.slice(0, 10);
+    }
     this.modSecurity = options.modSecurity || createModSecurityProxy();
-    
+    this.certStore = options.certStore || createCertStore();
+    this.getAcmeChallengeResponse = options.getAcmeChallengeResponse || getAcmeChallengeResponse;
+    this.letsEncryptEnabled = options.letsEncryptEnabled !== false && isLetsEncryptAvailable;
+    this.provisioningInProgress = new Set(); // domain -> avoid duplicate provision
+
     // Load applications from Firestore
     this.loadApplications();
-    
+
     // Listen for real-time updates
     this.setupRealtimeListener();
   }
@@ -125,22 +149,26 @@ export class ProxyWAFServer {
         return;
       }
 
-      const tenantName = this.tenantName;
-      if (tenantName) {
-        console.log(`Loading applications for tenant: ${tenantName}`);
+      const tenantNames = this.tenantNames;
+      if (tenantNames?.length) {
+        console.log(`Loading applications for tenant(s): ${tenantNames.join(', ')}`);
       } else {
         console.log('Loading all applications (no tenant filter)');
       }
 
-      // Load applications (filtered by tenant if set)
+      // Load applications (filtered by tenant(s) if set)
       let appsSnapshot;
-      if (tenantName) {
+      if (tenantNames?.length === 1) {
         appsSnapshot = await adminDb
           .collection('applications')
-          .where('tenantName', '==', tenantName)
+          .where('tenantName', '==', tenantNames[0])
+          .get();
+      } else if (tenantNames?.length > 1) {
+        appsSnapshot = await adminDb
+          .collection('applications')
+          .where('tenantName', 'in', tenantNames)
           .get();
       } else {
-        // Fallback: load all applications (for testing or if tenant not available)
         appsSnapshot = await adminDb.collection('applications').get();
       }
       
@@ -149,10 +177,23 @@ export class ProxyWAFServer {
         if (app.domain) {
           this.applications.set(app.domain, app);
           console.log(`Loaded application: ${app.domain}`);
-          
+
+          if (app.ssl?.customCert && app.ssl?.cert && app.ssl?.key) {
+            try {
+              this.certStore.set(app.domain, {
+                key: app.ssl.key,
+                cert: app.ssl.cert,
+                fullchain: app.ssl.fullchain || app.ssl.cert,
+              });
+              console.log(`Loaded custom SSL certificate for ${app.domain}`);
+            } catch (err) {
+              console.warn(`Failed to load custom SSL for ${app.domain}:`, err.message);
+            }
+          }
+
           // Load policy if assigned
           await this.loadPolicyForApplication(app);
-          
+
           // Start health checks for origins
           if (app.origins && Array.isArray(app.origins)) {
             app.origins.forEach((origin) => {
@@ -163,19 +204,51 @@ export class ProxyWAFServer {
       }
       
       console.log(`Loaded ${this.applications.size} application(s)`);
+
+      if (this.letsEncryptEnabled) {
+        this.triggerAutoProvision();
+      }
     } catch (error) {
       console.error('Error loading applications:', error);
     }
   }
 
   /**
-   * Setup real-time listener for application changes
+   * Trigger Let's Encrypt provisioning for apps with ssl.autoProvision and no valid cert.
+   */
+  async triggerAutoProvision() {
+    for (const [domain, app] of this.applications) {
+      if (app.ssl?.customCert) continue;
+      const autoProvision = app.ssl && (app.ssl.autoProvision === true || app.ssl?.autoProvision === true);
+      if (!autoProvision || this.provisioningInProgress.has(domain)) continue;
+      if (this.certStore.hasValidCert(domain)) continue;
+      this.provisioningInProgress.add(domain);
+      ensureCertificate(domain, { certStore: this.certStore })
+        .then((ok) => {
+          if (ok) console.log(`Let's Encrypt: provisioned certificate for ${domain}`);
+        })
+        .catch((err) => console.warn(`Let's Encrypt: provision failed for ${domain}`, err.message))
+        .finally(() => this.provisioningInProgress.delete(domain));
+    }
+  }
+
+  /**
+   * Setup real-time listener for application changes (tenant-scoped when tenantName is set)
    */
   setupRealtimeListener() {
     if (!adminDb) return;
 
-    // Listen for new/updated applications
-    adminDb.collection('applications').onSnapshot((snapshot) => {
+    const tenantNames = this.tenantNames;
+    let applicationsRef;
+    if (tenantNames?.length === 1) {
+      applicationsRef = adminDb.collection('applications').where('tenantName', '==', tenantNames[0]);
+    } else if (tenantNames?.length > 1) {
+      applicationsRef = adminDb.collection('applications').where('tenantName', 'in', tenantNames);
+    } else {
+      applicationsRef = adminDb.collection('applications');
+    }
+
+    applicationsRef.onSnapshot((snapshot) => {
       snapshot.docChanges().forEach((change) => {
         const app = { id: change.doc.id, ...change.doc.data() };
         
@@ -183,12 +256,35 @@ export class ProxyWAFServer {
           if (app.domain) {
             this.applications.set(app.domain, app);
             console.log(`Application updated: ${app.domain}`);
-            
+
+            if (app.ssl?.customCert && app.ssl?.cert && app.ssl?.key) {
+              try {
+                this.certStore.set(app.domain, {
+                  key: app.ssl.key,
+                  cert: app.ssl.cert,
+                  fullchain: app.ssl.fullchain || app.ssl.cert,
+                });
+                console.log(`Loaded custom SSL certificate for ${app.domain}`);
+              } catch (err) {
+                console.warn(`Failed to load custom SSL for ${app.domain}:`, err.message);
+              }
+            } else if (app.ssl && app.ssl.customCert === false) {
+              this.certStore.remove(app.domain);
+            }
+
+            if (this.letsEncryptEnabled && !app.ssl?.customCert && app.ssl?.autoProvision && !this.provisioningInProgress.has(app.domain) && !this.certStore.hasValidCert(app.domain)) {
+              this.provisioningInProgress.add(app.domain);
+              ensureCertificate(app.domain, { certStore: this.certStore })
+                .then((ok) => { if (ok) console.log(`Let's Encrypt: provisioned certificate for ${app.domain}`); })
+                .catch((err) => console.warn(`Let's Encrypt: provision failed for ${app.domain}`, err.message))
+                .finally(() => this.provisioningInProgress.delete(app.domain));
+            }
+
             // Load policy if assigned
             this.loadPolicyForApplication(app).catch((error) => {
               console.error(`Error loading policy for ${app.domain}:`, error);
             });
-            
+
             // Start health checks for origins
             if (app.origins && Array.isArray(app.origins)) {
               app.origins.forEach((origin) => {
@@ -320,15 +416,42 @@ export class ProxyWAFServer {
 
   /**
    * Handle incoming HTTP request
-   * Buffers request body when needed for ModSecurity, then inspects, then forwards.
+   * Serves ACME HTTP-01 challenge first, then buffers request body when needed for ModSecurity, then forwards.
    */
   async handleRequest(req, res) {
     try {
+      const pathname = req.url?.split('?')[0] || '/';
+
+      // Health check for load balancers and data-center orchestration (any Host)
+      if (pathname === '/health' || pathname === '/_atravad/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            status: 'ok',
+            service: 'atravad-waf',
+            tenant: this.tenantName || 'all',
+            tenants: this.tenantNames?.length ? this.tenantNames.length : null,
+            applications: this.applications.size,
+          })
+        );
+        return;
+      }
+
       const host = req.headers.host?.split(':')[0];
       if (!host) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         res.end('Missing Host header');
         return;
+      }
+
+      if (this.getAcmeChallengeResponse && pathname.startsWith('/.well-known/acme-challenge/')) {
+        const token = pathname.slice('/.well-known/acme-challenge/'.length).trim();
+        const keyAuthorization = this.getAcmeChallengeResponse(token);
+        if (keyAuthorization) {
+          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end(keyAuthorization);
+          return;
+        }
       }
 
       const app = this.applications.get(host);
@@ -534,18 +657,67 @@ export class ProxyWAFServer {
   }
 
   /**
-   * Start HTTPS server
+   * Build default key/cert and secure context for SNI fallback (self-signed or first cert in store).
+   */
+  _getDefaultSecureContext() {
+    if (this._defaultSecureContext) return this._defaultSecureContext;
+    const domains = this.certStore.listDomains();
+    if (domains.length > 0) {
+      const entry = this.certStore.get(domains[0]);
+      if (entry) {
+        this._defaultKeyCert = { key: entry.key, cert: entry.fullchain || entry.cert };
+        this._defaultSecureContext = tls.createSecureContext(this._defaultKeyCert);
+        return this._defaultSecureContext;
+      }
+    }
+    if (selfsigned) {
+      const attrs = [{ name: 'commonName', value: 'localhost' }];
+      const pems = selfsigned.generate(attrs, { days: 365, keySize: 2048 });
+      this._defaultKeyCert = { key: pems.private, cert: pems.cert };
+      this._defaultSecureContext = tls.createSecureContext(this._defaultKeyCert);
+      return this._defaultSecureContext;
+    }
+    return null;
+  }
+
+  /**
+   * Start HTTPS server with SNI (certificate per domain from certStore).
    */
   startHttpsServer(sslOptions = {}) {
-    // SSL options should include certificates
-    // For now, create a basic server (certificates will be loaded per-domain)
-    
-    this.httpsServer = https.createServer(sslOptions, (req, res) => {
+    const defaultContext = this._getDefaultSecureContext();
+    const certStore = this.certStore;
+    const defaultKeyCert = this._defaultKeyCert || {};
+
+    const serverOptions = {
+      key: sslOptions.key || defaultKeyCert.key,
+      cert: sslOptions.cert || defaultKeyCert.cert,
+      SNICallback: (servername, cb) => {
+        const entry = certStore.get(servername);
+        if (entry && entry.key && (entry.fullchain || entry.cert)) {
+          try {
+            const ctx = tls.createSecureContext({
+              key: entry.key,
+              cert: entry.fullchain || entry.cert,
+            });
+            return cb(null, ctx);
+          } catch (err) {
+            console.warn('SNI secure context failed for', servername, err.message);
+          }
+        }
+        cb(null, defaultContext);
+      },
+    };
+
+    if (!serverOptions.key || !serverOptions.cert) {
+      console.warn('HTTPS: no default key/cert; SNI will still work for provisioned domains');
+    }
+
+    this.httpsServer = https.createServer(serverOptions, (req, res) => {
       this.handleRequest(req, res);
     });
 
     this.httpsServer.listen(this.httpsPort, () => {
-      console.log(`ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort}`);
+      console.log(`ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`);
     });
 
     this.httpsServer.on('error', (error) => {
@@ -558,11 +730,12 @@ export class ProxyWAFServer {
    */
   start(sslOptions = {}) {
     this.startHttpServer();
-    
+
     if (sslOptions && (sslOptions.key || sslOptions.cert)) {
       this.startHttpsServer(sslOptions);
+    } else if (this.letsEncryptEnabled && this._getDefaultSecureContext()) {
+      this.startHttpsServer();
     }
-
     console.log('ATRAVAD Proxy WAF server started');
   }
 

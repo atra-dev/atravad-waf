@@ -49,6 +49,25 @@ A **modern reverse proxy Web Application Firewall (WAF)** - just like Sucuri and
 - Firebase project with Authentication and Firestore enabled
 - Firebase Admin SDK service account credentials
 
+### ModSecurity v3 Native Integration
+
+ATRAVAD WAF uses **ModSecurity v3 (libmodsecurity)** via the `modsecurity` npm package. When the package is installed (included in dependencies), the proxy and the policy test API use the **native engine** for request/response inspection. If the native bindings are unavailable (e.g. build failure on your platform), the system automatically falls back to a pattern-based engine so the WAF still runs. Policy rules are generated from the policy editor and stored as ModSecurity config; the proxy loads rules per policy and applies them to traffic.
+
+### Let's Encrypt Auto-Provisioning
+
+The proxy can **auto-provision TLS certificates** from Let's Encrypt for applications that have **SSL → Auto provision** enabled. When an application is added or the proxy starts, it requests a certificate for the application domain via **HTTP-01** challenge. The proxy serves `/.well-known/acme-challenge/:token` automatically. HTTPS uses **SNI** so each domain gets its own certificate. Certificates are stored under `CERTS_DIR` (default: `./certs`) and reused across restarts.
+
+**Environment variables (optional):**
+
+- `CERTS_DIR` – Directory for certificate storage (default: `./certs`)
+- `LETSENCRYPT_EMAIL` – Contact email for ACME account (default: `admin@atravad.local`)
+- `LETSENCRYPT_STAGING` – Set to `true` or `1` to use Let's Encrypt **staging** (no rate limits; certs not trusted by browsers)
+- `LETSENCRYPT_ACCOUNT_KEY` – PEM account private key (optional; generated and saved to `CERTS_DIR/account-key.pem` if not set)
+
+**Requirements:** The application domain must point (DNS A/CNAME) to the proxy so that Let's Encrypt can reach `http://domain/.well-known/acme-challenge/:token`. Port 80 must be open on the proxy.
+
+**Custom SSL (like Sucuri):** You can also use your own certificate. In the Applications UI, choose **My certificate** and paste your PEM certificate, private key, and optionally CA chain. The proxy will use your certificate for that domain (SNI). Custom certificate takes precedence over Let's Encrypt for that domain.
+
 ## Setup Instructions
 
 ### 1. Clone and Install Dependencies
@@ -347,7 +366,11 @@ See [Quick Start Guide](./docs/PROXY_WAF_QUICKSTART.md) for detailed instruction
 ## Documentation
 
 - [Quick Start Guide](./docs/PROXY_WAF_QUICKSTART.md) - Get protected in 5 minutes
+- **WAF EDGE deployment (choose one):**
+  - [Data Center WAF Deployment](./docs/DATA_CENTER_WAF_DEPLOYMENT.md) - Deploy `proxy-server-standalone` on-prem (EC2-style VM, Nginx, Let's Encrypt)
+  - [AWS WAF Deployment](./docs/AWS_WAF_DEPLOYMENT.md) - Deploy on AWS (EC2 or ECS Fargate, ALB + ACM)
 - [DNS Setup Guide](./docs/DNS_SETUP_GUIDE.md) - Detailed DNS configuration
+- [Architecture Diagram](./docs/ARCHITECTURE_DIAGRAM.md) - UI, WAF proxy, and traffic flow
 - [Proxy WAF Architecture](./docs/PROXY_WAF_ARCHITECTURE.md) - Technical architecture
 - [Implementation Guide](./docs/PROXY_WAF_IMPLEMENTATION.md) - Deployment details
 - [WAF Nodes Guide](./docs/WAF_NODES_GUIDE.md) - Node setup and management
@@ -370,9 +393,8 @@ ATRAVAD WAF uses a **modern proxy WAF architecture** (like Sucuri and Reblaze):
 - ✅ Proxy WAF architecture (completed)
 - ✅ DNS-based routing (completed)
 - ✅ Health checks and failover (completed)
-- ✅ Legacy architecture removed (completed)
-- 🔄 Full ModSecurity v3 native integration (in progress)
-- 🔄 Let's Encrypt auto-provisioning (in progress)
+- ✅ Full ModSecurity v3 native integration (completed)
+- ✅ Let's Encrypt auto-provisioning (completed)
 - Advanced load balancing algorithms
 - Global CDN distribution
 - Advanced bot detection with CAPTCHA

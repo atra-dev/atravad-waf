@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
@@ -10,7 +10,7 @@ import {
 import { auth } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -429,5 +429,35 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 animate-pulse">
+        <div className="text-center">
+          <div className="h-16 w-16 bg-gray-200 rounded-2xl mx-auto mb-4" />
+          <div className="h-10 bg-gray-200 rounded w-48 mx-auto" />
+          <div className="h-4 bg-gray-200 rounded w-64 mx-auto mt-2" />
+        </div>
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 lg:p-10">
+          <div className="h-12 bg-gray-100 rounded-lg mb-8" />
+          <div className="space-y-4">
+            <div className="h-12 bg-gray-100 rounded-lg" />
+            <div className="h-12 bg-gray-100 rounded-lg" />
+            <div className="h-12 bg-blue-200 rounded-lg" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

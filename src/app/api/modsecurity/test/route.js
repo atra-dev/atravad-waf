@@ -1,19 +1,78 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { generateModSecurityConfig } from '@/lib/modsecurity';
+import { createModSecurityProxy } from '@/lib/modsecurity-proxy';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 
 /**
  * ModSecurity Request Testing Endpoint
- * 
- * This endpoint allows testing HTTP requests against ModSecurity rules
- * to verify policy effectiveness before deployment.
+ *
+ * Uses native ModSecurity v3 (libmodsecurity) when the modsecurity npm package
+ * is available; otherwise falls back to pattern-based evaluation.
  */
 
 /**
- * Simulate ModSecurity rule evaluation
- * This is a simplified simulation - in production, this would interface
- * with actual ModSecurity engine via bindings or API
+ * Build a synthetic Node IncomingMessage-like object from test request payload
+ */
+function buildSyntheticRequest(testRequest) {
+  const method = (testRequest.method || 'GET').toUpperCase();
+  const path = testRequest.url || testRequest.path || '/';
+  const query = testRequest.query || {};
+  const queryString = Object.keys(query).length
+    ? '?' + new URLSearchParams(query).toString()
+    : '';
+  const url = path.includes('?') ? path : path + queryString;
+  const headers = testRequest.headers || {};
+  const rawHeaders = [];
+  for (const [k, v] of Object.entries(headers)) {
+    rawHeaders.push(k, v != null ? String(v) : '');
+  }
+  let bodyBuffer = null;
+  if (testRequest.body !== undefined && testRequest.body !== null) {
+    bodyBuffer = Buffer.isBuffer(testRequest.body)
+      ? testRequest.body
+      : Buffer.from(
+          typeof testRequest.body === 'string' ? testRequest.body : JSON.stringify(testRequest.body),
+          'utf8'
+        );
+  }
+  return {
+    url,
+    method,
+    httpVersion: '1.1',
+    rawHeaders,
+    socket: {
+      remoteAddress: '127.0.0.1',
+      remotePort: 0,
+      localAddress: '127.0.0.1',
+      localPort: 0,
+    },
+    bodyBuffer,
+  };
+}
+
+/**
+ * Normalize native ModSecurity inspection result to evaluation result shape
+ */
+function inspectionToEvaluationResult(inspection) {
+  const blocked = !inspection.allowed || inspection.blocked;
+  return {
+    allowed: inspection.allowed && !inspection.blocked,
+    blocked,
+    matchedRules: inspection.matchedRules || [],
+    severity: blocked && inspection.matchedRules?.length
+      ? (inspection.matchedRules[0].severity || 'CRITICAL')
+      : 'INFO',
+    message: blocked && inspection.matchedRules?.length
+      ? `Request blocked by rule: ${inspection.matchedRules[0].message}`
+      : 'Request passed ModSecurity evaluation',
+    details: inspection.matchedRules || [],
+    engine: inspection.engine || 'unknown',
+  };
+}
+
+/**
+ * Simulate ModSecurity rule evaluation (fallback when native engine unavailable)
  */
 function evaluateModSecurityRules(requestData, modSecurityConfig) {
   const results = {
@@ -58,6 +117,7 @@ function evaluateModSecurityRules(requestData, modSecurityConfig) {
     }
   }
 
+  results.engine = 'simulation';
   return results;
 }
 
@@ -293,11 +353,24 @@ export async function POST(request) {
     // Get ModSecurity config (generate if not stored)
     let modSecurityConfig = policyData.modSecurityConfig;
     if (!modSecurityConfig) {
-      modSecurityConfig = generateModSecurityConfig(policyData.policy || {});
+      modSecurityConfig = generateModSecurityConfig(policyData.policy || policyData, {});
     }
 
-    // Evaluate the test request
-    const evaluationResult = evaluateModSecurityRules(testRequest, modSecurityConfig);
+    // Use native ModSecurity v3 when available; otherwise fallback to pattern-based evaluation
+    let evaluationResult;
+    const modSecurity = createModSecurityProxy({ failOpen: true });
+    if (modSecurity.isNativeEngineAvailable()) {
+      const { url, method, httpVersion, rawHeaders, socket, bodyBuffer } = buildSyntheticRequest(testRequest);
+      const syntheticReq = { url, method, httpVersion, rawHeaders, socket };
+      const inspection = await modSecurity.inspectRequestWithConfig(
+        syntheticReq,
+        modSecurityConfig,
+        bodyBuffer
+      );
+      evaluationResult = inspectionToEvaluationResult(inspection);
+    } else {
+      evaluationResult = evaluateModSecurityRules(testRequest, modSecurityConfig);
+    }
 
     return NextResponse.json({
       policyId,

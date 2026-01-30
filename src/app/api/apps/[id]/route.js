@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
+import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 
 /**
  * GET /api/apps/[id]
@@ -141,7 +142,24 @@ export async function PATCH(request, { params }) {
     }
 
     if (ssl !== undefined) {
-      updateData.ssl = ssl;
+      if (ssl && ssl.customCert) {
+        const validation = validateCustomSsl(ssl);
+        if (!validation.valid) {
+          return NextResponse.json({ error: validation.error }, { status: 400 });
+        }
+        updateData.ssl = {
+          autoProvision: false,
+          customCert: true,
+          cert: normalizePem(ssl.cert),
+          key: normalizePem(ssl.key),
+          fullchain: ssl.fullchain ? normalizePem(ssl.fullchain) : null,
+        };
+      } else {
+        updateData.ssl = {
+          autoProvision: ssl?.autoProvision !== false,
+          customCert: false,
+        };
+      }
     }
 
     if (routing !== undefined) {

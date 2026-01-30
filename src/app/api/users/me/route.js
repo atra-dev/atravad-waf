@@ -10,25 +10,41 @@ import { getCurrentUser } from '@/lib/api-helpers';
  */
 export async function GET(request) {
   try {
-    if (!adminDb) {
-      return NextResponse.json(
-        { error: 'Firebase Admin not initialized' },
-        { status: 500 }
-      );
+    let user = null;
+    try {
+      user = await getCurrentUser(request);
+    } catch (authError) {
+      console.error('Error getting current user:', authError?.message || authError);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await getCurrentUser(request);
     if (!user || !user.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized' },
+        { status: 503 }
+      );
+    }
+
     // Create or get user document (idempotent - uses transaction to prevent duplicates)
-    const userData = await createOrGetUser(adminDb, user);
+    let userData;
+    try {
+      userData = await createOrGetUser(adminDb, user);
+    } catch (dbError) {
+      console.error('Error creating/fetching user document:', dbError?.message || dbError);
+      return NextResponse.json(
+        { error: 'Failed to load user data' },
+        { status: 503 }
+      );
+    }
 
     if (!userData) {
       return NextResponse.json(
         { error: 'Failed to create user document' },
-        { status: 500 }
+        { status: 503 }
       );
     }
 
@@ -37,7 +53,7 @@ export async function GET(request) {
       needsTenant: !userData.tenantName,
     });
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error('Error in GET /api/users/me:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

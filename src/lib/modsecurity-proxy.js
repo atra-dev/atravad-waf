@@ -8,7 +8,7 @@
  */
 
 import { createRequire } from 'module';
-import { getStandaloneConfigForProxy } from './modsecurity.js';
+import { getStandaloneConfigForProxy, generateModSecurityConfig } from './modsecurity.js';
 import { adminDb } from './firebase-admin';
 
 const requireMod = createRequire(import.meta.url);
@@ -125,6 +125,13 @@ export class ModSecurityProxy {
       const policyDoc = await adminDb.collection('policies').doc(policyId).get();
       if (!policyDoc.exists) return null;
       const policy = policyDoc.data();
+      // Generate ModSecurity config from policy flags if not stored (e.g. legacy policies)
+      if (!policy.modSecurityConfig && (policy.policy || policy.sqlInjection !== undefined)) {
+        policy.modSecurityConfig = generateModSecurityConfig(policy.policy || policy, {
+          includeOWASPCRS: policy.includeOWASPCRS !== false,
+          mode: policy.mode || 'detection',
+        });
+      }
       this.policies.set(policyId, policy);
 
       if (useNativeModSecurity && this.modsec && policy.modSecurityConfig) {
@@ -227,6 +234,84 @@ export class ModSecurityProxy {
     }
 
     return runFallbackInspectRequest(req, policyId, bodyBuffer);
+  }
+
+  /**
+   * Inspect a request using an arbitrary ModSecurity config (e.g. for policy test API).
+   * Uses native libmodsecurity when available; otherwise fallback pattern-based engine.
+   * @param {object} req - Node IncomingMessage (url, method, rawHeaders, socket)
+   * @param {string} modSecurityConfig - Full or standalone ModSecurity config text
+   * @param {Buffer|null} bodyBuffer - Request body
+   * @returns {Promise<{allowed: boolean, blocked: boolean, matchedRules: array, engine: string}>}
+   */
+  async inspectRequestWithConfig(req, modSecurityConfig, bodyBuffer = null) {
+    if (!modSecurityConfig || typeof modSecurityConfig !== 'string') {
+      return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
+    }
+
+    if (useNativeModSecurity && this.modsec) {
+      const standalone = getStandaloneConfigForProxy(modSecurityConfig);
+      if (!standalone) return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
+      try {
+        const rules = new RulesNapi();
+        const ok = rules.add(standalone);
+        if (!ok) return runFallbackInspectRequest(req, null, bodyBuffer);
+
+        const run = () => {
+          const tx = new TransactionNapi(this.modsec, rules);
+          const remoteAddr = req.socket?.remoteAddress || '127.0.0.1';
+          const remotePort = req.socket?.remotePort || 0;
+          const localAddr = req.socket?.localAddress || '127.0.0.1';
+          const localPort = req.socket?.localPort || 0;
+
+          let res = tx.processConnection(remoteAddr, remotePort, localAddr, localPort);
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          }
+          res = tx.processURI(req.url || '/', req.method || 'GET', req.httpVersion || '1.1');
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          }
+          const raw = req.rawHeaders || [];
+          for (let i = 0; i < raw.length; i += 2) {
+            tx.addRequestHeader(raw[i], raw[i + 1] ?? '');
+          }
+          res = tx.processRequestHeaders();
+          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          }
+          if (bodyBuffer && bodyBuffer.length > 0) {
+            res = tx.appendRequestBody(bodyBuffer);
+            if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+            }
+            res = tx.processRequestBody();
+            if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+            }
+          }
+          tx.processLogging && tx.processLogging();
+          return { allowed: true, blocked: false, matchedRules: [], engine: 'libmodsecurity' };
+        };
+
+        return await Promise.race([
+          Promise.resolve(run()),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('inspection timeout')), this.inspectionTimeout)),
+        ]);
+      } catch (err) {
+        if (this.failOpen) {
+          return { allowed: true, blocked: false, matchedRules: [], engine: 'fail-open' };
+        }
+        return {
+          allowed: false,
+          blocked: true,
+          matchedRules: [{ id: 0, message: err.message, severity: 'WARNING', matchedData: null, matchedVar: null }],
+          engine: 'fail-closed',
+        };
+      }
+    }
+
+    return runFallbackInspectRequest(req, null, bodyBuffer);
   }
 
   async inspectResponse(responseMeta, policyId) {

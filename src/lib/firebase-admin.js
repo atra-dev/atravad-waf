@@ -7,22 +7,22 @@ let isInitialized = false;
 
 if (!getApps().length) {
   try {
-    // Check if required environment variables are present
-    if (
-      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-      process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL &&
-      process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY
-    ) {
+    // Support both FIREBASE_* (server-only, recommended) and NEXT_PUBLIC_FIREBASE_* env vars
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL || process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY;
+
+    if (projectId && clientEmail && privateKey) {
       initializeApp({
         credential: cert({
-          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-          clientEmail: process.env.NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.NEXT_PUBLIC_FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+          projectId,
+          clientEmail,
+          privateKey: (typeof privateKey === 'string' ? privateKey : '').replace(/\\n/g, '\n'),
         }),
       });
       isInitialized = true;
     } else {
-      console.warn('Firebase Admin environment variables not set. API routes will not work.');
+      console.warn('Firebase Admin environment variables not set. Set NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL, NEXT_PUBLIC_FIREBASE_PRIVATE_KEY.');
     }
   } catch (error) {
     console.error('Firebase Admin initialization error:', error);
