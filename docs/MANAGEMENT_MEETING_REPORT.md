@@ -193,7 +193,74 @@ Use a Mermaid-capable viewer (e.g. GitHub, VS Code plugin) to render these.
 
 ---
 
-## 6. Summary Table
+## 6. What We Need — Requirements Checklist
+
+Use this checklist for go-live, new WAF edge deployment, or subscription/onboarding. It covers **public IP**, **certificates**, **Firebase/platform**, and **other** needs.
+
+### 6.1 Public IP
+
+| What | Where | Purpose |
+|------|--------|--------|
+| **Public IP (or resolvable hostname)** | **WAF edge** (proxy server) | Customers point their domain’s **A** or **CNAME** to this so traffic hits the WAF. Can be the server’s IP, an Elastic IP (AWS), or a load balancer’s IP/DNS. |
+| **WAF_REGIONS** (or **NEXT_PUBLIC_ATRAVAD_WAF_IP** / **NEXT_PUBLIC_ATRAVAD_WAF_CNAME**) | **Dashboard** (`.env.local` or hosting env) | Tells the UI what to show as “point DNS here” for customers. Must match the WAF edge’s public IP and/or CNAME. |
+| **Optional CNAME** | DNS | e.g. `waf.atravad.com` → WAF IP. Lets you change IP later without customers changing their CNAME target. |
+
+**Summary:** You need at least one **public IP** (or LB DNS) for the WAF proxy. The Dashboard must be configured with that IP (and optional CNAME) in **WAF_REGIONS** or **NEXT_PUBLIC_ATRAVAD_WAF_IP** / **NEXT_PUBLIC_ATRAVAD_WAF_CNAME**.
+
+---
+
+### 6.2 Certificates
+
+| Use case | What you need | Notes |
+|----------|----------------|-------|
+| **WAF host SSL (HTTPS for the WAF itself)** | **AWS:** ACM certificate on the ALB (recommended). **Data Center:** Nginx + Certbot (Let’s Encrypt) for a hostname (e.g. `waf-dc.yourcompany.com`), or your own cert. | Port 443 (and usually 80 for redirect or ACME) must be available. |
+| **Customer app domains (HTTPS per app)** | **Option A — Let’s Encrypt (auto):** Domain must point to the WAF; port **80** open for HTTP-01 challenge. **Option B — Custom cert:** Customer (or you) provides PEM cert + key in the Application UI. | Per-application; SNI. No paid cert subscription required for Let’s Encrypt. |
+| **Let’s Encrypt (proxy / app domains)** | Env on **WAF proxy**: `CERTS_DIR`, `LETSENCRYPT_EMAIL`, optional `LETSENCRYPT_STAGING`, `LETSENCRYPT_ACCOUNT_KEY`. | `CERTS_DIR` = where certs are stored (default `./certs`). Use staging first to avoid rate limits. |
+| **Certificate renewal** | **WAF host:** Certbot timer/cron (Data Center) or ACM auto-renewal (AWS). **App domains:** Proxy reuses/renews via ACME; monitor expiry. | Let’s Encrypt certs expire in 90 days; renewal must be in place. |
+
+**Summary:** For **subscription/service** you need: (1) SSL for the **WAF host** (ACM or Nginx + Let’s Encrypt or custom), and (2) per-app SSL — either **Let’s Encrypt** (free; domain must point to WAF, port 80 open) or **custom certs** (customer or you supply PEM). No third-party cert subscription is required unless you use paid certs.
+
+---
+
+### 6.3 Firebase & Platform (for subscription / running the service)
+
+| What | Where | Purpose |
+|------|--------|--------|
+| **Firebase project** | Firebase Console | One project for Dashboard + WAF proxy. Enable **Authentication** (Email/Password) and **Firestore**. |
+| **Firebase client config** | **Dashboard** `.env.local` | `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`. |
+| **Firebase Admin (service account)** | **Dashboard** and **WAF proxy** | **Dashboard:** `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (or `NEXT_PUBLIC_FIREBASE_*` equivalents). **Proxy:** same in `.env.waf` (or `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL`, `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY`). Service account needs **Firestore** read (proxy) and appropriate roles for Dashboard (read/write as per your rules). |
+| **Firestore security rules** | Firebase Console | Restrict read/write by tenant and role (see README). |
+| **Initial admin user** | Firebase Console → Authentication | Create first user; then create tenant and assign roles. |
+
+**Summary:** To run the platform and onboard customers (subscription), you need a **Firebase project**, **client config** for the Dashboard, **service account** credentials for both Dashboard and WAF proxy, and **Firestore rules**.
+
+---
+
+### 6.4 Other Requirements
+
+| Item | Details |
+|------|--------|
+| **Node.js** | Version **18+** (LTS recommended) on the machine(s) running the Dashboard and the WAF proxy. |
+| **Ports** | **WAF edge:** 80 (HTTP) and 443 (HTTPS) — or the ports your LB/reverse proxy uses (e.g. 8080 if Nginx/ALB terminates SSL). **Dashboard:** per your hosting (e.g. 3000 dev, 80/443 prod). |
+| **Outbound internet** | **WAF proxy** must reach **Firebase** (`firestore.googleapis.com`, optionally `*.googleapis.com`). **Dashboard** must reach Firebase. For Let’s Encrypt (app domains), proxy must reach ACME endpoints. |
+| **DNS** | For Let’s Encrypt on the WAF host: a hostname (e.g. `waf-dc.yourcompany.com`) with **A record** pointing to the WAF server’s public IP before running Certbot. For app-domain auto-provisioning: customer’s domain must already point to the WAF. |
+| **Server (WAF edge)** | **Data Center:** Linux VM or physical host (e.g. Ubuntu 22.04, RHEL 8+, Debian 11+); min 2 CPU, 2 GB RAM; scale for traffic. **AWS:** EC2 or ECS Fargate; see [AWS WAF Deployment](./AWS_WAF_DEPLOYMENT.md). |
+| **Secrets** | Never commit `.env.local`, `.env.waf`, or service account JSON. Use env vars or a secrets manager (e.g. AWS Secrets Manager for ECS). |
+
+---
+
+### 6.5 Quick Checklist by Role
+
+| If you are… | You need… |
+|-------------|-----------|
+| **Deploying the WAF edge (first time)** | Public IP (or LB), Node 18+, ports 80/443, Firebase service account in `.env.waf`, optional SSL (Nginx+Certbot or ALB+ACM). Then set Dashboard **WAF_REGIONS** to that IP/cname. |
+| **Deploying the Dashboard** | Firebase client + Admin env vars, **WAF_REGIONS** (or NEXT_PUBLIC_ATRAVAD_WAF_IP/CNAME), Node 18+. |
+| **Adding a new customer app with HTTPS** | Either (1) domain points to WAF + Let’s Encrypt (port 80 open, proxy env set), or (2) custom cert + key (PEM) in Application UI. |
+| **Running a paid/subscription offering** | All of the above: public IP, certs for WAF host and per-app (Let’s Encrypt or custom), Firebase project and service account, Firestore rules, and operational monitoring (including cert expiry). |
+
+---
+
+## 7. Summary Table
 
 | Topic | Summary |
 |-------|--------|
@@ -202,10 +269,11 @@ Use a Mermaid-capable viewer (e.g. GitHub, VS Code plugin) to render these.
 | **Next** | Phase 5 (logging, alerts), Phase 7 (security/QA), then Phase 6 (templates, staging, threat intel), then Phase 8 (docs, support, pilot, beta). |
 | **Architecture** | UI and proxy both use Firestore; no direct UI–proxy link; traffic path: User → DNS → WAF → ModSecurity → Origin (or block). |
 | **Diagrams** | `docs/atravad-waf-architecture.svg` (full visual); Mermaid and ASCII in `docs/ARCHITECTURE_DIAGRAM.md`. |
+| **What we need** | Public IP (WAF edge + Dashboard WAF_REGIONS), certs (WAF host + per-app Let’s Encrypt or custom), Firebase project + service account, Node 18+, ports 80/443, outbound to Firebase; see §6. |
 
 ---
 
-## 7. References
+## 8. References
 
 - [README.md](../README.md) — Product overview, features, setup, API summary  
 - [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md) — Connection and traffic flow (Mermaid + ASCII)  
