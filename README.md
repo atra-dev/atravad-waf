@@ -365,6 +365,7 @@ See [Quick Start Guide](./docs/PROXY_WAF_QUICKSTART.md) for detailed instruction
 
 ## Documentation
 
+- [Management Meeting Report](./docs/MANAGEMENT_MEETING_REPORT.md) - Recap, agendas, next steps, architecture & traffic flow diagrams
 - [Quick Start Guide](./docs/PROXY_WAF_QUICKSTART.md) - Get protected in 5 minutes
 - **WAF EDGE deployment (choose one):**
   - [Data Center WAF Deployment](./docs/DATA_CENTER_WAF_DEPLOYMENT.md) - Deploy `proxy-server-standalone` on-prem (EC2-style VM, Nginx, Let's Encrypt)
