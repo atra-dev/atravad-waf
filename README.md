@@ -53,6 +53,15 @@ A **modern reverse proxy Web Application Firewall (WAF)** - just like Sucuri and
 
 ATRAVAD WAF uses **ModSecurity v3 (libmodsecurity)** via the `modsecurity` npm package. When the package is installed (included in dependencies), the proxy and the policy test API use the **native engine** for request/response inspection. If the native bindings are unavailable (e.g. build failure on your platform), the system automatically falls back to a pattern-based engine so the WAF still runs. Policy rules are generated from the policy editor and stored as ModSecurity config; the proxy loads rules per policy and applies them to traffic.
 
+**Linux / WSL:** To build the native `modsecurity` addon, install libmodsecurity and its dev headers first, then run `npm install`. Use the provided script (Ubuntu/Debian/WSL):
+
+```bash
+./scripts/install-libmodsecurity.sh
+npm install
+```
+
+If you skip this step, `npm install` may fail when building the `modsecurity` native module; the project can still run using the pattern-based fallback by making `modsecurity` optional (see [docs/DATA_CENTER_WAF_DEPLOYMENT.md](docs/DATA_CENTER_WAF_DEPLOYMENT.md)).
+
 ### Let's Encrypt Auto-Provisioning
 
 The proxy can **auto-provision TLS certificates** from Let's Encrypt for applications that have **SSL → Auto provision** enabled. When an application is added or the proxy starts, it requests a certificate for the application domain via **HTTP-01** challenge. The proxy serves `/.well-known/acme-challenge/:token` automatically. HTTPS uses **SNI** so each domain gets its own certificate. Certificates are stored under `CERTS_DIR` (default: `./certs`) and reused across restarts.
@@ -70,13 +79,32 @@ The proxy can **auto-provision TLS certificates** from Let's Encrypt for applica
 
 ## Setup Instructions
 
-### 1. Clone and Install Dependencies
+### 1. (Optional) Install libmodsecurity (Linux / WSL)
+
+If you want the **native ModSecurity engine** (full OWASP CRS) and are on Ubuntu, Debian, or WSL, install libmodsecurity first so the `modsecurity` npm package can compile:
+
+```bash
+chmod +x scripts/install-libmodsecurity.sh
+./scripts/install-libmodsecurity.sh
+```
+
+Then proceed to step 2. **If you already ran the install script** and `npm install` still fails with `modsecurity/modsecurity.h: No such file or directory`, the install went to `/usr/local/modsecurity` but the npm package expects `/usr/local/include` and `/usr/local/lib`. Run:
+
+```bash
+chmod +x scripts/fix-modsecurity-paths.sh
+sudo ./scripts/fix-modsecurity-paths.sh
+npm install
+```
+
+If you skip the libmodsecurity step, run `npm install` (the project’s `.npmrc` uses `legacy-peer-deps`); the WAF will use the pattern-based fallback if the native addon fails to build.
+
+### 2. Clone and Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Firebase Configuration
+### 3. Firebase Configuration
 
 1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
 2. Enable **Authentication** with Email/Password provider
@@ -108,7 +136,7 @@ NEXT_PUBLIC_ATRAVAD_WAF_CNAME=waf.atravad.com
 
 **ATRAVAD WAF IP/CNAME:** Set `NEXT_PUBLIC_ATRAVAD_WAF_IP` and/or `NEXT_PUBLIC_ATRAVAD_WAF_CNAME` to the address customers point their domain's A or CNAME record to (like Sucuri). The Applications page shows this so customers know where to point DNS — no server or node deployment on their side.
 
-### 3. Firestore Security Rules
+### 4. Firestore Security Rules
 
 Set up Firestore security rules in Firebase Console:
 
@@ -150,7 +178,7 @@ service cloud.firestore {
 }
 ```
 
-### 4. Create Initial User
+### 5. Create Initial User
 
 1. Start the development server:
 ```bash
@@ -161,7 +189,7 @@ npm run dev
 3. Create a user account in Firebase Console > Authentication > Users
 4. After first login, you'll need to create a tenant (this can be automated in production)
 
-### 5. Run the Application
+### 6. Run the Application
 
 ```bash
 npm run dev

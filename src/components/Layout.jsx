@@ -247,7 +247,7 @@ export default function Layout({ children }) {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-                    ATRAVAD WAF
+                    ATRAVA-D WAF
                   </h1>
                   <p className="text-xs text-gray-500">Enterprise Security Platform</p>
                 </div>

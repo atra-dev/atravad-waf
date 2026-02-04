@@ -18,6 +18,67 @@ const PlusIcon = ({ className }) => (
   </svg>
 );
 
+const XIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+/** Tag list input: add one value at a time (Enter or Add), remove via chip X. Replaces comma-separated fields. */
+function TagListInput({ value = [], onChange, placeholder, normalize = (s) => s.trim(), label }) {
+  const [draft, setDraft] = useState('');
+  const addValue = () => {
+    const n = normalize(draft);
+    if (!n || value.includes(n)) return;
+    onChange([...value, n]);
+    setDraft('');
+  };
+  const removeAt = (i) => onChange(value.filter((_, idx) => idx !== i));
+  return (
+    <div>
+      {label && <label className="block text-xs text-gray-600 mb-1">{label}</label>}
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addValue())}
+          placeholder={placeholder}
+          className="flex-1 min-w-[140px] rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
+        />
+        <button
+          type="button"
+          onClick={addValue}
+          className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+        >
+          <PlusIcon className="w-4 h-4 mr-1" />
+          Add
+        </button>
+      </div>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {value.map((item, i) => (
+            <span
+              key={`${item}-${i}`}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm bg-blue-50 text-blue-800 border border-blue-200"
+            >
+              {item}
+              <button
+                type="button"
+                onClick={() => removeAt(i)}
+                className="p-0.5 rounded hover:bg-blue-100 text-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                aria-label={`Remove ${item}`}
+              >
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PoliciesPage() {
   const [policies, setPolicies] = useState([]);
   const [apps, setApps] = useState([]);
@@ -857,7 +918,6 @@ export default function PoliciesPage() {
                   {[
                     { id: 'basic', name: 'Basic Protections', icon: '🛡️' },
                     { id: 'owasp', name: 'OWASP Top 10', icon: '🔒' },
-                    { id: 'owaspCRS', name: 'OWASP CRS', icon: '🟢' },
                     { id: 'advanced', name: 'Advanced Features', icon: '⚡' },
                   ].map((tab) => (
                     <button
@@ -1002,64 +1062,6 @@ export default function PoliciesPage() {
                   </div>
                 )}
 
-                {/* OWASP CRS Tab */}
-                {activeTab === 'owaspCRS' && (
-                  <div className="space-y-6">
-                    {/* OWASP CRS Rule Sets */}
-                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900 mb-1">OWASP Core Rule Set (CRS) 3.3.0</h3>
-                          <p className="text-xs text-gray-600">Select which OWASP CRS rule sets to enable (all enabled by default)</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const allEnabled = Object.values(formData.owaspCRSRules).every(v => v === true);
-                            const newRules = {};
-                            allSecurityRules.owaspCRS.rules.forEach((rule) => {
-                              const key = rule.name.replace(/-/g, '_');
-                              newRules[key] = !allEnabled;
-                            });
-                            setFormData({
-                              ...formData,
-                              owaspCRSRules: newRules
-                            });
-                          }}
-                          className="text-xs px-3 py-1.5 bg-white border border-green-300 rounded-md text-green-700 hover:bg-green-50 transition-colors"
-                        >
-                          {Object.values(formData.owaspCRSRules).every(v => v === true) ? 'Deselect All' : 'Select All'}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
-                        {allSecurityRules.owaspCRS.rules.map((rule, index) => {
-                          const ruleKey = rule.name.replace(/-/g, '_');
-                          return (
-                            <label key={index} className="flex items-start p-3 bg-white border border-green-200 rounded-lg hover:bg-green-50 cursor-pointer transition-colors">
-                              <input
-                                type="checkbox"
-                                className="mt-1 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                checked={formData.owaspCRSRules[ruleKey] !== undefined ? formData.owaspCRSRules[ruleKey] : true}
-                                onChange={(e) => setFormData({
-                                  ...formData,
-                                  owaspCRSRules: {
-                                    ...formData.owaspCRSRules,
-                                    [ruleKey]: e.target.checked
-                                  }
-                                })}
-                              />
-                              <div className="ml-3 flex-1 min-w-0">
-                                <div className="text-sm font-medium text-gray-900">{rule.name}</div>
-                                <div className="text-xs text-gray-500 mt-1">{rule.description}</div>
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Advanced Features Tab */}
                 {activeTab === 'advanced' && (
                   <div className="space-y-6">
@@ -1086,37 +1088,27 @@ export default function PoliciesPage() {
                       </label>
                       <p className="text-xs text-gray-600 ml-8 mb-3">IP whitelisting/blacklisting with CIDR block support</p>
                       {formData.ipAccessControl.enabled && (
-                        <div className="mt-3 space-y-3 ml-8">
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Whitelist IPs (comma-separated)</label>
-                            <input
-                              type="text"
-                              placeholder="192.168.1.100, 10.0.0.50"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                ipAccessControl: {
-                                  ...formData.ipAccessControl,
-                                  whitelist: e.target.value.split(',').map(ip => ip.trim()).filter(ip => ip)
-                                }
-                              })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Blacklist IPs (comma-separated)</label>
-                            <input
-                              type="text"
-                              placeholder="203.0.113.0, 198.51.100.0"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                ipAccessControl: {
-                                  ...formData.ipAccessControl,
-                                  blacklist: e.target.value.split(',').map(ip => ip.trim()).filter(ip => ip)
-                                }
-                              })}
-                            />
-                          </div>
+                        <div className="mt-3 space-y-4 ml-8">
+                          <TagListInput
+                            label="Whitelist IPs"
+                            value={formData.ipAccessControl.whitelist}
+                            onChange={(whitelist) => setFormData({
+                              ...formData,
+                              ipAccessControl: { ...formData.ipAccessControl, whitelist }
+                            })}
+                            placeholder="e.g. 192.168.1.100"
+                            normalize={(s) => s.trim()}
+                          />
+                          <TagListInput
+                            label="Blacklist IPs"
+                            value={formData.ipAccessControl.blacklist}
+                            onChange={(blacklist) => setFormData({
+                              ...formData,
+                              ipAccessControl: { ...formData.ipAccessControl, blacklist }
+                            })}
+                            placeholder="e.g. 203.0.113.0"
+                            normalize={(s) => s.trim()}
+                          />
                         </div>
                       )}
                     </div>
@@ -1138,37 +1130,27 @@ export default function PoliciesPage() {
                       </label>
                       <p className="text-xs text-gray-600 ml-8 mb-3">Country-based access control with GeoIP integration</p>
                       {formData.geoBlocking.enabled && (
-                        <div className="mt-3 space-y-3 ml-8">
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Blocked Countries (comma-separated country codes)</label>
-                            <input
-                              type="text"
-                              placeholder="CN, RU, KP"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                geoBlocking: {
-                                  ...formData.geoBlocking,
-                                  blockedCountries: e.target.value.split(',').map(c => c.trim().toUpperCase()).filter(c => c)
-                                }
-                              })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Allowed Countries (comma-separated country codes, empty = all)</label>
-                            <input
-                              type="text"
-                              placeholder="US, CA, GB"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                geoBlocking: {
-                                  ...formData.geoBlocking,
-                                  allowedCountries: e.target.value.split(',').map(c => c.trim().toUpperCase()).filter(c => c)
-                                }
-                              })}
-                            />
-                          </div>
+                        <div className="mt-3 space-y-4 ml-8">
+                          <TagListInput
+                            label="Blocked Countries (ISO country codes)"
+                            value={formData.geoBlocking.blockedCountries}
+                            onChange={(blockedCountries) => setFormData({
+                              ...formData,
+                              geoBlocking: { ...formData.geoBlocking, blockedCountries }
+                            })}
+                            placeholder="e.g. CN"
+                            normalize={(s) => s.trim().toUpperCase()}
+                          />
+                          <TagListInput
+                            label="Allowed Countries (empty = all)"
+                            value={formData.geoBlocking.allowedCountries}
+                            onChange={(allowedCountries) => setFormData({
+                              ...formData,
+                              geoBlocking: { ...formData.geoBlocking, allowedCountries }
+                            })}
+                            placeholder="e.g. US"
+                            normalize={(s) => s.trim().toUpperCase()}
+                          />
                         </div>
                       )}
                     </div>
@@ -1326,36 +1308,26 @@ export default function PoliciesPage() {
                               })}
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Allowed Extensions (comma-separated)</label>
-                            <input
-                              type="text"
-                              placeholder="jpg, png, pdf, docx"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                advancedFileUpload: {
-                                  ...formData.advancedFileUpload,
-                                  allowedExtensions: e.target.value.split(',').map(ext => ext.trim().toLowerCase()).filter(ext => ext)
-                                }
-                              })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Blocked Extensions (comma-separated)</label>
-                            <input
-                              type="text"
-                              placeholder="exe, bat, sh, php"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                advancedFileUpload: {
-                                  ...formData.advancedFileUpload,
-                                  blockedExtensions: e.target.value.split(',').map(ext => ext.trim().toLowerCase()).filter(ext => ext)
-                                }
-                              })}
-                            />
-                          </div>
+                          <TagListInput
+                            label="Allowed Extensions"
+                            value={formData.advancedFileUpload.allowedExtensions}
+                            onChange={(allowedExtensions) => setFormData({
+                              ...formData,
+                              advancedFileUpload: { ...formData.advancedFileUpload, allowedExtensions }
+                            })}
+                            placeholder="e.g. jpg"
+                            normalize={(s) => s.trim().toLowerCase()}
+                          />
+                          <TagListInput
+                            label="Blocked Extensions"
+                            value={formData.advancedFileUpload.blockedExtensions}
+                            onChange={(blockedExtensions) => setFormData({
+                              ...formData,
+                              advancedFileUpload: { ...formData.advancedFileUpload, blockedExtensions }
+                            })}
+                            placeholder="e.g. exe"
+                            normalize={(s) => s.trim().toLowerCase()}
+                          />
                         </div>
                       )}
                     </div>
@@ -1435,37 +1407,27 @@ export default function PoliciesPage() {
                       </label>
                       <p className="text-xs text-gray-600 ml-8 mb-3">Path-based rule exclusions and wildcard support</p>
                       {formData.exceptionHandling.enabled && (
-                        <div className="mt-3 space-y-3 ml-8">
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Excluded Paths (comma-separated, supports wildcards)</label>
-                            <input
-                              type="text"
-                              placeholder="/api/health, /static/*, /admin/*"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                exceptionHandling: {
-                                  ...formData.exceptionHandling,
-                                  excludedPaths: e.target.value.split(',').map(p => p.trim()).filter(p => p)
-                                }
-                              })}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">Excluded Rule IDs (comma-separated)</label>
-                            <input
-                              type="text"
-                              placeholder="942100, 941100, 932100"
-                              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                              onChange={(e) => setFormData({
-                                ...formData,
-                                exceptionHandling: {
-                                  ...formData.exceptionHandling,
-                                  excludedRules: e.target.value.split(',').map(r => r.trim()).filter(r => r)
-                                }
-                              })}
-                            />
-                          </div>
+                        <div className="mt-3 space-y-4 ml-8">
+                          <TagListInput
+                            label="Excluded Paths (supports wildcards e.g. /static/*)"
+                            value={formData.exceptionHandling.excludedPaths}
+                            onChange={(excludedPaths) => setFormData({
+                              ...formData,
+                              exceptionHandling: { ...formData.exceptionHandling, excludedPaths }
+                            })}
+                            placeholder="e.g. /api/health"
+                            normalize={(s) => s.trim()}
+                          />
+                          <TagListInput
+                            label="Excluded Rule IDs"
+                            value={formData.exceptionHandling.excludedRules}
+                            onChange={(excludedRules) => setFormData({
+                              ...formData,
+                              exceptionHandling: { ...formData.exceptionHandling, excludedRules }
+                            })}
+                            placeholder="e.g. 942100"
+                            normalize={(s) => s.trim()}
+                          />
                         </div>
                       )}
                     </div>
@@ -1488,18 +1450,15 @@ export default function PoliciesPage() {
                       <p className="text-xs text-gray-600 ml-8 mb-3">CVE-specific rules for zero-day protection</p>
                       {formData.virtualPatching.enabled && (
                         <div className="mt-3 ml-8">
-                          <label className="block text-xs text-gray-600 mb-1">CVE Rules (comma-separated CVE IDs)</label>
-                          <input
-                            type="text"
-                            placeholder="CVE-2023-1234, CVE-2023-5678"
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-                            onChange={(e) => setFormData({
+                          <TagListInput
+                            label="CVE Rules (CVE IDs)"
+                            value={formData.virtualPatching.cveRules}
+                            onChange={(cveRules) => setFormData({
                               ...formData,
-                              virtualPatching: {
-                                ...formData.virtualPatching,
-                                cveRules: e.target.value.split(',').map(cve => cve.trim().toUpperCase()).filter(cve => cve)
-                              }
+                              virtualPatching: { ...formData.virtualPatching, cveRules }
                             })}
+                            placeholder="e.g. CVE-2023-1234"
+                            normalize={(s) => s.trim().toUpperCase()}
                           />
                         </div>
                       )}
@@ -1563,7 +1522,7 @@ export default function PoliciesPage() {
                       </span>
                     </div>
                     <div>
-                      Step {activeTab === 'basic' ? '1' : activeTab === 'owasp' ? '2' : activeTab === 'owaspCRS' ? '3' : activeTab === 'advanced' ? '4' : '1'} of 4
+                      Step {activeTab === 'basic' ? '1' : activeTab === 'owasp' ? '2' : activeTab === 'advanced' ? '3' : '1'} of 3
                     </div>
                   </div>
                 </div>

@@ -198,7 +198,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="ml-4 flex-1">
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Welcome to ATRAVAD WAF
+                      Welcome to ATRAVA-D WAF
                     </h3>
                     <p className="text-sm text-gray-700 mb-4">
                       To get started, you need to create an organization (tenant). This will allow you to manage sites and policies.
