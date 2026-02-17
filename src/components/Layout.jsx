@@ -242,8 +242,12 @@ export default function Layout({ children }) {
                 <MenuIcon className="h-6 w-6" />
               </button>
               <div className="flex items-center space-x-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg">
-                  <PoliciesIcon className="h-6 w-6 text-white" />
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white ring-1 ring-gray-200 overflow-hidden">
+                  <img
+                    src="/logo.png"
+                    alt="ATRAVA-D WAF logo"
+                    className="w-10 h-10 object-contain"
+                  />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 tracking-tight">
