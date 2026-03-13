@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { isValidPemCertificate, isValidPemPrivateKey } from '@/lib/ssl-utils';
 
 // Icon Components
 const GlobeIcon = ({ className }) => (
@@ -68,6 +69,70 @@ const BuildingIcon = ({ className }) => (
   </svg>
 );
 
+const SSL_MODE = {
+  AUTO: 'auto',
+  CUSTOM: 'custom',
+};
+
+const getSslStatusMeta = (ssl) => {
+  if (ssl?.customCert) {
+    return {
+      label: 'Custom Certificate',
+      tone: 'bg-violet-100 text-violet-700',
+      note: 'User-managed PEM certificate',
+    };
+  }
+  if (ssl?.autoProvision === false) {
+    return {
+      label: 'Manual SSL',
+      tone: 'bg-amber-100 text-amber-700',
+      note: 'Auto-provision is disabled',
+    };
+  }
+  return {
+    label: "Let's Encrypt Auto",
+    tone: 'bg-emerald-100 text-emerald-700',
+    note: 'Managed and auto-provisioned',
+  };
+};
+
+const validateSslInput = (data) => {
+  if (data.sslMode !== SSL_MODE.CUSTOM) {
+    return { valid: true, message: '' };
+  }
+
+  const cert = data.customCert?.trim();
+  const key = data.customKey?.trim();
+  const fullchain = data.customFullchain?.trim();
+
+  if (!cert || !key) {
+    return {
+      valid: false,
+      message: 'Certificate and private key are required for custom SSL.',
+    };
+  }
+  if (!isValidPemCertificate(cert)) {
+    return {
+      valid: false,
+      message: 'Certificate must be PEM format (BEGIN CERTIFICATE / END CERTIFICATE).',
+    };
+  }
+  if (!isValidPemPrivateKey(key)) {
+    return {
+      valid: false,
+      message: 'Private key must be PEM format (BEGIN PRIVATE KEY / END PRIVATE KEY).',
+    };
+  }
+  if (fullchain && !isValidPemCertificate(fullchain)) {
+    return {
+      valid: false,
+      message: 'CA chain must be PEM certificate format or left empty.',
+    };
+  }
+
+  return { valid: true, message: 'Custom SSL PEM looks valid.' };
+};
+
 export default function AppsPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,9 +159,11 @@ export default function AppsPage() {
   const [dropdownPosition, setDropdownPosition] = useState(null); // { top, left } for portal dropdown
   const [selectedAppForEdit, setSelectedAppForEdit] = useState(null); // For edit modal
   const [editModalTab, setEditModalTab] = useState('general'); // 'general' | 'ssl' - Sucuri-style separation
-  const [editFormData, setEditFormData] = useState({ originUrl: '', policyId: '', sslMode: 'auto', autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
+  const [editFormData, setEditFormData] = useState({ originUrl: '', policyId: '', sslMode: SSL_MODE.AUTO, autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [createSslUiError, setCreateSslUiError] = useState('');
+  const [editSslUiError, setEditSslUiError] = useState('');
   
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
@@ -218,8 +285,40 @@ export default function AppsPage() {
     );
   }, [apps, searchQuery]);
 
+  const createSslValidation = useMemo(
+    () => validateSslInput(formData),
+    [formData.sslMode, formData.customCert, formData.customKey, formData.customFullchain]
+  );
+  const editSslValidation = useMemo(
+    () => validateSslInput(editFormData),
+    [editFormData.sslMode, editFormData.customCert, editFormData.customKey, editFormData.customFullchain]
+  );
+
+  const importPemFile = async (file, field, setData, setError) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      setData((prev) => ({ ...prev, [field]: text }));
+      setError('');
+    } catch (error) {
+      console.error('Error reading certificate file:', error);
+      setError('Failed to read certificate file.');
+    }
+  };
+
   const handleAddSite = () => {
-    setFormData({ name: '', domain: '', originUrl: '', policyId: '' });
+    setFormData({
+      name: '',
+      domain: '',
+      originUrl: '',
+      policyId: '',
+      sslMode: SSL_MODE.AUTO,
+      autoProvisionSSL: true,
+      customCert: '',
+      customKey: '',
+      customFullchain: '',
+    });
+    setCreateSslUiError('');
     setWizardStep(1);
     setShowModal(true);
   };
@@ -254,10 +353,11 @@ export default function AppsPage() {
   };
 
   const handleSubmit = async () => {
-    if (formData.sslMode === 'custom' && (!formData.customCert?.trim() || !formData.customKey?.trim())) {
-      alert('Please paste your certificate and private key when using a custom certificate.');
+    if (!createSslValidation.valid) {
+      setCreateSslUiError(createSslValidation.message);
       return;
     }
+    setCreateSslUiError('');
     setSubmitting(true);
 
     try {
@@ -271,7 +371,7 @@ export default function AppsPage() {
         }],
         policyId: formData.policyId || null,
         responseInspectionEnabled: true,
-        ssl: formData.sslMode === 'custom'
+        ssl: formData.sslMode === SSL_MODE.CUSTOM
           ? { customCert: true, cert: formData.customCert?.trim() || '', key: formData.customKey?.trim() || '', fullchain: formData.customFullchain?.trim() || null }
           : { autoProvision: formData.autoProvisionSSL !== false, customCert: false },
         routing: { pathPrefix: '/', stripPath: false },
@@ -286,7 +386,7 @@ export default function AppsPage() {
 
       if (response.ok) {
         setShowModal(false);
-        setFormData({ name: '', domain: '', originUrl: '', policyId: '', sslMode: 'auto', autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
+        setFormData({ name: '', domain: '', originUrl: '', policyId: '', sslMode: SSL_MODE.AUTO, autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
         setWizardStep(1);
         fetchApps();
       } else {
@@ -307,13 +407,14 @@ export default function AppsPage() {
     setEditFormData({
       originUrl: app.origins?.[0]?.url || '',
       policyId: app.policyId || '',
-      sslMode: useCustom ? 'custom' : 'auto',
+      sslMode: useCustom ? SSL_MODE.CUSTOM : SSL_MODE.AUTO,
       autoProvisionSSL: !useCustom && app.ssl?.autoProvision !== false,
       customCert: app.ssl?.cert || '',
       customKey: app.ssl?.key || '',
       customFullchain: app.ssl?.fullchain || '',
     });
     setEditModalTab('general');
+    setEditSslUiError('');
     setSelectedAppForEdit(app);
     setOpenSettingsMenu(null);
     setDropdownPosition(null);
@@ -369,10 +470,11 @@ export default function AppsPage() {
   // Handle update site
   const handleUpdateSite = async (e) => {
     e.preventDefault();
-    if (editFormData.sslMode === 'custom' && (!editFormData.customCert?.trim() || !editFormData.customKey?.trim())) {
-      alert('Please paste your certificate and private key when using a custom certificate.');
+    if (!editSslValidation.valid) {
+      setEditSslUiError(editSslValidation.message);
       return;
     }
+    setEditSslUiError('');
     setUpdating(true);
 
     try {
@@ -386,7 +488,7 @@ export default function AppsPage() {
             healthCheck: { path: '/health', interval: 30, timeout: 5 } 
           }],
           policyId: editFormData.policyId || null,
-          ssl: editFormData.sslMode === 'custom'
+          ssl: editFormData.sslMode === SSL_MODE.CUSTOM
             ? { customCert: true, cert: editFormData.customCert?.trim() || '', key: editFormData.customKey?.trim() || '', fullchain: editFormData.customFullchain?.trim() || null }
             : { autoProvision: editFormData.autoProvisionSSL, customCert: false },
         }),
@@ -642,6 +744,7 @@ export default function AppsPage() {
               const activated = isActivated(app);
               const hostingIp = getHostingDisplay(app);
               const hasRealStats = activated && stats !== null;
+              const sslMeta = getSslStatusMeta(app.ssl);
               
               return (
                 <div
@@ -686,6 +789,12 @@ export default function AppsPage() {
                             {app.wafRegion.toUpperCase()}
                           </span>
                         )}
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-gray-500">SSL:</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${sslMeta.tone}`}>
+                          {sslMeta.label}
+                        </span>
                       </div>
                     </div>
 
@@ -768,6 +877,7 @@ export default function AppsPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hosting IP</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Firewall IP</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Region</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">SSL</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Stats</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
@@ -779,6 +889,7 @@ export default function AppsPage() {
                   const activated = isActivated(app);
                   const hostingIp = getHostingDisplay(app);
                   const hasRealStats = activated && stats !== null;
+                  const sslMeta = getSslStatusMeta(app.ssl);
                   
                   return (
                     <tr key={app.id} className="hover:bg-gray-50">
@@ -802,6 +913,11 @@ export default function AppsPage() {
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${sslMeta.tone}`}>
+                          {sslMeta.label}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         {activated ? (
@@ -996,38 +1112,97 @@ export default function AppsPage() {
                     </div>
                     <div className="space-y-4">
                       <label className="block text-sm font-medium text-gray-700">SSL Certificate</label>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="create-ssl-mode"
-                            checked={formData.sslMode === 'auto'}
-                            onChange={() => setFormData({ ...formData, sslMode: 'auto', autoProvisionSSL: true })}
-                            className="h-4 w-4 text-teal-600 focus:ring-teal-500"
-                          />
-                          <span className="text-sm font-medium">Let&apos;s Encrypt (auto)</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${formData.sslMode === SSL_MODE.AUTO ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="create-ssl-mode"
+                              checked={formData.sslMode === SSL_MODE.AUTO}
+                              onChange={() => {
+                                setCreateSslUiError('');
+                                setFormData({ ...formData, sslMode: SSL_MODE.AUTO, autoProvisionSSL: true });
+                              }}
+                              className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">Managed SSL (Recommended)</p>
+                              <p className="text-xs text-gray-600 mt-1">Let&apos;s Encrypt certificate issued and renewed automatically.</p>
+                            </div>
+                          </div>
                         </label>
-                        <p className="text-xs text-gray-500 ml-6">Free TLS certificate. Domain must point to the WAF.</p>
-                        <label className="flex items-center gap-2 cursor-pointer mt-2">
-                          <input
-                            type="radio"
-                            name="create-ssl-mode"
-                            checked={formData.sslMode === 'custom'}
-                            onChange={() => setFormData({ ...formData, sslMode: 'custom' })}
-                            className="h-4 w-4 text-teal-600 focus:ring-teal-500"
-                          />
-                          <span className="text-sm font-medium">My certificate</span>
+                        <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${formData.sslMode === SSL_MODE.CUSTOM ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="create-ssl-mode"
+                              checked={formData.sslMode === SSL_MODE.CUSTOM}
+                              onChange={() => {
+                                setCreateSslUiError('');
+                                setFormData({ ...formData, sslMode: SSL_MODE.CUSTOM });
+                              }}
+                              className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
+                            />
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">Custom SSL</p>
+                              <p className="text-xs text-gray-600 mt-1">Paste PEM or import certificate/key files.</p>
+                            </div>
+                          </div>
                         </label>
-                        <p className="text-xs text-gray-500 ml-6">Upload your own certificate and private key (PEM).</p>
                       </div>
-                      {formData.sslMode === 'custom' && (
-                        <div className="mt-3 space-y-3 pl-6 border-l-2 border-teal-200">
+
+                      {formData.sslMode === SSL_MODE.AUTO && (
+                        <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                          <span className="text-sm text-gray-700">Automatically provision and renew SSL certificate</span>
+                          <input
+                            type="checkbox"
+                            checked={formData.autoProvisionSSL !== false}
+                            onChange={(e) => setFormData({ ...formData, autoProvisionSSL: e.target.checked })}
+                            className="h-4 w-4 text-teal-600 focus:ring-teal-500 rounded"
+                          />
+                        </label>
+                      )}
+
+                      {formData.sslMode === SSL_MODE.CUSTOM && (
+                        <div className="mt-3 space-y-3 pl-4 border-l-2 border-teal-200">
+                          <div className="flex flex-wrap gap-2">
+                            <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                              Import Certificate File
+                              <input
+                                type="file"
+                                accept=".pem,.crt,.cer,text/plain"
+                                className="hidden"
+                                onChange={(e) => importPemFile(e.target.files?.[0], 'customCert', setFormData, setCreateSslUiError)}
+                              />
+                            </label>
+                            <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                              Import Private Key File
+                              <input
+                                type="file"
+                                accept=".pem,.key,text/plain"
+                                className="hidden"
+                                onChange={(e) => importPemFile(e.target.files?.[0], 'customKey', setFormData, setCreateSslUiError)}
+                              />
+                            </label>
+                            <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                              Import Full Chain File
+                              <input
+                                type="file"
+                                accept=".pem,.crt,.cer,text/plain"
+                                className="hidden"
+                                onChange={(e) => importPemFile(e.target.files?.[0], 'customFullchain', setFormData, setCreateSslUiError)}
+                              />
+                            </label>
+                          </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Certificate (PEM)</label>
                             <textarea
                               placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
                               value={formData.customCert}
-                              onChange={(e) => setFormData({ ...formData, customCert: e.target.value })}
+                              onChange={(e) => {
+                                setCreateSslUiError('');
+                                setFormData({ ...formData, customCert: e.target.value });
+                              }}
                               rows={4}
                               className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                             />
@@ -1037,7 +1212,10 @@ export default function AppsPage() {
                             <textarea
                               placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
                               value={formData.customKey}
-                              onChange={(e) => setFormData({ ...formData, customKey: e.target.value })}
+                              onChange={(e) => {
+                                setCreateSslUiError('');
+                                setFormData({ ...formData, customKey: e.target.value });
+                              }}
                               rows={4}
                               className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                             />
@@ -1047,11 +1225,19 @@ export default function AppsPage() {
                             <textarea
                               placeholder="-----BEGIN CERTIFICATE-----\n... (intermediate + root)\n-----END CERTIFICATE-----"
                               value={formData.customFullchain}
-                              onChange={(e) => setFormData({ ...formData, customFullchain: e.target.value })}
+                              onChange={(e) => {
+                                setCreateSslUiError('');
+                                setFormData({ ...formData, customFullchain: e.target.value });
+                              }}
                               rows={2}
                               className="w-full min-h-[4rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                             />
                           </div>
+                          {(createSslUiError || formData.customCert || formData.customKey || formData.customFullchain) && (
+                            <p className={`text-xs ${createSslValidation.valid ? 'text-emerald-700' : 'text-red-600'}`}>
+                              {createSslUiError || createSslValidation.message}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1089,7 +1275,7 @@ export default function AppsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">SSL:</span>
-                        <span className="text-sm font-medium">{formData.sslMode === 'custom' ? 'Custom certificate' : 'Let\'s Encrypt (auto)'}</span>
+                        <span className="text-sm font-medium">{formData.sslMode === SSL_MODE.CUSTOM ? 'Custom certificate' : 'Let\'s Encrypt (auto)'}</span>
                       </div>
                       <hr className="border-gray-200" />
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
@@ -1237,38 +1423,97 @@ export default function AppsPage() {
                 <div className={editModalTab !== 'ssl' ? 'hidden' : undefined}>
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600">Choose how SSL/TLS is provided for this site.</p>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="edit-ssl-mode"
-                        checked={editFormData.sslMode === 'auto'}
-                        onChange={() => setEditFormData({ ...editFormData, sslMode: 'auto', autoProvisionSSL: true })}
-                        className="h-4 w-4 text-teal-600 focus:ring-teal-500"
-                      />
-                      <span className="text-sm font-medium">Let&apos;s Encrypt (auto)</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${editFormData.sslMode === SSL_MODE.AUTO ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          name="edit-ssl-mode"
+                          checked={editFormData.sslMode === SSL_MODE.AUTO}
+                          onChange={() => {
+                            setEditSslUiError('');
+                            setEditFormData({ ...editFormData, sslMode: SSL_MODE.AUTO, autoProvisionSSL: true });
+                          }}
+                          className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Managed SSL</p>
+                          <p className="text-xs text-gray-600 mt-1">Use Let&apos;s Encrypt with automatic renewals.</p>
+                        </div>
+                      </div>
                     </label>
-                    <p className="text-xs text-gray-500 ml-6">Free TLS certificate. Domain must point to the WAF.</p>
-                    <label className="flex items-center gap-2 cursor-pointer mt-2">
-                      <input
-                        type="radio"
-                        name="edit-ssl-mode"
-                        checked={editFormData.sslMode === 'custom'}
-                        onChange={() => setEditFormData({ ...editFormData, sslMode: 'custom' })}
-                        className="h-4 w-4 text-teal-600 focus:ring-teal-500"
-                      />
-                      <span className="text-sm font-medium">My certificate</span>
+                    <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${editFormData.sslMode === SSL_MODE.CUSTOM ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          name="edit-ssl-mode"
+                          checked={editFormData.sslMode === SSL_MODE.CUSTOM}
+                          onChange={() => {
+                            setEditSslUiError('');
+                            setEditFormData({ ...editFormData, sslMode: SSL_MODE.CUSTOM });
+                          }}
+                          className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">Custom SSL</p>
+                          <p className="text-xs text-gray-600 mt-1">Upload or paste your own PEM certificate set.</p>
+                        </div>
+                      </div>
                     </label>
-                    <p className="text-xs text-gray-500 ml-6">Upload your own certificate and private key (PEM).</p>
                   </div>
-                  {editFormData.sslMode === 'custom' && (
+
+                  {editFormData.sslMode === SSL_MODE.AUTO && (
+                    <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm text-gray-700">Automatically provision and renew SSL certificate</span>
+                      <input
+                        type="checkbox"
+                        checked={editFormData.autoProvisionSSL !== false}
+                        onChange={(e) => setEditFormData({ ...editFormData, autoProvisionSSL: e.target.checked })}
+                        className="h-4 w-4 text-teal-600 focus:ring-teal-500 rounded"
+                      />
+                    </label>
+                  )}
+
+                  {editFormData.sslMode === SSL_MODE.CUSTOM && (
                     <div className="mt-4 space-y-3 pt-4 border-t border-gray-200">
+                      <div className="flex flex-wrap gap-2">
+                        <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                          Import Certificate File
+                          <input
+                            type="file"
+                            accept=".pem,.crt,.cer,text/plain"
+                            className="hidden"
+                            onChange={(e) => importPemFile(e.target.files?.[0], 'customCert', setEditFormData, setEditSslUiError)}
+                          />
+                        </label>
+                        <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                          Import Private Key File
+                          <input
+                            type="file"
+                            accept=".pem,.key,text/plain"
+                            className="hidden"
+                            onChange={(e) => importPemFile(e.target.files?.[0], 'customKey', setEditFormData, setEditSslUiError)}
+                          />
+                        </label>
+                        <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                          Import Full Chain File
+                          <input
+                            type="file"
+                            accept=".pem,.crt,.cer,text/plain"
+                            className="hidden"
+                            onChange={(e) => importPemFile(e.target.files?.[0], 'customFullchain', setEditFormData, setEditSslUiError)}
+                          />
+                        </label>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Certificate (PEM)</label>
                         <textarea
                           placeholder="-----BEGIN CERTIFICATE-----..."
                           value={editFormData.customCert}
-                          onChange={(e) => setEditFormData({ ...editFormData, customCert: e.target.value })}
+                          onChange={(e) => {
+                            setEditSslUiError('');
+                            setEditFormData({ ...editFormData, customCert: e.target.value });
+                          }}
                           rows={4}
                           className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                         />
@@ -1278,7 +1523,10 @@ export default function AppsPage() {
                         <textarea
                           placeholder="-----BEGIN PRIVATE KEY-----..."
                           value={editFormData.customKey}
-                          onChange={(e) => setEditFormData({ ...editFormData, customKey: e.target.value })}
+                          onChange={(e) => {
+                            setEditSslUiError('');
+                            setEditFormData({ ...editFormData, customKey: e.target.value });
+                          }}
                           rows={4}
                           className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                         />
@@ -1288,11 +1536,19 @@ export default function AppsPage() {
                         <textarea
                           placeholder="Optional intermediate + root certificates"
                           value={editFormData.customFullchain}
-                          onChange={(e) => setEditFormData({ ...editFormData, customFullchain: e.target.value })}
+                          onChange={(e) => {
+                            setEditSslUiError('');
+                            setEditFormData({ ...editFormData, customFullchain: e.target.value });
+                          }}
                           rows={2}
                           className="w-full min-h-[4rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                         />
                       </div>
+                      {(editSslUiError || editFormData.customCert || editFormData.customKey || editFormData.customFullchain) && (
+                        <p className={`text-xs ${editSslValidation.valid ? 'text-emerald-700' : 'text-red-600'}`}>
+                          {editSslUiError || editSslValidation.message}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

@@ -19,7 +19,7 @@ import { createModSecurityProxy } from "./modsecurity-proxy.js";
 import { createCertStore } from "./cert-store.js";
 import {
   getAcmeChallengeResponse,
-  ensureCertificate,
+  provisionCertificate,
   isLetsEncryptAvailable,
 } from "./letsencrypt.js";
 
@@ -323,7 +323,12 @@ export class ProxyWAFServer {
       this.tenantNames = this.tenantNames.slice(0, 10);
     }
     this.modSecurity = options.modSecurity || createModSecurityProxy();
-    this.certStore = options.certStore || createCertStore();
+    const persistCertsToDisk =
+      options.persistCertsToDisk === true ||
+      process.env.CERT_STORE_PERSIST_TO_DISK === "true" ||
+      process.env.CERT_STORE_PERSIST_TO_DISK === "1";
+    this.certStore =
+      options.certStore || createCertStore({ persistToDisk: persistCertsToDisk });
     this.getAcmeChallengeResponse =
       options.getAcmeChallengeResponse || getAcmeChallengeResponse;
     this.letsEncryptEnabled =
@@ -335,6 +340,93 @@ export class ProxyWAFServer {
 
     // Listen for real-time updates
     this.setupRealtimeListener();
+  }
+
+  loadCertificateForApplication(app) {
+    if (!app?.domain) return;
+    const customCert = app.ssl?.customCert && app.ssl?.cert && app.ssl?.key;
+    const managedCert =
+      !app.ssl?.customCert &&
+      app.ssl?.autoProvision &&
+      app.tlsManaged?.cert &&
+      app.tlsManaged?.key;
+
+    if (customCert) {
+      try {
+        this.certStore.set(app.domain, {
+          key: app.ssl.key,
+          cert: app.ssl.cert,
+          fullchain: app.ssl.fullchain || app.ssl.cert,
+        });
+        console.log(`Loaded custom SSL certificate for ${app.domain}`);
+      } catch (err) {
+        console.warn(`Failed to load custom SSL for ${app.domain}:`, err.message);
+      }
+      return;
+    }
+
+    if (managedCert) {
+      try {
+        this.certStore.set(app.domain, {
+          key: app.tlsManaged.key,
+          cert: app.tlsManaged.cert,
+          fullchain: app.tlsManaged.fullchain || app.tlsManaged.cert,
+          expiresAt: app.tlsManaged.expiresAt || null,
+        });
+        console.log(`Loaded managed SSL certificate for ${app.domain}`);
+      } catch (err) {
+        console.warn(
+          `Failed to load managed SSL for ${app.domain}:`,
+          err.message,
+        );
+      }
+      return;
+    }
+
+    if (app.ssl && app.ssl.customCert === false) {
+      this.certStore.remove(app.domain);
+    }
+  }
+
+  async persistManagedCertificate(app, domain) {
+    if (!adminDb || !app?.id || !domain) return;
+    const entry = this.certStore.get(domain);
+    if (!entry?.key || !entry?.cert) return;
+    try {
+      await adminDb
+        .collection("applications")
+        .doc(app.id)
+        .set(
+          {
+            tlsManaged: {
+              key: entry.key,
+              cert: entry.cert,
+              fullchain: entry.fullchain || entry.cert,
+              expiresAt: entry.expiresAt || null,
+              source: "letsencrypt",
+              updatedAt: new Date().toISOString(),
+            },
+          },
+          { merge: true },
+        );
+    } catch (error) {
+      console.warn(
+        `Failed to persist managed certificate for ${domain}:`,
+        error.message,
+      );
+    }
+  }
+
+  async ensureManagedCertificate(app) {
+    const domain = app?.domain;
+    if (!domain) return false;
+    if (this.certStore.hasValidCert(domain)) return true;
+    const result = await provisionCertificate(domain, { certStore: this.certStore });
+    if (!result.success) {
+      throw new Error(result.error || "certificate provisioning failed");
+    }
+    await this.persistManagedCertificate(app, domain);
+    return true;
   }
 
   /**
@@ -406,22 +498,7 @@ export class ProxyWAFServer {
         if (app.domain) {
           this.applications.set(app.domain, app);
           console.log(`Loaded application: ${app.domain}`);
-
-          if (app.ssl?.customCert && app.ssl?.cert && app.ssl?.key) {
-            try {
-              this.certStore.set(app.domain, {
-                key: app.ssl.key,
-                cert: app.ssl.cert,
-                fullchain: app.ssl.fullchain || app.ssl.cert,
-              });
-              console.log(`Loaded custom SSL certificate for ${app.domain}`);
-            } catch (err) {
-              console.warn(
-                `Failed to load custom SSL for ${app.domain}:`,
-                err.message,
-              );
-            }
-          }
+          this.loadCertificateForApplication(app);
 
           // Load policy if assigned
           await this.loadPolicyForApplication(app);
@@ -457,7 +534,7 @@ export class ProxyWAFServer {
       if (!autoProvision || this.provisioningInProgress.has(domain)) continue;
       if (this.certStore.hasValidCert(domain)) continue;
       this.provisioningInProgress.add(domain);
-      ensureCertificate(domain, { certStore: this.certStore })
+      this.ensureManagedCertificate(app)
         .then((ok) => {
           if (ok)
             console.log(`Let's Encrypt: provisioned certificate for ${domain}`);
@@ -500,24 +577,7 @@ export class ProxyWAFServer {
           if (app.domain) {
             this.applications.set(app.domain, app);
             console.log(`Application updated: ${app.domain}`);
-
-            if (app.ssl?.customCert && app.ssl?.cert && app.ssl?.key) {
-              try {
-                this.certStore.set(app.domain, {
-                  key: app.ssl.key,
-                  cert: app.ssl.cert,
-                  fullchain: app.ssl.fullchain || app.ssl.cert,
-                });
-                console.log(`Loaded custom SSL certificate for ${app.domain}`);
-              } catch (err) {
-                console.warn(
-                  `Failed to load custom SSL for ${app.domain}:`,
-                  err.message,
-                );
-              }
-            } else if (app.ssl && app.ssl.customCert === false) {
-              this.certStore.remove(app.domain);
-            }
+            this.loadCertificateForApplication(app);
 
             if (
               this.letsEncryptEnabled &&
@@ -527,7 +587,7 @@ export class ProxyWAFServer {
               !this.certStore.hasValidCert(app.domain)
             ) {
               this.provisioningInProgress.add(app.domain);
-              ensureCertificate(app.domain, { certStore: this.certStore })
+              this.ensureManagedCertificate(app)
                 .then((ok) => {
                   if (ok)
                     console.log(
@@ -557,6 +617,9 @@ export class ProxyWAFServer {
           }
         } else if (change.type === "removed") {
           this.applications.delete(app.domain);
+          if (app.domain) {
+            this.certStore.remove(app.domain);
+          }
           console.log(`Application removed: ${app.domain}`);
         }
       });
@@ -1160,7 +1223,13 @@ export class ProxyWAFServer {
  * Create and start proxy server instance
  */
 export function createProxyServer(options = {}) {
-  const server = new ProxyWAFServer(options);
+  const server = new ProxyWAFServer({
+    ...options,
+    persistCertsToDisk:
+      options.persistCertsToDisk === true ||
+      process.env.CERT_STORE_PERSIST_TO_DISK === "true" ||
+      process.env.CERT_STORE_PERSIST_TO_DISK === "1",
+  });
   server.start(options.ssl);
   return server;
 }

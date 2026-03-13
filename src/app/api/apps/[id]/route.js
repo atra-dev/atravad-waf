@@ -4,6 +4,11 @@ import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 
+function sanitizeAppForClient(app) {
+  const { tlsManaged, ...safeApp } = app || {};
+  return safeApp;
+}
+
 /**
  * GET /api/apps/[id]
  * Get a single application by ID
@@ -43,7 +48,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({
       id: appDoc.id,
-      ...appData,
+      ...sanitizeAppForClient(appData),
     });
   } catch (error) {
     console.error('Error fetching application:', error);
@@ -177,7 +182,7 @@ export async function PATCH(request, { params }) {
 
     return NextResponse.json({
       id: updatedDoc.id,
-      ...updatedDoc.data(),
+      ...sanitizeAppForClient(updatedDoc.data()),
     });
   } catch (error) {
     console.error('Error updating application:', error);

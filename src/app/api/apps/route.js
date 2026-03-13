@@ -6,6 +6,11 @@ import { getRegionByContinent, getDefaultRegion } from '@/lib/waf-config';
 import { geolocateOrigin } from '@/lib/geolocation';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 
+function sanitizeAppForClient(app) {
+  const { tlsManaged, ...safeApp } = app || {};
+  return safeApp;
+}
+
 export async function POST(request) {
   try {
     if (!adminDb) {
@@ -122,20 +127,22 @@ export async function POST(request) {
 
     return NextResponse.json({
       id: appRef.id,
-      name,
-      domain,
-      origins: origins || [],
-      ssl: sslConfig || ssl || null,
-      routing: routing || { pathPrefix: '/', stripPath: false },
-      policyId: policyId || null,
-      responseInspectionEnabled: responseInspectionEnabled !== false,
-      wafRegion: wafRegion.id,
-      wafRegionName: wafRegion.name,
-      firewallIp: wafRegion.ip,
-      firewallCname: wafRegion.cname || '',
-      originCountry: originGeoData?.country || null,
-      originContinent: originGeoData?.continent || null,
-      activated: false,
+      ...sanitizeAppForClient({
+        name,
+        domain,
+        origins: origins || [],
+        ssl: sslConfig || ssl || null,
+        routing: routing || { pathPrefix: '/', stripPath: false },
+        policyId: policyId || null,
+        responseInspectionEnabled: responseInspectionEnabled !== false,
+        wafRegion: wafRegion.id,
+        wafRegionName: wafRegion.name,
+        firewallIp: wafRegion.ip,
+        firewallCname: wafRegion.cname || '',
+        originCountry: originGeoData?.country || null,
+        originContinent: originGeoData?.continent || null,
+        activated: false,
+      }),
     });
   } catch (error) {
     console.error('Error creating application:', error);
@@ -170,10 +177,12 @@ export async function GET(request) {
       .where('tenantName', '==', tenantName)
       .get();
 
-    const apps = appsSnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const apps = appsSnapshot.docs.map((doc) =>
+      sanitizeAppForClient({
+        id: doc.id,
+        ...doc.data(),
+      })
+    );
 
     return NextResponse.json(apps);
   } catch (error) {

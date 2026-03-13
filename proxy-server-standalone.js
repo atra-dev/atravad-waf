@@ -85,7 +85,11 @@ console.log(`HTTPS Port: ${HTTPS_PORT}`);
 console.log('');
 
 const modSecurity = createModSecurityProxy({ responseInspectionEnabled: true });
-const certStore = createCertStore();
+const certStore = createCertStore({
+  persistToDisk:
+    process.env.CERT_STORE_PERSIST_TO_DISK === 'true' ||
+    process.env.CERT_STORE_PERSIST_TO_DISK === '1',
+});
 
 const proxyServer = new ProxyWAFServer({
   port: HTTP_PORT,

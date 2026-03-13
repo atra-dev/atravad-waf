@@ -19,6 +19,10 @@ const DEFAULT_CERTS_DIR = process.env.CERTS_DIR || path.join(process.cwd(), 'cer
 const ACCOUNT_KEY_PATH = path.join(DEFAULT_CERTS_DIR, 'account-key.pem');
 const STAGING = process.env.LETSENCRYPT_STAGING === 'true' || process.env.LETSENCRYPT_STAGING === '1';
 const DEFAULT_EMAIL = process.env.LETSENCRYPT_EMAIL || 'admin@atravad.local';
+const PERSIST_ACCOUNT_KEY =
+  process.env.LETSENCRYPT_ACCOUNT_KEY_PERSIST === 'true' ||
+  process.env.LETSENCRYPT_ACCOUNT_KEY_PERSIST === '1';
+let runtimeAccountKey = null;
 
 /**
  * Pending HTTP-01 challenges: token -> keyAuthorization (for proxy to serve).
@@ -60,16 +64,22 @@ async function getOrCreateAccountKey() {
   if (fromEnv && fromEnv.trim()) {
     return fromEnv.trim().replace(/\\n/g, '\n');
   }
-  if (fs.existsSync(ACCOUNT_KEY_PATH)) {
+  if (runtimeAccountKey) {
+    return runtimeAccountKey;
+  }
+  if (PERSIST_ACCOUNT_KEY && fs.existsSync(ACCOUNT_KEY_PATH)) {
     return fs.readFileSync(ACCOUNT_KEY_PATH, 'utf8');
   }
   if (!acme || !acme.crypto) {
     throw new Error('acme-client not installed; run npm install acme-client');
   }
   const accountKey = await acme.crypto.createPrivateKey();
-  const dir = path.dirname(ACCOUNT_KEY_PATH);
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(ACCOUNT_KEY_PATH, accountKey, { mode: 0o600 });
+  runtimeAccountKey = accountKey;
+  if (PERSIST_ACCOUNT_KEY) {
+    const dir = path.dirname(ACCOUNT_KEY_PATH);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(ACCOUNT_KEY_PATH, accountKey, { mode: 0o600 });
+  }
   return accountKey;
 }
 
