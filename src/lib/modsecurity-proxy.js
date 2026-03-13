@@ -9,7 +9,7 @@
 
 import { createRequire } from 'module';
 import { getStandaloneConfigForProxy, generateModSecurityConfig } from './modsecurity.js';
-import { adminDb } from './firebase-admin';
+import { adminDb } from './firebase-admin.js';
 
 const requireMod = createRequire(import.meta.url);
 let ModSecurityNapi = null;

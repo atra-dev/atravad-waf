@@ -14,7 +14,7 @@ import https from "https";
 import tls from "tls";
 import { URL } from "url";
 import { createRequire } from "module";
-import { adminDb } from "./firebase-admin";
+import { adminDb } from "./firebase-admin.js";
 import { createModSecurityProxy } from "./modsecurity-proxy.js";
 import { createCertStore } from "./cert-store.js";
 import {
@@ -32,6 +32,212 @@ try {
 }
 
 const BODY_BUFFER_TIMEOUT_MS = 10000;
+const ATRAVAD_WAF_NAME = "ATRAVAD-WAF";
+
+function withWafFingerprintHeaders(headers = {}) {
+  return {
+    ...headers,
+    Server: ATRAVAD_WAF_NAME,
+    "X-WAF": ATRAVAD_WAF_NAME,
+    "X-Firewall": ATRAVAD_WAF_NAME,
+    "X-ATRAVAD-WAF": ATRAVAD_WAF_NAME,
+  };
+}
+
+function renderCustomNotFoundHtml(host, path) {
+  const safeHost = host || "unknown-host";
+  const safePath = path || "/";
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>404 Not Found | ATRAVAD-WAF</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-top: #f3faf9;
+      --bg-bottom: #eef3fb;
+      --card: #ffffff;
+      --text: #0b1d2a;
+      --muted: #4b5c6b;
+      --border: #d8e3ef;
+      --brand: #0f766e;
+      --brand-soft: #d9f3f1;
+      --danger: #b91c1c;
+      --danger-soft: #fee2e2;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 12% 8%, #ddf6f3 0, transparent 40%),
+        linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .shell {
+      width: min(760px, 100%);
+    }
+    .card {
+      position: relative;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 26px;
+      overflow: hidden;
+      box-shadow:
+        0 16px 36px rgba(15, 23, 42, 0.1),
+        0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0f766e 0%, #0ea5e9 100%);
+    }
+    .top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .status {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid #fecaca;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 6px 10px;
+      text-transform: uppercase;
+    }
+    .waf {
+      display: inline-block;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid #99e0da;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    h1 {
+      margin: 2px 0 10px;
+      font-size: clamp(30px, 6vw, 44px);
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+    .meta {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+    .meta-row {
+      background: #f8fbff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .meta-label {
+      display: inline-block;
+      min-width: 52px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    code {
+      background: #eef3fa;
+      border: 1px solid #dae7f5;
+      padding: 2px 7px;
+      border-radius: 6px;
+      color: #0f172a;
+      word-break: break-all;
+    }
+    .hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .hint strong {
+      color: #334155;
+    }
+    @media (max-width: 560px) {
+      .card {
+        padding: 20px;
+      }
+      .top {
+        flex-wrap: wrap;
+      }
+      .meta-label {
+        min-width: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="card">
+      <div class="top">
+        <span class="status">HTTP 404</span>
+        <span class="waf">WAF: ${ATRAVAD_WAF_NAME}</span>
+      </div>
+      <h1>Resource Not Found</h1>
+      <p>The requested URL does not exist on this protected endpoint, or the host is not mapped to an active ATRAVAD application.</p>
+
+      <div class="meta">
+        <div class="meta-row"><span class="meta-label">Host</span> <code>${safeHost}</code></div>
+        <div class="meta-row"><span class="meta-label">Path</span> <code>${safePath}</code></div>
+      </div>
+
+      <p class="hint"><strong>Tip:</strong> Verify DNS routing, host header, and application domain configuration in ATRAVAD.</p>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function sendCustomNotFound(res, { host, path } = {}) {
+  const body = renderCustomNotFoundHtml(host, path);
+  res.writeHead(
+    404,
+    withWafFingerprintHeaders({
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Length": Buffer.byteLength(body),
+      "Cache-Control": "no-store",
+    }),
+  );
+  res.end(body);
+}
+
+function looksLikeNginx404(statusCode, headers, bodyBuffer) {
+  if (statusCode !== 404) return false;
+  const contentType = String(headers?.["content-type"] || "").toLowerCase();
+  const server = String(headers?.server || "").toLowerCase();
+  if (server.includes("nginx")) return true;
+  if (!contentType.includes("text/html")) return false;
+  const body = (bodyBuffer || Buffer.alloc(0)).toString("utf8").toLowerCase();
+  return body.includes("nginx") && body.includes("404 not found");
+}
 
 function hasRequestBody(req) {
   const method = (req.method || "GET").toUpperCase();
@@ -487,7 +693,10 @@ export class ProxyWAFServer {
 
       // Health check for load balancers and data-center orchestration (any Host)
       if (pathname === "/health" || pathname === "/_atravad/health") {
-        res.writeHead(200, { "Content-Type": "application/json" });
+        res.writeHead(
+          200,
+          withWafFingerprintHeaders({ "Content-Type": "application/json" }),
+        );
         res.end(
           JSON.stringify({
             status: "ok",
@@ -502,7 +711,10 @@ export class ProxyWAFServer {
 
       const host = req.headers.host?.split(":")[0];
       if (!host) {
-        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.writeHead(
+          400,
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+        );
         res.end("Missing Host header");
         return;
       }
@@ -516,7 +728,12 @@ export class ProxyWAFServer {
           .trim();
         const keyAuthorization = this.getAcmeChallengeResponse(token);
         if (keyAuthorization) {
-          res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
+          res.writeHead(
+            200,
+            withWafFingerprintHeaders({
+              "Content-Type": "text/plain; charset=utf-8",
+            }),
+          );
           res.end(keyAuthorization);
           return;
         }
@@ -524,14 +741,16 @@ export class ProxyWAFServer {
 
       const app = this.applications.get(host);
       if (!app) {
-        res.writeHead(404, { "Content-Type": "text/plain" });
-        res.end(`Application not found for domain: ${host}`);
+        sendCustomNotFound(res, { host, path: req.url });
         return;
       }
 
       const origin = this.getHealthyOrigin(app);
       if (!origin || !origin.url) {
-        res.writeHead(503, { "Content-Type": "text/plain" });
+        res.writeHead(
+          503,
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+        );
         res.end("No origin server configured");
         return;
       }
@@ -551,7 +770,10 @@ export class ProxyWAFServer {
         } catch (err) {
           console.warn("Request body buffer error:", err.message);
           if (!res.headersSent) {
-            res.writeHead(413, { "Content-Type": "application/json" });
+            res.writeHead(
+              413,
+              withWafFingerprintHeaders({ "Content-Type": "application/json" }),
+            );
             res.end(
               JSON.stringify({ error: "Request body too large or timeout" }),
             );
@@ -572,6 +794,7 @@ export class ProxyWAFServer {
             "X-ATRAVAD-Blocked": "true",
             "X-ATRAVAD-Reason":
               inspection.matchedRules[0]?.message || "Security rule violation",
+            ...withWafFingerprintHeaders(),
           });
           res.end(
             JSON.stringify({
@@ -596,7 +819,10 @@ export class ProxyWAFServer {
     } catch (error) {
       console.error("Error handling request:", error);
       if (!res.headersSent) {
-        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.writeHead(
+          500,
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+        );
         res.end("Internal server error");
       }
     }
@@ -678,6 +904,7 @@ export class ProxyWAFServer {
                 if (!clientRes.headersSent) {
                   clientRes.writeHead(502, {
                     "Content-Type": "application/json",
+                    ...withWafFingerprintHeaders(),
                   });
                   clientRes.end(
                     JSON.stringify({
@@ -691,21 +918,71 @@ export class ProxyWAFServer {
             } catch (err) {
               console.warn("Response inspection error:", err.message);
             }
+            if (looksLikeNginx404(proxyRes.statusCode, proxyRes.headers, body)) {
+              sendCustomNotFound(clientRes, {
+                host: clientReq.headers.host?.split(":")[0],
+                path: clientReq.url,
+              });
+              return;
+            }
             if (!clientRes.headersSent) {
-              clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
+              clientRes.writeHead(
+                proxyRes.statusCode,
+                withWafFingerprintHeaders(proxyRes.headers),
+              );
               clientRes.end(body);
             }
           });
           proxyRes.on("error", (err) => {
             console.error("Proxy response error:", err);
             if (!clientRes.headersSent) {
-              clientRes.writeHead(502, { "Content-Type": "text/plain" });
+              clientRes.writeHead(
+                502,
+                withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+              );
               clientRes.end("Bad Gateway");
             }
           });
         } else {
+          if (proxyRes.statusCode === 404) {
+            const chunks = [];
+            proxyRes.on("data", (chunk) => chunks.push(chunk));
+            proxyRes.on("end", () => {
+              const body = Buffer.concat(chunks);
+              if (
+                looksLikeNginx404(proxyRes.statusCode, proxyRes.headers, body)
+              ) {
+                sendCustomNotFound(clientRes, {
+                  host: clientReq.headers.host?.split(":")[0],
+                  path: clientReq.url,
+                });
+                return;
+              }
+              if (!clientRes.headersSent) {
+                clientRes.writeHead(
+                  proxyRes.statusCode,
+                  withWafFingerprintHeaders(proxyRes.headers),
+                );
+              }
+              clientRes.end(body);
+            });
+            proxyRes.on("error", (err) => {
+              console.error("Proxy response error:", err);
+              if (!clientRes.headersSent) {
+                clientRes.writeHead(
+                  502,
+                  withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+                );
+                clientRes.end("Bad Gateway");
+              }
+            });
+            return;
+          }
           if (!clientRes.headersSent) {
-            clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
+            clientRes.writeHead(
+              proxyRes.statusCode,
+              withWafFingerprintHeaders(proxyRes.headers),
+            );
           }
           proxyRes.pipe(clientRes);
         }
@@ -714,7 +991,10 @@ export class ProxyWAFServer {
       proxyReq.on("error", (error) => {
         console.error("Proxy request error:", error);
         if (!clientRes.headersSent) {
-          clientRes.writeHead(502, { "Content-Type": "text/plain" });
+          clientRes.writeHead(
+            502,
+            withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+          );
           clientRes.end("Bad Gateway: Origin server error");
         }
       });
@@ -728,7 +1008,10 @@ export class ProxyWAFServer {
     } catch (error) {
       console.error("Error forwarding request:", error);
       if (!clientRes.headersSent) {
-        clientRes.writeHead(502, { "Content-Type": "text/plain" });
+        clientRes.writeHead(
+          502,
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+        );
         clientRes.end("Bad Gateway");
       }
     }
