@@ -16,7 +16,9 @@ let ModSecurityNapi = null;
 let RulesNapi = null;
 let TransactionNapi = null;
 try {
-  const mod = requireMod('modsecurity');
+  // Resolve at runtime so cloud builds without optional native addon do not warn.
+  const modPackageName = process.env.MODSECURITY_NODE_PACKAGE || 'modsecurity';
+  const mod = requireMod(modPackageName);
   ModSecurityNapi = mod.ModSecurity;
   RulesNapi = mod.Rules;
   TransactionNapi = mod.Transaction;
