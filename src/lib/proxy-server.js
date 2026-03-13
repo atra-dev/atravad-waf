@@ -9,20 +9,24 @@
  * - Health checks and failover
  */
 
-import http from 'http';
-import https from 'https';
-import tls from 'tls';
-import { URL } from 'url';
-import { createRequire } from 'module';
-import { adminDb } from './firebase-admin';
-import { createModSecurityProxy } from './modsecurity-proxy.js';
-import { createCertStore } from './cert-store.js';
-import { getAcmeChallengeResponse, ensureCertificate, isLetsEncryptAvailable } from './letsencrypt.js';
+import http from "http";
+import https from "https";
+import tls from "tls";
+import { URL } from "url";
+import { createRequire } from "module";
+import { adminDb } from "./firebase-admin";
+import { createModSecurityProxy } from "./modsecurity-proxy.js";
+import { createCertStore } from "./cert-store.js";
+import {
+  getAcmeChallengeResponse,
+  ensureCertificate,
+  isLetsEncryptAvailable,
+} from "./letsencrypt.js";
 
 const requireMod = createRequire(import.meta.url);
 let selfsigned = null;
 try {
-  selfsigned = requireMod('selfsigned').default || requireMod('selfsigned');
+  selfsigned = requireMod("selfsigned").default || requireMod("selfsigned");
 } catch {
   selfsigned = null;
 }
@@ -30,17 +34,18 @@ try {
 const BODY_BUFFER_TIMEOUT_MS = 10000;
 
 function hasRequestBody(req) {
-  const method = (req.method || 'GET').toUpperCase();
-  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return false;
-  const cl = parseInt(req.headers['content-length'], 10);
-  const te = (req.headers['transfer-encoding'] || '').toLowerCase();
-  return (Number.isFinite(cl) && cl > 0) || te === 'chunked';
+  const method = (req.method || "GET").toUpperCase();
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(method)) return false;
+  const cl = parseInt(req.headers["content-length"], 10);
+  const te = (req.headers["transfer-encoding"] || "").toLowerCase();
+  return (Number.isFinite(cl) && cl > 0) || te === "chunked";
 }
 
 function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
-    const contentLength = parseInt(req.headers['content-length'], 10);
-    const isChunked = (req.headers['transfer-encoding'] || '').toLowerCase() === 'chunked';
+    const contentLength = parseInt(req.headers["content-length"], 10);
+    const isChunked =
+      (req.headers["transfer-encoding"] || "").toLowerCase() === "chunked";
     if (!isChunked && !Number.isFinite(contentLength)) {
       resolve(null);
       return;
@@ -53,20 +58,20 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
     let total = 0;
     const timer = setTimeout(() => {
       req.destroy();
-      reject(new Error('Request body timeout'));
+      reject(new Error("Request body timeout"));
     }, timeoutMs);
     const cleanup = () => {
       clearTimeout(timer);
-      req.removeListener('data', onData);
-      req.removeListener('end', onEnd);
-      req.removeListener('error', onError);
+      req.removeListener("data", onData);
+      req.removeListener("end", onEnd);
+      req.removeListener("error", onError);
     };
     const onData = (chunk) => {
       total += chunk.length;
       if (total > maxBytes) {
         cleanup();
         req.destroy();
-        reject(new Error('Request body too large'));
+        reject(new Error("Request body too large"));
         return;
       }
       chunks.push(chunk);
@@ -79,9 +84,9 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
       cleanup();
       reject(err);
     };
-    req.on('data', onData);
-    req.on('end', onEnd);
-    req.on('error', onError);
+    req.on("data", onData);
+    req.on("end", onEnd);
+    req.on("error", onError);
   });
 }
 
@@ -100,16 +105,23 @@ export class ProxyWAFServer {
     this.tenantName = options.tenantName || null;
     // Multi-tenant: support single name or comma-separated list (Firestore 'in' max 10)
     this.tenantNames = this.tenantName
-      ? this.tenantName.split(',').map((s) => s.trim()).filter(Boolean)
+      ? this.tenantName
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
       : null;
     if (this.tenantNames && this.tenantNames.length > 10) {
-      console.warn('ATRAVAD: Firestore "in" query limited to 10 tenants; using first 10.');
+      console.warn(
+        'ATRAVAD: Firestore "in" query limited to 10 tenants; using first 10.',
+      );
       this.tenantNames = this.tenantNames.slice(0, 10);
     }
     this.modSecurity = options.modSecurity || createModSecurityProxy();
     this.certStore = options.certStore || createCertStore();
-    this.getAcmeChallengeResponse = options.getAcmeChallengeResponse || getAcmeChallengeResponse;
-    this.letsEncryptEnabled = options.letsEncryptEnabled !== false && isLetsEncryptAvailable;
+    this.getAcmeChallengeResponse =
+      options.getAcmeChallengeResponse || getAcmeChallengeResponse;
+    this.letsEncryptEnabled =
+      options.letsEncryptEnabled !== false && isLetsEncryptAvailable;
     this.provisioningInProgress = new Set(); // domain -> avoid duplicate provision
 
     // Load applications from Firestore
@@ -130,12 +142,19 @@ export class ProxyWAFServer {
     try {
       const policy = await this.modSecurity.loadPolicy(app.policyId);
       if (policy) {
-        console.log(`Loaded policy "${policy.name}" for application ${app.domain}`);
+        console.log(
+          `Loaded policy "${policy.name}" for application ${app.domain}`,
+        );
       } else {
-        console.warn(`Policy ${app.policyId} not found for application ${app.domain}`);
+        console.warn(
+          `Policy ${app.policyId} not found for application ${app.domain}`,
+        );
       }
     } catch (error) {
-      console.error(`Error loading policy for application ${app.domain}:`, error);
+      console.error(
+        `Error loading policy for application ${app.domain}:`,
+        error,
+      );
     }
   }
 
@@ -145,33 +164,37 @@ export class ProxyWAFServer {
   async loadApplications() {
     try {
       if (!adminDb) {
-        console.warn('Firebase Admin not initialized, proxy server will use in-memory config');
+        console.warn(
+          "Firebase Admin not initialized, proxy server will use in-memory config",
+        );
         return;
       }
 
       const tenantNames = this.tenantNames;
       if (tenantNames?.length) {
-        console.log(`Loading applications for tenant(s): ${tenantNames.join(', ')}`);
+        console.log(
+          `Loading applications for tenant(s): ${tenantNames.join(", ")}`,
+        );
       } else {
-        console.log('Loading all applications (no tenant filter)');
+        console.log("Loading all applications (no tenant filter)");
       }
 
       // Load applications (filtered by tenant(s) if set)
       let appsSnapshot;
       if (tenantNames?.length === 1) {
         appsSnapshot = await adminDb
-          .collection('applications')
-          .where('tenantName', '==', tenantNames[0])
+          .collection("applications")
+          .where("tenantName", "==", tenantNames[0])
           .get();
       } else if (tenantNames?.length > 1) {
         appsSnapshot = await adminDb
-          .collection('applications')
-          .where('tenantName', 'in', tenantNames)
+          .collection("applications")
+          .where("tenantName", "in", tenantNames)
           .get();
       } else {
-        appsSnapshot = await adminDb.collection('applications').get();
+        appsSnapshot = await adminDb.collection("applications").get();
       }
-      
+
       for (const doc of appsSnapshot.docs) {
         const app = { id: doc.id, ...doc.data() };
         if (app.domain) {
@@ -187,7 +210,10 @@ export class ProxyWAFServer {
               });
               console.log(`Loaded custom SSL certificate for ${app.domain}`);
             } catch (err) {
-              console.warn(`Failed to load custom SSL for ${app.domain}:`, err.message);
+              console.warn(
+                `Failed to load custom SSL for ${app.domain}:`,
+                err.message,
+              );
             }
           }
 
@@ -202,14 +228,14 @@ export class ProxyWAFServer {
           }
         }
       }
-      
+
       console.log(`Loaded ${this.applications.size} application(s)`);
 
       if (this.letsEncryptEnabled) {
         this.triggerAutoProvision();
       }
     } catch (error) {
-      console.error('Error loading applications:', error);
+      console.error("Error loading applications:", error);
     }
   }
 
@@ -219,15 +245,23 @@ export class ProxyWAFServer {
   async triggerAutoProvision() {
     for (const [domain, app] of this.applications) {
       if (app.ssl?.customCert) continue;
-      const autoProvision = app.ssl && (app.ssl.autoProvision === true || app.ssl?.autoProvision === true);
+      const autoProvision =
+        app.ssl &&
+        (app.ssl.autoProvision === true || app.ssl?.autoProvision === true);
       if (!autoProvision || this.provisioningInProgress.has(domain)) continue;
       if (this.certStore.hasValidCert(domain)) continue;
       this.provisioningInProgress.add(domain);
       ensureCertificate(domain, { certStore: this.certStore })
         .then((ok) => {
-          if (ok) console.log(`Let's Encrypt: provisioned certificate for ${domain}`);
+          if (ok)
+            console.log(`Let's Encrypt: provisioned certificate for ${domain}`);
         })
-        .catch((err) => console.warn(`Let's Encrypt: provision failed for ${domain}`, err.message))
+        .catch((err) =>
+          console.warn(
+            `Let's Encrypt: provision failed for ${domain}`,
+            err.message,
+          ),
+        )
         .finally(() => this.provisioningInProgress.delete(domain));
     }
   }
@@ -241,18 +275,22 @@ export class ProxyWAFServer {
     const tenantNames = this.tenantNames;
     let applicationsRef;
     if (tenantNames?.length === 1) {
-      applicationsRef = adminDb.collection('applications').where('tenantName', '==', tenantNames[0]);
+      applicationsRef = adminDb
+        .collection("applications")
+        .where("tenantName", "==", tenantNames[0]);
     } else if (tenantNames?.length > 1) {
-      applicationsRef = adminDb.collection('applications').where('tenantName', 'in', tenantNames);
+      applicationsRef = adminDb
+        .collection("applications")
+        .where("tenantName", "in", tenantNames);
     } else {
-      applicationsRef = adminDb.collection('applications');
+      applicationsRef = adminDb.collection("applications");
     }
 
     applicationsRef.onSnapshot((snapshot) => {
       snapshot.docChanges().forEach((change) => {
         const app = { id: change.doc.id, ...change.doc.data() };
-        
-        if (change.type === 'added' || change.type === 'modified') {
+
+        if (change.type === "added" || change.type === "modified") {
           if (app.domain) {
             this.applications.set(app.domain, app);
             console.log(`Application updated: ${app.domain}`);
@@ -266,17 +304,36 @@ export class ProxyWAFServer {
                 });
                 console.log(`Loaded custom SSL certificate for ${app.domain}`);
               } catch (err) {
-                console.warn(`Failed to load custom SSL for ${app.domain}:`, err.message);
+                console.warn(
+                  `Failed to load custom SSL for ${app.domain}:`,
+                  err.message,
+                );
               }
             } else if (app.ssl && app.ssl.customCert === false) {
               this.certStore.remove(app.domain);
             }
 
-            if (this.letsEncryptEnabled && !app.ssl?.customCert && app.ssl?.autoProvision && !this.provisioningInProgress.has(app.domain) && !this.certStore.hasValidCert(app.domain)) {
+            if (
+              this.letsEncryptEnabled &&
+              !app.ssl?.customCert &&
+              app.ssl?.autoProvision &&
+              !this.provisioningInProgress.has(app.domain) &&
+              !this.certStore.hasValidCert(app.domain)
+            ) {
               this.provisioningInProgress.add(app.domain);
               ensureCertificate(app.domain, { certStore: this.certStore })
-                .then((ok) => { if (ok) console.log(`Let's Encrypt: provisioned certificate for ${app.domain}`); })
-                .catch((err) => console.warn(`Let's Encrypt: provision failed for ${app.domain}`, err.message))
+                .then((ok) => {
+                  if (ok)
+                    console.log(
+                      `Let's Encrypt: provisioned certificate for ${app.domain}`,
+                    );
+                })
+                .catch((err) =>
+                  console.warn(
+                    `Let's Encrypt: provision failed for ${app.domain}`,
+                    err.message,
+                  ),
+                )
                 .finally(() => this.provisioningInProgress.delete(app.domain));
             }
 
@@ -292,7 +349,7 @@ export class ProxyWAFServer {
               });
             }
           }
-        } else if (change.type === 'removed') {
+        } else if (change.type === "removed") {
           this.applications.delete(app.domain);
           console.log(`Application removed: ${app.domain}`);
         }
@@ -308,7 +365,7 @@ export class ProxyWAFServer {
 
     const originUrl = origin.url;
     const healthCheck = origin.healthCheck;
-    const checkPath = healthCheck.path || '/health';
+    const checkPath = healthCheck.path || "/health";
     const interval = (healthCheck.interval || 30) * 1000; // Convert to ms
     const timeout = (healthCheck.timeout || 5) * 1000;
 
@@ -335,17 +392,17 @@ export class ProxyWAFServer {
     try {
       const url = new URL(originUrl);
       const healthUrl = `${url.protocol}//${url.host}${checkPath}`;
-      
+
       const requestOptions = {
-        method: 'GET',
+        method: "GET",
         timeout,
         headers: {
-          'User-Agent': 'ATRAVAD-WAF-HealthCheck/1.0',
+          "User-Agent": "ATRAVAD-WAF-HealthCheck/1.0",
         },
       };
 
-      const protocol = url.protocol === 'https:' ? https : http;
-      
+      const protocol = url.protocol === "https:" ? https : http;
+
       const req = protocol.request(healthUrl, requestOptions, (res) => {
         const isHealthy = res.statusCode >= 200 && res.statusCode < 300;
         this.originHealth.set(originUrl, {
@@ -353,13 +410,15 @@ export class ProxyWAFServer {
           lastCheck: new Date().toISOString(),
           statusCode: res.statusCode,
         });
-        
+
         if (!isHealthy) {
-          console.warn(`Origin ${originUrl} health check failed: ${res.statusCode}`);
+          console.warn(
+            `Origin ${originUrl} health check failed: ${res.statusCode}`,
+          );
         }
       });
 
-      req.on('error', (error) => {
+      req.on("error", (error) => {
         this.originHealth.set(originUrl, {
           healthy: false,
           lastCheck: new Date().toISOString(),
@@ -368,12 +427,12 @@ export class ProxyWAFServer {
         console.warn(`Origin ${originUrl} health check error:`, error.message);
       });
 
-      req.on('timeout', () => {
+      req.on("timeout", () => {
         req.destroy();
         this.originHealth.set(originUrl, {
           healthy: false,
           lastCheck: new Date().toISOString(),
-          error: 'Timeout',
+          error: "Timeout",
         });
         console.warn(`Origin ${originUrl} health check timeout`);
       });
@@ -393,7 +452,11 @@ export class ProxyWAFServer {
    * Get healthy origin for an application
    */
   getHealthyOrigin(app) {
-    if (!app.origins || !Array.isArray(app.origins) || app.origins.length === 0) {
+    if (
+      !app.origins ||
+      !Array.isArray(app.origins) ||
+      app.origins.length === 0
+    ) {
       return null;
     }
 
@@ -420,35 +483,40 @@ export class ProxyWAFServer {
    */
   async handleRequest(req, res) {
     try {
-      const pathname = req.url?.split('?')[0] || '/';
+      const pathname = req.url?.split("?")[0] || "/";
 
       // Health check for load balancers and data-center orchestration (any Host)
-      if (pathname === '/health' || pathname === '/_atravad/health') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (pathname === "/health" || pathname === "/_atravad/health") {
+        res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            status: 'ok',
-            service: 'atravad-waf',
-            tenant: this.tenantName || 'all',
+            status: "ok",
+            service: "atravad-waf",
+            tenant: this.tenantName || "all",
             tenants: this.tenantNames?.length ? this.tenantNames.length : null,
             applications: this.applications.size,
-          })
+          }),
         );
         return;
       }
 
-      const host = req.headers.host?.split(':')[0];
+      const host = req.headers.host?.split(":")[0];
       if (!host) {
-        res.writeHead(400, { 'Content-Type': 'text/plain' });
-        res.end('Missing Host header');
+        res.writeHead(400, { "Content-Type": "text/plain" });
+        res.end("Missing Host header");
         return;
       }
 
-      if (this.getAcmeChallengeResponse && pathname.startsWith('/.well-known/acme-challenge/')) {
-        const token = pathname.slice('/.well-known/acme-challenge/'.length).trim();
+      if (
+        this.getAcmeChallengeResponse &&
+        pathname.startsWith("/.well-known/acme-challenge/")
+      ) {
+        const token = pathname
+          .slice("/.well-known/acme-challenge/".length)
+          .trim();
         const keyAuthorization = this.getAcmeChallengeResponse(token);
         if (keyAuthorization) {
-          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8" });
           res.end(keyAuthorization);
           return;
         }
@@ -456,48 +524,64 @@ export class ProxyWAFServer {
 
       const app = this.applications.get(host);
       if (!app) {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.writeHead(404, { "Content-Type": "text/plain" });
         res.end(`Application not found for domain: ${host}`);
         return;
       }
 
       const origin = this.getHealthyOrigin(app);
       if (!origin || !origin.url) {
-        res.writeHead(503, { 'Content-Type': 'text/plain' });
-        res.end('No origin server configured');
+        res.writeHead(503, { "Content-Type": "text/plain" });
+        res.end("No origin server configured");
         return;
       }
 
       let bodyBuffer = null;
       if (app.policyId && this.modSecurity && hasRequestBody(req)) {
         try {
-          const limit = typeof this.modSecurity.getBodyLimit === 'function'
-            ? this.modSecurity.getBodyLimit()
-            : 13107200;
-          bodyBuffer = await collectRequestBody(req, limit, BODY_BUFFER_TIMEOUT_MS);
+          const limit =
+            typeof this.modSecurity.getBodyLimit === "function"
+              ? this.modSecurity.getBodyLimit()
+              : 13107200;
+          bodyBuffer = await collectRequestBody(
+            req,
+            limit,
+            BODY_BUFFER_TIMEOUT_MS,
+          );
         } catch (err) {
-          console.warn('Request body buffer error:', err.message);
+          console.warn("Request body buffer error:", err.message);
           if (!res.headersSent) {
-            res.writeHead(413, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Request body too large or timeout' }));
+            res.writeHead(413, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({ error: "Request body too large or timeout" }),
+            );
           }
           return;
         }
       }
 
       if (app.policyId && this.modSecurity) {
-        const inspection = await this.modSecurity.inspectRequest(req, app.policyId, bodyBuffer);
+        const inspection = await this.modSecurity.inspectRequest(
+          req,
+          app.policyId,
+          bodyBuffer,
+        );
         if (!inspection.allowed || inspection.blocked) {
           res.writeHead(403, {
-            'Content-Type': 'application/json',
-            'X-ATRAVAD-Blocked': 'true',
-            'X-ATRAVAD-Reason': inspection.matchedRules[0]?.message || 'Security rule violation',
+            "Content-Type": "application/json",
+            "X-ATRAVAD-Blocked": "true",
+            "X-ATRAVAD-Reason":
+              inspection.matchedRules[0]?.message || "Security rule violation",
           });
-          res.end(JSON.stringify({
-            error: 'Request blocked by WAF',
-            reason: inspection.matchedRules[0]?.message || 'Security rule violation',
-            matchedRules: inspection.matchedRules,
-          }));
+          res.end(
+            JSON.stringify({
+              error: "Request blocked by WAF",
+              reason:
+                inspection.matchedRules[0]?.message ||
+                "Security rule violation",
+              matchedRules: inspection.matchedRules,
+            }),
+          );
           console.warn(`Request blocked for ${host}:`, {
             url: req.url,
             method: req.method,
@@ -510,10 +594,10 @@ export class ProxyWAFServer {
 
       await this.forwardRequest(req, res, origin.url, app, bodyBuffer);
     } catch (error) {
-      console.error('Error handling request:', error);
+      console.error("Error handling request:", error);
       if (!res.headersSent) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Internal server error');
+        res.writeHead(500, { "Content-Type": "text/plain" });
+        res.end("Internal server error");
       }
     }
   }
@@ -534,82 +618,89 @@ export class ProxyWAFServer {
       const requestOptions = {
         method: clientReq.method,
         hostname: originUrlObj.hostname,
-        port: originUrlObj.port || (originUrlObj.protocol === 'https:' ? 443 : 80),
-        path: targetPath + (originUrlObj.search || ''),
+        port:
+          originUrlObj.port || (originUrlObj.protocol === "https:" ? 443 : 80),
+        path: targetPath + (originUrlObj.search || ""),
         headers: { ...clientReq.headers },
       };
 
-      delete requestOptions.headers['connection'];
-      delete requestOptions.headers['host'];
-      delete requestOptions.headers['transfer-encoding'];
-      delete requestOptions.headers['upgrade'];
-      delete requestOptions.headers['x-atravad-edge'];
-      requestOptions.headers['host'] = originUrlObj.host;
-      requestOptions.headers['x-forwarded-for'] =
-        (clientReq.headers['x-forwarded-for'] || '') +
-        (clientReq.headers['x-forwarded-for'] ? ', ' : '') +
-        (clientReq.socket.remoteAddress || 'unknown');
-      requestOptions.headers['x-forwarded-proto'] = clientReq.secure ? 'https' : 'http';
-      requestOptions.headers['x-forwarded-host'] = clientReq.headers.host;
-      if (process.env.ATRAVAD_EDGE_SECRET) {
-        requestOptions.headers['x-atravad-edge'] = process.env.ATRAVAD_EDGE_SECRET;
-      }
+      delete requestOptions.headers["connection"];
+      delete requestOptions.headers["host"];
+      delete requestOptions.headers["transfer-encoding"];
+      delete requestOptions.headers["upgrade"];
+      requestOptions.headers["host"] = originUrlObj.host;
+      requestOptions.headers["x-forwarded-for"] =
+        (clientReq.headers["x-forwarded-for"] || "") +
+        (clientReq.headers["x-forwarded-for"] ? ", " : "") +
+        (clientReq.socket.remoteAddress || "unknown");
+      requestOptions.headers["x-forwarded-proto"] = clientReq.secure
+        ? "https"
+        : "http";
+      requestOptions.headers["x-forwarded-host"] = clientReq.headers.host;
 
-      const protocol = originUrlObj.protocol === 'https:' ? https : http;
+      const protocol = originUrlObj.protocol === "https:" ? https : http;
       const doResponseInspection = Boolean(
-        app.policyId && this.modSecurity && (app.responseInspectionEnabled !== false && this.modSecurity.responseInspectionEnabled !== false)
+        app.policyId &&
+        this.modSecurity &&
+        app.responseInspectionEnabled !== false &&
+        this.modSecurity.responseInspectionEnabled !== false,
       );
-      const responseBodyLimit = typeof this.modSecurity?.getResponseBodyLimit === 'function'
-        ? this.modSecurity.getResponseBodyLimit()
-        : 524288;
+      const responseBodyLimit =
+        typeof this.modSecurity?.getResponseBodyLimit === "function"
+          ? this.modSecurity.getResponseBodyLimit()
+          : 524288;
 
       const proxyReq = protocol.request(requestOptions, (proxyRes) => {
         if (doResponseInspection) {
           const chunks = [];
           let total = 0;
-          proxyRes.on('data', (chunk) => {
+          proxyRes.on("data", (chunk) => {
             if (total < responseBodyLimit) {
               const want = Math.min(chunk.length, responseBodyLimit - total);
               chunks.push(chunk.subarray(0, want));
             }
             total += chunk.length;
           });
-          proxyRes.on('end', async () => {
+          proxyRes.on("end", async () => {
             const body = Buffer.concat(chunks);
             try {
               const inspection = await this.modSecurity.inspectResponse(
                 {
                   statusCode: proxyRes.statusCode,
-                  httpVersion: proxyRes.httpVersion || '1.1',
+                  httpVersion: proxyRes.httpVersion || "1.1",
                   headers: proxyRes.headers,
                   rawHeaders: proxyRes.rawHeaders || [],
                   body,
                 },
-                app.policyId
+                app.policyId,
               );
               if (!inspection.allowed) {
                 if (!clientRes.headersSent) {
-                  clientRes.writeHead(502, { 'Content-Type': 'application/json' });
-                  clientRes.end(JSON.stringify({
-                    error: 'Response blocked by WAF',
-                    matchedRules: inspection.matchedRules || [],
-                  }));
+                  clientRes.writeHead(502, {
+                    "Content-Type": "application/json",
+                  });
+                  clientRes.end(
+                    JSON.stringify({
+                      error: "Response blocked by WAF",
+                      matchedRules: inspection.matchedRules || [],
+                    }),
+                  );
                 }
                 return;
               }
             } catch (err) {
-              console.warn('Response inspection error:', err.message);
+              console.warn("Response inspection error:", err.message);
             }
             if (!clientRes.headersSent) {
               clientRes.writeHead(proxyRes.statusCode, proxyRes.headers);
               clientRes.end(body);
             }
           });
-          proxyRes.on('error', (err) => {
-            console.error('Proxy response error:', err);
+          proxyRes.on("error", (err) => {
+            console.error("Proxy response error:", err);
             if (!clientRes.headersSent) {
-              clientRes.writeHead(502, { 'Content-Type': 'text/plain' });
-              clientRes.end('Bad Gateway');
+              clientRes.writeHead(502, { "Content-Type": "text/plain" });
+              clientRes.end("Bad Gateway");
             }
           });
         } else {
@@ -620,11 +711,11 @@ export class ProxyWAFServer {
         }
       });
 
-      proxyReq.on('error', (error) => {
-        console.error('Proxy request error:', error);
+      proxyReq.on("error", (error) => {
+        console.error("Proxy request error:", error);
         if (!clientRes.headersSent) {
-          clientRes.writeHead(502, { 'Content-Type': 'text/plain' });
-          clientRes.end('Bad Gateway: Origin server error');
+          clientRes.writeHead(502, { "Content-Type": "text/plain" });
+          clientRes.end("Bad Gateway: Origin server error");
         }
       });
 
@@ -635,10 +726,10 @@ export class ProxyWAFServer {
         clientReq.pipe(proxyReq);
       }
     } catch (error) {
-      console.error('Error forwarding request:', error);
+      console.error("Error forwarding request:", error);
       if (!clientRes.headersSent) {
-        clientRes.writeHead(502, { 'Content-Type': 'text/plain' });
-        clientRes.end('Bad Gateway');
+        clientRes.writeHead(502, { "Content-Type": "text/plain" });
+        clientRes.end("Bad Gateway");
       }
     }
   }
@@ -652,11 +743,13 @@ export class ProxyWAFServer {
     });
 
     this.httpServer.listen(this.port, () => {
-      console.log(`ATRAVAD Proxy WAF HTTP server listening on port ${this.port}`);
+      console.log(
+        `ATRAVAD Proxy WAF HTTP server listening on port ${this.port}`,
+      );
     });
 
-    this.httpServer.on('error', (error) => {
-      console.error('HTTP server error:', error);
+    this.httpServer.on("error", (error) => {
+      console.error("HTTP server error:", error);
     });
   }
 
@@ -669,16 +762,23 @@ export class ProxyWAFServer {
     if (domains.length > 0) {
       const entry = this.certStore.get(domains[0]);
       if (entry) {
-        this._defaultKeyCert = { key: entry.key, cert: entry.fullchain || entry.cert };
-        this._defaultSecureContext = tls.createSecureContext(this._defaultKeyCert);
+        this._defaultKeyCert = {
+          key: entry.key,
+          cert: entry.fullchain || entry.cert,
+        };
+        this._defaultSecureContext = tls.createSecureContext(
+          this._defaultKeyCert,
+        );
         return this._defaultSecureContext;
       }
     }
     if (selfsigned) {
-      const attrs = [{ name: 'commonName', value: 'localhost' }];
+      const attrs = [{ name: "commonName", value: "localhost" }];
       const pems = selfsigned.generate(attrs, { days: 365, keySize: 2048 });
       this._defaultKeyCert = { key: pems.private, cert: pems.cert };
-      this._defaultSecureContext = tls.createSecureContext(this._defaultKeyCert);
+      this._defaultSecureContext = tls.createSecureContext(
+        this._defaultKeyCert,
+      );
       return this._defaultSecureContext;
     }
     return null;
@@ -705,7 +805,11 @@ export class ProxyWAFServer {
             });
             return cb(null, ctx);
           } catch (err) {
-            console.warn('SNI secure context failed for', servername, err.message);
+            console.warn(
+              "SNI secure context failed for",
+              servername,
+              err.message,
+            );
           }
         }
         cb(null, defaultContext);
@@ -713,7 +817,9 @@ export class ProxyWAFServer {
     };
 
     if (!serverOptions.key || !serverOptions.cert) {
-      console.warn('HTTPS: no default key/cert; SNI will still work for provisioned domains');
+      console.warn(
+        "HTTPS: no default key/cert; SNI will still work for provisioned domains",
+      );
     }
 
     this.httpsServer = https.createServer(serverOptions, (req, res) => {
@@ -721,11 +827,13 @@ export class ProxyWAFServer {
     });
 
     this.httpsServer.listen(this.httpsPort, () => {
-      console.log(`ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`);
+      console.log(
+        `ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
+      );
     });
 
-    this.httpsServer.on('error', (error) => {
-      console.error('HTTPS server error:', error);
+    this.httpsServer.on("error", (error) => {
+      console.error("HTTPS server error:", error);
     });
   }
 
@@ -740,7 +848,7 @@ export class ProxyWAFServer {
     } else if (this.letsEncryptEnabled && this._getDefaultSecureContext()) {
       this.startHttpsServer();
     }
-    console.log('ATRAVAD Proxy WAF server started');
+    console.log("ATRAVAD Proxy WAF server started");
   }
 
   /**
@@ -761,7 +869,7 @@ export class ProxyWAFServer {
       this.httpsServer.close();
     }
 
-    console.log('ATRAVAD Proxy WAF server stopped');
+    console.log("ATRAVAD Proxy WAF server stopped");
   }
 }
 
