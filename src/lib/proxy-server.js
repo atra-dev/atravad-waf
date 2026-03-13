@@ -543,6 +543,7 @@ export class ProxyWAFServer {
       delete requestOptions.headers['host'];
       delete requestOptions.headers['transfer-encoding'];
       delete requestOptions.headers['upgrade'];
+      delete requestOptions.headers['x-atravad-edge'];
       requestOptions.headers['host'] = originUrlObj.host;
       requestOptions.headers['x-forwarded-for'] =
         (clientReq.headers['x-forwarded-for'] || '') +
@@ -550,6 +551,9 @@ export class ProxyWAFServer {
         (clientReq.socket.remoteAddress || 'unknown');
       requestOptions.headers['x-forwarded-proto'] = clientReq.secure ? 'https' : 'http';
       requestOptions.headers['x-forwarded-host'] = clientReq.headers.host;
+      if (process.env.ATRAVAD_EDGE_SECRET) {
+        requestOptions.headers['x-atravad-edge'] = process.env.ATRAVAD_EDGE_SECRET;
+      }
 
       const protocol = originUrlObj.protocol === 'https:' ? https : http;
       const doResponseInspection = Boolean(
