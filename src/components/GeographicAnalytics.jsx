@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
-import { getCountryFromIP } from '@/lib/ip-geolocation';
+import { useMemo } from 'react';
+import { isPrivateIp } from '@/lib/ip-utils';
 
 // Try to import react-simple-maps (React 19 compatible fork)
 let ComposableMap, Geographies, Geography, Marker;
@@ -21,67 +21,39 @@ try {
  * Displays world map with traffic by country and geographic insights
  */
 export default function GeographicAnalytics({ logs = [] }) {
-  const [countryData, setCountryData] = useState([]);
-  const [geolocating, setGeolocating] = useState(false);
+  const countryData = useMemo(() => {
+    const countryMap = new Map();
 
-  // Process logs to extract country data from IP addresses
-  useEffect(() => {
-    const processGeolocation = async () => {
-      setGeolocating(true);
-      const countryMap = new Map();
-      const uniqueIPs = new Set();
-      
-      // Collect unique IPs
-      logs.forEach(log => {
-        const ip = log.ipAddress || log.clientIp;
-        if (ip) uniqueIPs.add(ip);
-      });
+    logs.forEach((log) => {
+      const ip = log.ipAddress || log.clientIp;
+      const code =
+        (typeof log.geoCountryCode === 'string' && log.geoCountryCode.trim().toUpperCase()) ||
+        (isPrivateIp(ip) ? 'XX' : '');
+      const name =
+        (typeof log.geoCountry === 'string' && log.geoCountry.trim()) ||
+        (code === 'XX' ? 'Private Network' : '');
 
-      // Geolocate IPs
-      const ipCountryMap = new Map();
-      for (const ip of uniqueIPs) {
-        const country = await getCountryFromIP(ip);
-        if (country) {
-          ipCountryMap.set(ip, country);
-        }
+      if (!code) return;
+
+      const existing = countryMap.get(code) || {
+        code,
+        name: name || code,
+        count: 0,
+        blocked: 0,
+        allowed: 0,
+      };
+
+      existing.count += 1;
+      if (log.blocked) {
+        existing.blocked += 1;
+      } else {
+        existing.allowed += 1;
       }
 
-      // Aggregate by country
-      logs.forEach(log => {
-        const ip = log.ipAddress || log.clientIp;
-        if (!ip) return;
-        
-        const country = ipCountryMap.get(ip);
-        if (!country) return;
-        
-        const existing = countryMap.get(country.code) || {
-          code: country.code,
-          name: country.name,
-          count: 0,
-          blocked: 0,
-          allowed: 0,
-        };
-        
-        existing.count++;
-        if (log.blocked) {
-          existing.blocked++;
-        } else {
-          existing.allowed++;
-        }
-        
-        countryMap.set(country.code, existing);
-      });
-      
-      const sorted = Array.from(countryMap.values()).sort((a, b) => b.count - a.count);
-      setCountryData(sorted);
-      setGeolocating(false);
-    };
+      countryMap.set(code, existing);
+    });
 
-    if (logs.length > 0) {
-      processGeolocation();
-    } else {
-      setCountryData([]);
-    }
+    return Array.from(countryMap.values()).sort((a, b) => b.count - a.count);
   }, [logs]);
 
   // Top countries by traffic
@@ -128,13 +100,7 @@ export default function GeographicAnalytics({ logs = [] }) {
       {/* World Map Visualization */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic by Country</h3>
-        {geolocating ? (
-          <div className="bg-gray-50 rounded-lg p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-600 font-medium">Geolocating IP addresses...</p>
-            <p className="text-sm text-gray-500 mt-2">This may take a moment for large datasets</p>
-          </div>
-        ) : ComposableMap ? (
+        {ComposableMap ? (
           <div className="bg-gray-50 rounded-lg p-4">
             <ComposableMap
               projectionConfig={{
@@ -268,7 +234,7 @@ export default function GeographicAnalytics({ logs = [] }) {
               {topCountries.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                    No geographic data available. Logs need IP addresses to show country information.
+                    No geographic data available yet. New logs will include country metadata for SOC analysis.
                   </td>
                 </tr>
               ) : (

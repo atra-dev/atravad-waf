@@ -7,8 +7,11 @@
 
 import dns from 'dns';
 import { promisify } from 'util';
+import { normalizeIpAddress, isPrivateIp } from './ip-utils';
 
 const dnsResolve = promisify(dns.resolve4);
+const geoCache = new Map();
+const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Extract hostname from URL and resolve to IP address
@@ -45,7 +48,8 @@ export async function getIpFromUrl(originUrl) {
  * @returns {Promise<Object>} Geolocation data
  */
 export async function geolocateIp(ip) {
-  if (!ip) {
+  const normalizedIp = normalizeIpAddress(ip);
+  if (!normalizedIp) {
     return {
       success: false,
       error: 'No IP provided',
@@ -58,10 +62,10 @@ export async function geolocateIp(ip) {
   }
 
   // Don't geolocate private/local IPs
-  if (isPrivateIp(ip)) {
+  if (isPrivateIp(normalizedIp)) {
     return {
       success: true,
-      ip,
+      ip: normalizedIp,
       country: 'Local',
       countryCode: 'XX',
       continent: 'Unknown',
@@ -72,7 +76,7 @@ export async function geolocateIp(ip) {
 
   try {
     const response = await fetch(
-      `http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,continent,continentCode`,
+      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode`,
       {
         headers: {
           'Accept': 'application/json',
@@ -90,7 +94,7 @@ export async function geolocateIp(ip) {
       return {
         success: false,
         error: data.message || 'Geolocation failed',
-        ip,
+        ip: normalizedIp,
         country: null,
         countryCode: null,
         continent: null,
@@ -100,18 +104,18 @@ export async function geolocateIp(ip) {
 
     return {
       success: true,
-      ip,
+      ip: normalizedIp,
       country: data.country,
       countryCode: data.countryCode,
       continent: data.continent,
       continentCode: data.continentCode,
     };
   } catch (error) {
-    console.error(`Error geolocating IP ${ip}:`, error.message);
+    console.error(`Error geolocating IP ${normalizedIp}:`, error.message);
     return {
       success: false,
       error: error.message,
-      ip,
+      ip: normalizedIp,
       country: null,
       countryCode: null,
       continent: null,
@@ -120,30 +124,31 @@ export async function geolocateIp(ip) {
   }
 }
 
-/**
- * Check if an IP address is private/local
- * @param {string} ip - IP address to check
- * @returns {boolean} True if IP is private
- */
-function isPrivateIp(ip) {
-  if (!ip) return false;
-  
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4) return false;
+export async function geolocateIpCached(ip) {
+  const normalizedIp = normalizeIpAddress(ip);
+  if (!normalizedIp) {
+    return {
+      success: false,
+      error: 'No IP provided',
+      ip: null,
+      country: null,
+      countryCode: null,
+      continent: null,
+      continentCode: null,
+    };
+  }
 
-  // 10.0.0.0 - 10.255.255.255
-  if (parts[0] === 10) return true;
+  const cached = geoCache.get(normalizedIp);
+  if (cached && Date.now() - cached.timestamp < GEO_CACHE_TTL_MS) {
+    return cached.value;
+  }
 
-  // 172.16.0.0 - 172.31.255.255
-  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-
-  // 192.168.0.0 - 192.168.255.255
-  if (parts[0] === 192 && parts[1] === 168) return true;
-
-  // 127.0.0.0 - 127.255.255.255 (localhost)
-  if (parts[0] === 127) return true;
-
-  return false;
+  const value = await geolocateIp(normalizedIp);
+  geoCache.set(normalizedIp, {
+    value,
+    timestamp: Date.now(),
+  });
+  return value;
 }
 
 /**

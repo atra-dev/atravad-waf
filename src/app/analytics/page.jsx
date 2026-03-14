@@ -4,6 +4,66 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
+import { normalizeIpAddress } from '@/lib/ip-utils';
+
+function normalizeText(value) {
+  return String(value || '').toLowerCase();
+}
+
+function categoryFromRuleId(ruleId) {
+  const id = Number.parseInt(String(ruleId || ''), 10);
+  if (!Number.isFinite(id)) return null;
+
+  if (id >= 912000 && id < 913000) return 'DDoS/DoS';
+  if (id >= 913000 && id < 914000) return 'Scanner/Recon';
+  if (id >= 920000 && id < 921000) return 'Protocol Enforcement';
+  if (id >= 921000 && id < 922000) return 'HTTP Smuggling';
+  if (id >= 930000 && id < 940000) return 'LFI/RFI';
+  if (id >= 941000 && id < 942000) return 'XSS';
+  if (id >= 942000 && id < 943000) return 'SQL Injection';
+  if (id >= 932000 && id < 933000) return 'RCE';
+  if (id >= 933000 && id < 934000) return 'PHP Injection';
+  if (id >= 944000 && id < 945000) return 'Java Attacks';
+  if (id >= 949000 && id < 950000) return 'Anomaly Threshold';
+  return null;
+}
+
+function classifyAttack(log) {
+  const message = normalizeText(log.message);
+  const ruleMessage = normalizeText(log.ruleMessage);
+  const uri = normalizeText(log.uri || log.request?.uri);
+  const source = `${message} ${ruleMessage} ${uri}`;
+
+  const byRuleId = categoryFromRuleId(log.ruleId);
+  if (byRuleId) return byRuleId;
+
+  if (
+    source.includes('ddos') ||
+    source.includes('dos') ||
+    source.includes('denial of service') ||
+    source.includes('rate limit exceeded') ||
+    source.includes('too many requests') ||
+    source.includes('burst size exceeded') ||
+    source.includes('request flood')
+  ) {
+    return 'DDoS/DoS';
+  }
+
+  if (source.includes('sql') || source.includes('sqli') || source.includes('union select')) return 'SQL Injection';
+  if (source.includes('xss') || source.includes('cross-site') || source.includes('<script')) return 'XSS';
+  if (source.includes('csrf')) return 'CSRF';
+  if (source.includes('rce') || source.includes('code execution') || source.includes('command injection')) return 'RCE';
+  if (source.includes('path traversal') || source.includes('../') || source.includes('directory traversal')) return 'Path Traversal';
+  if (source.includes('ssrf') || source.includes('server-side request forgery')) return 'SSRF';
+  if (source.includes('lfi') || source.includes('rfi')) return 'LFI/RFI';
+  if (source.includes('auth') || source.includes('credential') || source.includes('login')) return 'Auth Attack';
+  if (source.includes('bot') || source.includes('crawler') || source.includes('scanner')) return 'Bot/Scanner';
+  if (source.includes('rate limit') || source.includes('too many requests')) return 'Rate Limit Abuse';
+  if (source.includes('method') || source.includes('protocol')) return 'Protocol Enforcement';
+  if (source.includes('file upload') || source.includes('multipart')) return 'Malicious Upload';
+
+  return 'Other';
+}
 
 export default function AnalyticsPage() {
   // Verify authentication
@@ -41,32 +101,27 @@ export default function AnalyticsPage() {
 
         // Calculate analytics
         const attackTypes = {};
+        const otherBreakdown = {};
         const topIPs = {};
+        const uniqueIPSet = new Set();
         const severityCounts = { critical: 0, high: 0, warning: 0, info: 0 };
         const hourlyData = {};
 
         filteredLogs.forEach(log => {
           // Attack types
-          if (log.message) {
-            const message = log.message.toLowerCase();
-            if (message.includes('sql') || message.includes('sqli')) {
-              attackTypes['SQL Injection'] = (attackTypes['SQL Injection'] || 0) + 1;
-            } else if (message.includes('xss') || message.includes('cross-site')) {
-              attackTypes['XSS'] = (attackTypes['XSS'] || 0) + 1;
-            } else if (message.includes('csrf')) {
-              attackTypes['CSRF'] = (attackTypes['CSRF'] || 0) + 1;
-            } else if (message.includes('rce') || message.includes('code execution')) {
-              attackTypes['RCE'] = (attackTypes['RCE'] || 0) + 1;
-            } else if (message.includes('path traversal') || message.includes('directory')) {
-              attackTypes['Path Traversal'] = (attackTypes['Path Traversal'] || 0) + 1;
-            } else {
-              attackTypes['Other'] = (attackTypes['Other'] || 0) + 1;
-            }
+          const attackCategory = classifyAttack(log);
+          attackTypes[attackCategory] = (attackTypes[attackCategory] || 0) + 1;
+
+          if (attackCategory === 'Other') {
+            const signature = String(log.ruleMessage || log.message || 'Unclassified event').slice(0, 120);
+            otherBreakdown[signature] = (otherBreakdown[signature] || 0) + 1;
           }
 
           // Top IPs
-          if (log.ipAddress) {
-            topIPs[log.ipAddress] = (topIPs[log.ipAddress] || 0) + 1;
+          const normalizedIp = normalizeIpAddress(log.ipAddress || log.clientIp || '');
+          if (normalizedIp) {
+            topIPs[normalizedIp] = (topIPs[normalizedIp] || 0) + 1;
+            uniqueIPSet.add(normalizedIp);
           }
 
           // Severity counts
@@ -85,9 +140,13 @@ export default function AnalyticsPage() {
           attackTypes: Object.entries(attackTypes)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10),
+          otherBreakdown: Object.entries(otherBreakdown)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8),
           topIPs: Object.entries(topIPs)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10),
+          uniqueIPs: uniqueIPSet.size,
           severityCounts,
           hourlyData,
         });
@@ -189,7 +248,7 @@ export default function AnalyticsPage() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Unique IPs</p>
                 <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {analytics?.topIPs.length || 0}
+                  {analytics?.uniqueIPs || 0}
                 </p>
               </div>
               <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -206,25 +265,40 @@ export default function AnalyticsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Attack Types</h2>
             {analytics?.attackTypes && analytics.attackTypes.length > 0 ? (
-              <div className="space-y-3">
-                {analytics.attackTypes.map(([type, count]) => {
-                  const percentage = (count / analytics.totalAttacks) * 100;
-                  return (
-                    <div key={type}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-gray-700">{type}</span>
-                        <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
+              <>
+                <div className="space-y-3">
+                  {analytics.attackTypes.map(([type, count]) => {
+                    const percentage = (count / analytics.totalAttacks) * 100;
+                    return (
+                      <div key={type}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium text-gray-700">{type}</span>
+                          <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all"
+                            style={{ width: `${percentage}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
+                    );
+                  })}
+                </div>
+                {analytics.otherBreakdown?.length > 0 && (
+                  <div className="mt-6 border-t border-gray-200 pt-4">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Other Breakdown (Unclassified Signatures)</h3>
+                    <div className="space-y-2">
+                      {analytics.otherBreakdown.map(([signature, count], idx) => (
+                        <div key={`${signature}-${idx}`} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700 truncate pr-3">{signature}</span>
+                          <span className="text-gray-500 font-medium whitespace-nowrap">{count}</span>
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+              </>
             ) : (
               <p className="text-sm text-gray-500 text-center py-8">No attack data available</p>
             )}

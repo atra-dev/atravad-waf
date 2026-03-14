@@ -3,6 +3,9 @@ import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { rateLimit } from '@/lib/rate-limit';
+import { geolocateIpCached } from '@/lib/geolocation';
+import { normalizeIpAddress } from '@/lib/ip-utils';
+import { deriveRuleId } from '@/lib/log-rule-utils';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 
@@ -54,7 +57,9 @@ export async function POST(request) {
     const now = new Date().toISOString();
     const batch = adminDb.batch();
 
-    logs.forEach((log) => {
+    for (const log of logs) {
+      const clientIp = normalizeIpAddress(log.clientIp || log.ipAddress || '') || null;
+      const geo = clientIp ? await geolocateIpCached(clientIp) : null;
       const logRef = adminDb.collection('logs').doc();
       batch.set(logRef, {
         source: tenantName,
@@ -62,21 +67,32 @@ export async function POST(request) {
         timestamp: log.timestamp || now,
         level: log.level || 'info',
         message: log.message,
-        ruleId: log.ruleId || null,
+        ruleId: deriveRuleId({
+          ruleId: log.ruleId,
+          ruleMessage: log.ruleMessage,
+          message: log.message,
+          blocked: log.blocked || false,
+          statusCode: log.statusCode || null,
+        }),
         ruleMessage: log.ruleMessage || null,
         severity: log.severity || null,
         request: log.request || null,
         response: log.response || null,
-        clientIp: log.clientIp || null,
+        clientIp,
         userAgent: log.userAgent || null,
         uri: log.uri || null,
         method: log.method || null,
         statusCode: log.statusCode || null,
         blocked: log.blocked || false,
         ingestedAt: now,
-        ipAddress: log.clientIp || log.ipAddress || null,
+        ipAddress: clientIp,
+        geoCountry: geo?.success ? geo.country || null : null,
+        geoCountryCode: geo?.success ? geo.countryCode || null : null,
+        geoContinent: geo?.success ? geo.continent || null : null,
+        geoContinentCode: geo?.success ? geo.continentCode || null : null,
+        geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
       });
-    });
+    }
 
     await batch.commit();
 

@@ -6,6 +6,9 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import GeographicAnalytics from '@/components/GeographicAnalytics';
 import TrafficAnalytics from '@/components/TrafficAnalytics';
+import { normalizeDomainInput } from '@/lib/domain-utils';
+import { normalizeIpAddress } from '@/lib/ip-utils';
+import { deriveRuleId } from '@/lib/log-rule-utils';
 
 // Icons for tenant creation
 const BuildingIcon = ({ className }) => (
@@ -133,11 +136,17 @@ export default function LogsPage() {
         // Client-side search filter
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
+          const normalizedSearchDomain = normalizeDomainInput(filters.search);
           filteredLogs = filteredLogs.filter(log =>
             (log.message && log.message.toLowerCase().includes(searchLower)) ||
             (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
             (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
-            (log.ruleId && log.ruleId.toString().includes(searchLower))
+            (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
+            (normalizedSearchDomain && (
+              normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
+              normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
+              normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
+            ))
           );
         }
         
@@ -482,13 +491,13 @@ export default function LogsPage() {
                         {log.nodeId || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {log.ruleId || '-'}
+                        {deriveRuleId(log)}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {log.message || 'No message'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {log.ipAddress || '-'}
+                        {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
                       </td>
                     </tr>
                   ))}

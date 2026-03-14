@@ -5,6 +5,7 @@ import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getRegionByContinent, getDefaultRegion } from '@/lib/waf-config';
 import { geolocateOrigin } from '@/lib/geolocation';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
+import { normalizeDomainInput } from '@/lib/domain-utils';
 
 function sanitizeAppForClient(app) {
   const { tlsManaged, ...safeApp } = app || {};
@@ -45,6 +46,14 @@ export async function POST(request) {
     if (!name || !domain) {
       return NextResponse.json(
         { error: 'Name and domain are required' },
+        { status: 400 }
+      );
+    }
+
+    const normalizedDomain = normalizeDomainInput(domain);
+    if (!normalizedDomain) {
+      return NextResponse.json(
+        { error: 'Invalid domain. Use a valid hostname like example.com' },
         { status: 400 }
       );
     }
@@ -105,7 +114,7 @@ export async function POST(request) {
 
     const appRef = await adminDb.collection('applications').add({
       name,
-      domain,
+      domain: normalizedDomain,
       origins: origins || [],
       ssl: sslConfig || ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
@@ -129,7 +138,7 @@ export async function POST(request) {
       id: appRef.id,
       ...sanitizeAppForClient({
         name,
-        domain,
+        domain: normalizedDomain,
         origins: origins || [],
         ssl: sslConfig || ssl || null,
         routing: routing || { pathPrefix: '/', stripPath: false },

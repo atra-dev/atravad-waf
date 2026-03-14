@@ -22,6 +22,10 @@ import {
   provisionCertificate,
   isLetsEncryptAvailable,
 } from "./letsencrypt.js";
+import { normalizeDomainInput } from "./domain-utils.js";
+import { geolocateIpCached } from "./geolocation.js";
+import { normalizeIpAddress } from "./ip-utils.js";
+import { deriveRuleId } from "./log-rule-utils.js";
 
 const requireMod = createRequire(import.meta.url);
 let selfsigned = null;
@@ -302,7 +306,8 @@ function extractClientIp(req) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)[0];
-  return firstForwarded || req?.socket?.remoteAddress || null;
+  const rawIp = firstForwarded || req?.socket?.remoteAddress || null;
+  return normalizeIpAddress(rawIp) || null;
 }
 
 function isHealthPath(pathname) {
@@ -385,6 +390,7 @@ export class ProxyWAFServer {
     if (!adminDb || !app?.tenantName || !req) return;
     const uri = req.url || "/";
     if (!this.shouldLogRequest(uri.split("?")[0], blocked, statusCode)) return;
+    const clientIp = extractClientIp(req);
     const entry = {
       source: app.domain || "proxy-waf",
       tenantName: app.tenantName,
@@ -392,7 +398,7 @@ export class ProxyWAFServer {
       level,
       severity,
       message: message || "WAF request event",
-      ruleId,
+      ruleId: deriveRuleId({ ruleId, ruleMessage, message, blocked, statusCode }),
       ruleMessage,
       request: {
         host: req.headers?.host || null,
@@ -400,8 +406,8 @@ export class ProxyWAFServer {
         uri,
       },
       response,
-      clientIp: extractClientIp(req),
-      ipAddress: extractClientIp(req),
+      clientIp,
+      ipAddress: clientIp,
       userAgent: req.headers?.["user-agent"] || null,
       uri,
       method: req.method || "GET",
@@ -410,12 +416,25 @@ export class ProxyWAFServer {
       ingestedAt: new Date().toISOString(),
     };
 
-    adminDb
-      .collection("logs")
-      .add(entry)
-      .catch((err) =>
-        console.warn("Failed to write security log:", err.message),
-      );
+    const writeLog = async () => {
+      try {
+        if (clientIp) {
+          const geo = await geolocateIpCached(clientIp);
+          if (geo?.success) {
+            entry.geoCountry = geo.country || null;
+            entry.geoCountryCode = geo.countryCode || null;
+            entry.geoContinent = geo.continent || null;
+            entry.geoContinentCode = geo.continentCode || null;
+            entry.geoIsPrivate = Boolean(geo.isPrivate);
+          }
+        }
+        await adminDb.collection("logs").add(entry);
+      } catch (err) {
+        console.warn("Failed to write security log:", err.message);
+      }
+    };
+
+    void writeLog();
   }
 
   loadCertificateForApplication(app) {
@@ -572,8 +591,12 @@ export class ProxyWAFServer {
       for (const doc of appsSnapshot.docs) {
         const app = { id: doc.id, ...doc.data() };
         if (app.domain) {
-          this.applications.set(app.domain, app);
-          console.log(`Loaded application: ${app.domain}`);
+          const normalizedDomain = normalizeDomainInput(app.domain);
+          if (normalizedDomain) {
+            app.domain = normalizedDomain;
+            this.applications.set(normalizedDomain, app);
+            console.log(`Loaded application: ${normalizedDomain}`);
+          }
           this.loadCertificateForApplication(app);
 
           // Load policy if assigned
@@ -651,32 +674,35 @@ export class ProxyWAFServer {
 
         if (change.type === "added" || change.type === "modified") {
           if (app.domain) {
-            this.applications.set(app.domain, app);
-            console.log(`Application updated: ${app.domain}`);
+            const normalizedDomain = normalizeDomainInput(app.domain);
+            if (!normalizedDomain) return;
+            app.domain = normalizedDomain;
+            this.applications.set(normalizedDomain, app);
+            console.log(`Application updated: ${normalizedDomain}`);
             this.loadCertificateForApplication(app);
 
             if (
               this.letsEncryptEnabled &&
               !app.ssl?.customCert &&
               app.ssl?.autoProvision &&
-              !this.provisioningInProgress.has(app.domain) &&
-              !this.certStore.hasValidCert(app.domain)
+              !this.provisioningInProgress.has(normalizedDomain) &&
+              !this.certStore.hasValidCert(normalizedDomain)
             ) {
-              this.provisioningInProgress.add(app.domain);
+              this.provisioningInProgress.add(normalizedDomain);
               this.ensureManagedCertificate(app)
                 .then((ok) => {
                   if (ok)
                     console.log(
-                      `Let's Encrypt: provisioned certificate for ${app.domain}`,
+                      `Let's Encrypt: provisioned certificate for ${normalizedDomain}`,
                     );
                 })
                 .catch((err) =>
                   console.warn(
-                    `Let's Encrypt: provision failed for ${app.domain}`,
+                    `Let's Encrypt: provision failed for ${normalizedDomain}`,
                     err.message,
                   ),
                 )
-                .finally(() => this.provisioningInProgress.delete(app.domain));
+                .finally(() => this.provisioningInProgress.delete(normalizedDomain));
             }
 
             // Load policy if assigned
@@ -692,11 +718,12 @@ export class ProxyWAFServer {
             }
           }
         } else if (change.type === "removed") {
-          this.applications.delete(app.domain);
-          if (app.domain) {
-            this.certStore.remove(app.domain);
+          const normalizedDomain = normalizeDomainInput(app.domain);
+          if (normalizedDomain) {
+            this.applications.delete(normalizedDomain);
+            this.certStore.remove(normalizedDomain);
           }
-          console.log(`Application removed: ${app.domain}`);
+          console.log(`Application removed: ${normalizedDomain || app.domain}`);
         }
       });
     });
@@ -848,7 +875,7 @@ export class ProxyWAFServer {
         return;
       }
 
-      const host = req.headers.host?.split(":")[0];
+      const host = normalizeDomainInput(req.headers.host?.split(":")[0] || "");
       if (!host) {
         res.writeHead(
           400,

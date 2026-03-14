@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
+import { normalizeIpAddress } from '@/lib/ip-utils';
 
 /**
  * Traffic Analytics Component
@@ -100,7 +101,8 @@ export default function TrafficAnalytics({ logs = [] }) {
     logs
       .filter(log => log.blocked && (log.ipAddress || log.clientIp))
       .forEach(log => {
-        const ip = log.ipAddress || log.clientIp;
+        const ip = normalizeIpAddress(log.ipAddress || log.clientIp || '');
+        if (!ip) return;
         const existing = ipMap.get(ip) || { ip, count: 0 };
         existing.count++;
         ipMap.set(ip, existing);
