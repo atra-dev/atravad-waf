@@ -269,4 +269,3 @@ function getCountryFlag(code) {
   return String.fromCodePoint(...codePoints);
 }
 
-/**
