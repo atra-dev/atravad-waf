@@ -59,6 +59,10 @@ export default function GeographicAnalytics({ logs = [] }) {
   const topCountries = useMemo(() => {
     return countryData.slice(0, 10);
   }, [countryData]);
+  const maxCountryCount = useMemo(
+    () => Math.max(...countryData.map((c) => c.count), 1),
+    [countryData]
+  );
 
   // Total unique countries
   const uniqueCountries = countryData.length;
@@ -112,12 +116,11 @@ export default function GeographicAnalytics({ logs = [] }) {
               <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const countryCode = geo.properties.ISO_A2;
-                    const countryInfo = countryData.find(c => c.code === countryCode);
+                    const countryInfo = findCountryInfoForGeo(geo, countryData);
                     const fillColor = countryInfo
                       ? countryInfo.blocked > 0
                         ? `rgba(239, 68, 68, ${Math.min(0.3 + (countryInfo.blocked / countryInfo.count) * 0.7, 1)})`
-                        : `rgba(34, 197, 94, ${Math.min(0.3 + (countryInfo.count / Math.max(...countryData.map(c => c.count))) * 0.7, 1)})`
+                        : `rgba(34, 197, 94, ${Math.min(0.45 + (countryInfo.count / maxCountryCount) * 0.55, 1)})`
                       : '#E5E7EB';
                     
                     return (
@@ -267,5 +270,44 @@ function getCountryFlag(code) {
     .map(char => 127397 + char.charCodeAt(0));
   
   return String.fromCodePoint(...codePoints);
+}
+
+function normalizeCountryName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/[().,']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findCountryInfoForGeo(geo, countryData) {
+  const props = geo?.properties || {};
+  const possibleCodes = [
+    props.ISO_A2,
+    props.iso_a2,
+    props.ISO2,
+    props.iso2,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).toUpperCase());
+
+  for (const code of possibleCodes) {
+    const byCode = countryData.find((c) => c.code === code);
+    if (byCode) return byCode;
+  }
+
+  const geoName = normalizeCountryName(
+    props.NAME || props.name || props.ADMIN || props.admin || ''
+  );
+  if (!geoName) return null;
+
+  return (
+    countryData.find((c) => normalizeCountryName(c.name) === geoName) ||
+    countryData.find((c) => {
+      const countryName = normalizeCountryName(c.name);
+      return countryName.includes(geoName) || geoName.includes(countryName);
+    }) ||
+    null
+  );
 }
 
