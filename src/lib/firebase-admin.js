@@ -21,8 +21,13 @@ if (!getApps().length) {
         }),
       });
       isInitialized = true;
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      initializeApp();
+      isInitialized = true;
     } else {
-      console.warn('Firebase Admin environment variables not set. Set NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL, NEXT_PUBLIC_FIREBASE_PRIVATE_KEY.');
+      console.warn(
+        'Firebase Admin environment variables not set. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY (or NEXT_PUBLIC_FIREBASE_*).'
+      );
     }
   } catch (error) {
     console.error('Firebase Admin initialization error:', error);

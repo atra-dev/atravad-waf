@@ -89,9 +89,9 @@ nano /opt/atravad-waf/.env.waf
 **Firebase (required):**
 
 ```env
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
-NEXT_PUBLIC_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
 ```
 
 **WAF options (optional):**
@@ -109,7 +109,12 @@ ATRAVAD_HTTP_PORT=80
 When using an **Application Load Balancer** (recommended on AWS), set `ATRAVAD_HTTP_PORT=8080` and have the ALB forward to port 8080. The ALB will terminate SSL with an ACM certificate.
 
 ```bash
-chmod 600 /opt/atravad-waf/.env.waf
+sudo chown root:www-data /opt/atravad-waf/.env.waf
+sudo chmod 640 /opt/atravad-waf/.env.waf
+sudo mkdir -p /opt/atravad-waf/certs
+sudo chown -R www-data:www-data /opt/atravad-waf/certs
+sudo find /opt/atravad-waf/certs -type d -exec chmod 750 {} \;
+sudo find /opt/atravad-waf/certs -type f -exec chmod 640 {} \;
 ```
 
 ### A.5 Run the WAF proxy
@@ -185,9 +190,9 @@ aws ecr create-repository --repository-name atravad-waf-proxy --region us-east-1
 1. **AWS Console** → **Secrets Manager** → **Store a new secret**.
 2. **Secret type:** Other (key/value).
 3. Add keys (match the env var names the app reads):
-   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID` = your Firebase project ID
-   - `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL` = service account email
-   - `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY` = full private key string (with `\n` for newlines)
+   - `FIREBASE_PROJECT_ID` = your Firebase project ID
+   - `FIREBASE_CLIENT_EMAIL` = service account email
+   - `FIREBASE_PRIVATE_KEY` = full private key string (with `\n` for newlines)
 4. **Secret name:** e.g. `atravad-waf/firebase-admin`.
 5. Create the secret.
 
@@ -201,10 +206,10 @@ aws ecr create-repository --repository-name atravad-waf-proxy --region us-east-1
      - **Image:** `YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/atravad-waf-proxy:latest`.
      - **Port mappings:** **8080** (TCP).
      - **Environment (optional):** `ATRAVAD_HTTP_PORT=8080`, `ATRAVAD_TENANT_NAME=Acme` (or leave empty for all tenants).
-     - **Secrets:** Add from Secrets Manager:
-       - `NEXT_PUBLIC_FIREBASE_PROJECT_ID` → secret `atravad-waf/firebase-admin`, key `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-       - `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL` → same secret, key `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL`
-       - `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY` → same secret, key `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY`
+      - **Secrets:** Add from Secrets Manager:
+       - `FIREBASE_PROJECT_ID` → secret `atravad-waf/firebase-admin`, key `FIREBASE_PROJECT_ID`
+       - `FIREBASE_CLIENT_EMAIL` → same secret, key `FIREBASE_CLIENT_EMAIL`
+       - `FIREBASE_PRIVATE_KEY` → same secret, key `FIREBASE_PRIVATE_KEY`
    - **Log configuration:** AWS Logs (e.g. log group `atravad-waf-proxy`).
    - **Health check (optional):** CMD-SHELL `curl -f http://localhost:8080/health || exit 1` or use ALB health check only.
 3. **Task role:** Ensure the task can pull from ECR and read Secrets Manager (or attach a policy that allows `secretsmanager:GetSecretValue`).

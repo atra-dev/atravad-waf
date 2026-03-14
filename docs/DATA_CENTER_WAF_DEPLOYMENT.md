@@ -135,12 +135,13 @@ Use the values from your Firebase service account JSON:
 
 ```env
 # Firebase Admin (required for Firestore)
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=atravad-waf
-NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@atravad-waf.iam.gserviceaccount.com
-NEXT_PUBLIC_FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
+FIREBASE_PROJECT_ID=atravad-waf
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@atravad-waf.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
 ```
 
-- For `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY`: use the full `private_key` string from the JSON, including `\n`. Keep the quotes. If you paste the key with real newlines, replace them with `\n` in the env file.
+- For `FIREBASE_PRIVATE_KEY`: use the full `private_key` string from the JSON, including `\n`. Keep the quotes. If you paste the key with real newlines, replace them with `\n` in the env file.
+- `NEXT_PUBLIC_FIREBASE_*` still works as a compatibility fallback, but `FIREBASE_*` is recommended for server-only credentials.
 
 ### 4.3 Set WAF proxy options (optional)
 
@@ -160,7 +161,12 @@ When using **Nginx + Let’s Encrypt** on the same host (Step 6), set `ATRAVAD_H
 ### 4.4 Secure the env file
 
 ```bash
-chmod 600 /opt/atravad-waf/.env.waf
+sudo chown root:www-data /opt/atravad-waf/.env.waf
+sudo chmod 640 /opt/atravad-waf/.env.waf
+sudo mkdir -p /opt/atravad-waf/certs
+sudo chown -R www-data:www-data /opt/atravad-waf/certs
+sudo find /opt/atravad-waf/certs -type d -exec chmod 750 {} \;
+sudo find /opt/atravad-waf/certs -type f -exec chmod 640 {} \;
 ```
 
 ---
@@ -510,9 +516,10 @@ If the native module fails to build, the server will still run with the built-in
 
 | Issue | What to check |
 |-------|----------------|
-| “Firebase Admin environment variables not set” | `.env.waf` path, `EnvironmentFile` in systemd, or `--env-file` in PM2; correct `project_id`, `client_email`, `private_key`. |
+| “Firebase Admin environment variables not set” | `.env.waf` path, `EnvironmentFile` in systemd, and file permissions (service user can read it); correct `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`. |
 | “Application not found for domain” | Firestore has an application whose `domain` matches the request `Host`; proxy has loaded apps (see logs). |
 | No applications loaded | Firebase credentials and network (outbound to `firestore.googleapis.com`); Firestore rules allow the service account to read `applications`. |
+| `CertStore: failed to load from disk ... EACCES` | Ensure `/opt/atravad-waf/certs` and files are owned/readable by the service user (example above uses `www-data`). |
 | Cannot bind to port 80/443 | Run with sudo, or use a higher port and reverse proxy; check firewall. |
 | 502 Bad Gateway to origin | Origin URL in Dashboard is correct and reachable from the WAF server; check health checks in logs. |
 

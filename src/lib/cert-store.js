@@ -128,17 +128,21 @@ export class CertStore {
         const certPath = path.join(this.certsDir, domainKey, 'cert.pem');
         const fullchainPath = path.join(this.certsDir, domainKey, 'fullchain.pem');
         if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-          const key = fs.readFileSync(keyPath, 'utf8');
-          const cert = fs.readFileSync(certPath, 'utf8');
-          const fullchain = fs.existsSync(fullchainPath)
-            ? fs.readFileSync(fullchainPath, 'utf8')
-            : cert;
-          let expiresAt = null;
           try {
-            const x = new X509Certificate(cert);
-            if (x.validTo) expiresAt = new Date(x.validTo).getTime();
-          } catch (_) {}
-          this.store.set(domainKey, { key, cert, fullchain, expiresAt });
+            const key = fs.readFileSync(keyPath, 'utf8');
+            const cert = fs.readFileSync(certPath, 'utf8');
+            const fullchain = fs.existsSync(fullchainPath)
+              ? fs.readFileSync(fullchainPath, 'utf8')
+              : cert;
+            let expiresAt = null;
+            try {
+              const x = new X509Certificate(cert);
+              if (x.validTo) expiresAt = new Date(x.validTo).getTime();
+            } catch (_) {}
+            this.store.set(domainKey, { key, cert, fullchain, expiresAt });
+          } catch (entryErr) {
+            console.warn('CertStore: skipping unreadable cert entry', domainKey, entryErr.message);
+          }
         }
       }
     } catch (err) {
