@@ -4,13 +4,12 @@ import { useMemo } from 'react';
 import { isPrivateIp } from '@/lib/ip-utils';
 
 // Try to import react-simple-maps (React 19 compatible fork)
-let ComposableMap, Geographies, Geography, Marker;
+let ComposableMap, Geographies, Geography;
 try {
   const maps = require('react-simple-maps');
   ComposableMap = maps.ComposableMap;
   Geographies = maps.Geographies;
   Geography = maps.Geography;
-  Marker = maps.Marker;
 } catch (e) {
   // Library not installed - will show placeholder
   ComposableMap = null;
@@ -138,30 +137,6 @@ export default function GeographicAnalytics({ logs = [] }) {
                   })
                 }
               </Geographies>
-              {countryData.slice(0, 20).map((country, idx) => {
-                // Get country coordinates (simplified - in production use a proper coordinate database)
-                const coords = getCountryCoordinates(country.code);
-                if (!coords) return null;
-                
-                return (
-                  <Marker key={idx} coordinates={coords}>
-                    <circle
-                      r={Math.min(Math.max(country.count / 10, 3), 12)}
-                      fill="#EF4444"
-                      stroke="#FFFFFF"
-                      strokeWidth={1}
-                      opacity={0.8}
-                    />
-                    <text
-                      textAnchor="middle"
-                      y={-Math.min(Math.max(country.count / 10, 3), 12) - 5}
-                      style={{ fontFamily: 'system-ui', fill: '#1F2937', fontSize: '10px', fontWeight: 'bold' }}
-                    >
-                      {country.count}
-                    </text>
-                  </Marker>
-                );
-              })}
             </ComposableMap>
             <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600">
               <div className="flex items-center gap-2">
@@ -171,10 +146,6 @@ export default function GeographicAnalytics({ logs = [] }) {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-200 rounded"></div>
                 <span>Blocked Traffic</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span>Request Count</span>
               </div>
             </div>
           </div>
@@ -299,33 +270,3 @@ function getCountryFlag(code) {
 }
 
 /**
- * Get approximate coordinates for a country (simplified)
- * In production, use a proper coordinate database
- */
-function getCountryCoordinates(countryCode) {
-  // Simplified coordinate mapping for top countries
-  const coordinates = {
-    'US': [-95.7129, 37.0902],
-    'GB': [-3.4360, 55.3781],
-    'CA': [-106.3468, 56.1304],
-    'AU': [133.7751, -25.2744],
-    'DE': [10.4515, 51.1657],
-    'FR': [2.2137, 46.2276],
-    'IT': [12.5674, 41.8719],
-    'ES': [-3.7492, 40.4637],
-    'NL': [5.2913, 52.1326],
-    'BR': [-51.9253, -14.2350],
-    'IN': [78.9629, 20.5937],
-    'CN': [104.1954, 35.8617],
-    'JP': [138.2529, 36.2048],
-    'KR': [127.7669, 35.9078],
-    'MX': [-102.5528, 23.6345],
-    'AR': [-63.6167, -38.4161],
-    'ZA': [22.9375, -30.5595],
-    'EG': [30.8025, 26.8206],
-    'NG': [8.6753, 9.0820],
-    'PH': [121.7740, 12.8797],
-  };
-  
-  return coordinates[countryCode] || null;
-}
