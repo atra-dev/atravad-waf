@@ -7,7 +7,7 @@
 
 import dns from 'dns';
 import { promisify } from 'util';
-import { normalizeIpAddress, isPrivateIp } from './ip-utils';
+import { normalizeIpAddress, isPrivateIp } from './ip-utils.js';
 
 const dnsResolve = promisify(dns.resolve4);
 const geoCache = new Map();
