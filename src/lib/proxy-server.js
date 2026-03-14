@@ -296,6 +296,19 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
   });
 }
 
+function extractClientIp(req) {
+  const forwarded = String(req?.headers?.["x-forwarded-for"] || "");
+  const firstForwarded = forwarded
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)[0];
+  return firstForwarded || req?.socket?.remoteAddress || null;
+}
+
+function isHealthPath(pathname) {
+  return pathname === "/health" || pathname === "/_atravad/health";
+}
+
 /**
  * Proxy Server Class
  */
@@ -334,12 +347,75 @@ export class ProxyWAFServer {
     this.letsEncryptEnabled =
       options.letsEncryptEnabled !== false && isLetsEncryptAvailable;
     this.provisioningInProgress = new Set(); // domain -> avoid duplicate provision
+    this.logAllowedRequests =
+      options.logAllowedRequests ??
+      (process.env.WAF_LOG_ALLOWED_REQUESTS !== "false" &&
+        process.env.WAF_LOG_ALLOWED_REQUESTS !== "0");
+    this.logHealthRequests =
+      options.logHealthRequests === true ||
+      process.env.WAF_LOG_HEALTH_REQUESTS === "true" ||
+      process.env.WAF_LOG_HEALTH_REQUESTS === "1";
 
     // Load applications from Firestore
     this.loadApplications();
 
     // Listen for real-time updates
     this.setupRealtimeListener();
+  }
+
+  shouldLogRequest(pathname, blocked, statusCode) {
+    if (!this.logHealthRequests && isHealthPath(pathname)) return false;
+    if (blocked) return true;
+    if (this.logAllowedRequests) return true;
+    return Number.isFinite(statusCode) && statusCode >= 400;
+  }
+
+  queueSecurityLog({
+    app,
+    req,
+    level = "info",
+    severity = "INFO",
+    message,
+    blocked = false,
+    statusCode = null,
+    ruleId = null,
+    ruleMessage = null,
+    response = null,
+  }) {
+    if (!adminDb || !app?.tenantName || !req) return;
+    const uri = req.url || "/";
+    if (!this.shouldLogRequest(uri.split("?")[0], blocked, statusCode)) return;
+    const entry = {
+      source: app.domain || "proxy-waf",
+      tenantName: app.tenantName,
+      timestamp: new Date().toISOString(),
+      level,
+      severity,
+      message: message || "WAF request event",
+      ruleId,
+      ruleMessage,
+      request: {
+        host: req.headers?.host || null,
+        method: req.method || "GET",
+        uri,
+      },
+      response,
+      clientIp: extractClientIp(req),
+      ipAddress: extractClientIp(req),
+      userAgent: req.headers?.["user-agent"] || null,
+      uri,
+      method: req.method || "GET",
+      statusCode,
+      blocked: Boolean(blocked),
+      ingestedAt: new Date().toISOString(),
+    };
+
+    adminDb
+      .collection("logs")
+      .add(entry)
+      .catch((err) =>
+        console.warn("Failed to write security log:", err.message),
+      );
   }
 
   loadCertificateForApplication(app) {
@@ -852,19 +928,18 @@ export class ProxyWAFServer {
           bodyBuffer,
         );
         if (!inspection.allowed || inspection.blocked) {
+          const topRule = inspection.matchedRules?.[0] || null;
           res.writeHead(403, {
             "Content-Type": "application/json",
             "X-ATRAVAD-Blocked": "true",
             "X-ATRAVAD-Reason":
-              inspection.matchedRules[0]?.message || "Security rule violation",
+              topRule?.message || "Security rule violation",
             ...withWafFingerprintHeaders(),
           });
           res.end(
             JSON.stringify({
               error: "Request blocked by WAF",
-              reason:
-                inspection.matchedRules[0]?.message ||
-                "Security rule violation",
+              reason: topRule?.message || "Security rule violation",
               matchedRules: inspection.matchedRules,
             }),
           );
@@ -873,6 +948,18 @@ export class ProxyWAFServer {
             method: req.method,
             matchedRules: inspection.matchedRules,
             engine: inspection.engine,
+          });
+          this.queueSecurityLog({
+            app,
+            req,
+            level: "warn",
+            severity: "CRITICAL",
+            message: `Request blocked by WAF for ${host}`,
+            blocked: true,
+            statusCode: 403,
+            ruleId: topRule?.id || null,
+            ruleMessage: topRule?.message || null,
+            response: { statusCode: 403, engine: inspection.engine || null },
           });
           return;
         }
@@ -938,6 +1025,33 @@ export class ProxyWAFServer {
         typeof this.modSecurity?.getResponseBodyLimit === "function"
           ? this.modSecurity.getResponseBodyLimit()
           : 524288;
+      const logProxyResult = ({
+        statusCode,
+        blocked = false,
+        level = "info",
+        severity = "INFO",
+        message,
+        ruleId = null,
+        ruleMessage = null,
+      }) => {
+        this.queueSecurityLog({
+          app,
+          req: clientReq,
+          level,
+          severity,
+          message:
+            message ||
+            `${clientReq.method || "GET"} ${clientReq.url || "/"} -> ${statusCode || "unknown"}`,
+          blocked,
+          statusCode: Number.isFinite(statusCode) ? statusCode : null,
+          ruleId,
+          ruleMessage,
+          response: {
+            statusCode: Number.isFinite(statusCode) ? statusCode : null,
+            origin: originUrlObj.host,
+          },
+        });
+      };
 
       const proxyReq = protocol.request(requestOptions, (proxyRes) => {
         if (doResponseInspection) {
@@ -976,6 +1090,16 @@ export class ProxyWAFServer {
                     }),
                   );
                 }
+                const topRule = inspection.matchedRules?.[0] || null;
+                logProxyResult({
+                  statusCode: 502,
+                  blocked: true,
+                  level: "warn",
+                  severity: "CRITICAL",
+                  message: `Response blocked by WAF for ${clientReq.headers.host || "unknown-host"}`,
+                  ruleId: topRule?.id || null,
+                  ruleMessage: topRule?.message || null,
+                });
                 return;
               }
             } catch (err) {
@@ -995,9 +1119,25 @@ export class ProxyWAFServer {
               );
               clientRes.end(body);
             }
+            logProxyResult({
+              statusCode: proxyRes.statusCode,
+              level: proxyRes.statusCode >= 500 ? "error" : "info",
+              severity:
+                proxyRes.statusCode >= 500
+                  ? "HIGH"
+                  : proxyRes.statusCode >= 400
+                    ? "MEDIUM"
+                    : "INFO",
+            });
           });
           proxyRes.on("error", (err) => {
             console.error("Proxy response error:", err);
+            logProxyResult({
+              statusCode: 502,
+              level: "error",
+              severity: "HIGH",
+              message: `Proxy response error: ${err.message}`,
+            });
             if (!clientRes.headersSent) {
               clientRes.writeHead(
                 502,
@@ -1028,9 +1168,25 @@ export class ProxyWAFServer {
                 );
               }
               clientRes.end(body);
+              logProxyResult({
+                statusCode: proxyRes.statusCode,
+                level: proxyRes.statusCode >= 500 ? "error" : "info",
+                severity:
+                  proxyRes.statusCode >= 500
+                    ? "HIGH"
+                    : proxyRes.statusCode >= 400
+                      ? "MEDIUM"
+                      : "INFO",
+              });
             });
             proxyRes.on("error", (err) => {
               console.error("Proxy response error:", err);
+              logProxyResult({
+                statusCode: 502,
+                level: "error",
+                severity: "HIGH",
+                message: `Proxy response error: ${err.message}`,
+              });
               if (!clientRes.headersSent) {
                 clientRes.writeHead(
                   502,
@@ -1048,11 +1204,27 @@ export class ProxyWAFServer {
             );
           }
           proxyRes.pipe(clientRes);
+          logProxyResult({
+            statusCode: proxyRes.statusCode,
+            level: proxyRes.statusCode >= 500 ? "error" : "info",
+            severity:
+              proxyRes.statusCode >= 500
+                ? "HIGH"
+                : proxyRes.statusCode >= 400
+                  ? "MEDIUM"
+                  : "INFO",
+          });
         }
       });
 
       proxyReq.on("error", (error) => {
         console.error("Proxy request error:", error);
+        logProxyResult({
+          statusCode: 502,
+          level: "error",
+          severity: "HIGH",
+          message: `Proxy request error: ${error.message}`,
+        });
         if (!clientRes.headersSent) {
           clientRes.writeHead(
             502,
