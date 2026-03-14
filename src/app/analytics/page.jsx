@@ -101,7 +101,6 @@ export default function AnalyticsPage() {
 
         // Calculate analytics
         const attackTypes = {};
-        const otherBreakdown = {};
         const topIPs = {};
         const uniqueIPSet = new Set();
         const severityCounts = { critical: 0, high: 0, warning: 0, info: 0 };
@@ -111,11 +110,6 @@ export default function AnalyticsPage() {
           // Attack types
           const attackCategory = classifyAttack(log);
           attackTypes[attackCategory] = (attackTypes[attackCategory] || 0) + 1;
-
-          if (attackCategory === 'Other') {
-            const signature = String(log.ruleMessage || log.message || 'Unclassified event').slice(0, 120);
-            otherBreakdown[signature] = (otherBreakdown[signature] || 0) + 1;
-          }
 
           // Top IPs
           const normalizedIp = normalizeIpAddress(log.ipAddress || log.clientIp || '');
@@ -140,9 +134,6 @@ export default function AnalyticsPage() {
           attackTypes: Object.entries(attackTypes)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10),
-          otherBreakdown: Object.entries(otherBreakdown)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 8),
           topIPs: Object.entries(topIPs)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10),
@@ -265,40 +256,25 @@ export default function AnalyticsPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Attack Types</h2>
             {analytics?.attackTypes && analytics.attackTypes.length > 0 ? (
-              <>
-                <div className="space-y-3">
-                  {analytics.attackTypes.map(([type, count]) => {
-                    const percentage = (count / analytics.totalAttacks) * 100;
-                    return (
-                      <div key={type}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-medium text-gray-700">{type}</span>
-                          <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          ></div>
-                        </div>
+              <div className="space-y-3">
+                {analytics.attackTypes.map(([type, count]) => {
+                  const percentage = (count / analytics.totalAttacks) * 100;
+                  return (
+                    <div key={type}>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium text-gray-700">{type}</span>
+                        <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
                       </div>
-                    );
-                  })}
-                </div>
-                {analytics.otherBreakdown?.length > 0 && (
-                  <div className="mt-6 border-t border-gray-200 pt-4">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Other Breakdown (Unclassified Signatures)</h3>
-                    <div className="space-y-2">
-                      {analytics.otherBreakdown.map(([signature, count], idx) => (
-                        <div key={`${signature}-${idx}`} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-700 truncate pr-3">{signature}</span>
-                          <span className="text-gray-500 font-medium whitespace-nowrap">{count}</span>
-                        </div>
-                      ))}
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </>
+                  );
+                })}
+              </div>
             ) : (
               <p className="text-sm text-gray-500 text-center py-8">No attack data available</p>
             )}
