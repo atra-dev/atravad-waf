@@ -219,7 +219,18 @@ export default function GeographicAnalytics({ logs = [] }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className="text-lg mr-2">{getCountryFlag(country.code)}</span>
+                        <span className="mr-2 inline-flex items-center justify-center w-6 h-6">
+                          {country.code === 'XX' ? (
+                            <span className="text-lg leading-none" aria-label="Local traffic">🏠</span>
+                          ) : (
+                            <img
+                              src={getFlagImageUrl(country.code)}
+                              alt={`${country.code} flag`}
+                              className="w-5 h-4 rounded-sm border border-gray-200 object-cover"
+                              loading="lazy"
+                            />
+                          )}
+                        </span>
                         <span className="text-sm font-medium text-gray-900">{country.name}</span>
                       </div>
                     </td>
@@ -256,19 +267,10 @@ export default function GeographicAnalytics({ logs = [] }) {
   );
 }
 
-/**
- * Get country flag emoji from country code
- */
-function getCountryFlag(code) {
-  // Convert country code to flag emoji
-  if (code === 'XX') return 'Local';
-
-  const codePoints = code
-    .toUpperCase()
-    .split('')
-    .map(char => 127397 + char.charCodeAt(0));
-
-  return String.fromCodePoint(...codePoints);
+function getFlagImageUrl(code) {
+  const normalized = String(code || '').trim().toLowerCase();
+  if (!/^[a-z]{2}$/.test(normalized)) return '';
+  return `https://flagcdn.com/w40/${normalized}.png`;
 }
 
 function normalizeCountryName(name) {
