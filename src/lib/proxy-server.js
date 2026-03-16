@@ -278,12 +278,14 @@ function renderBlockedHtml({
   <style>
     :root {
       color-scheme: light;
-      --bg-top: #f7f7f8;
-      --bg-bottom: #eceef2;
+      --bg-top: #fff4f4;
+      --bg-bottom: #eef3fb;
       --card: #ffffff;
-      --text: #1a1a1a;
-      --muted: #50555e;
-      --border: #d3d7df;
+      --text: #0b1d2a;
+      --muted: #4b5c6b;
+      --border: #f2caca;
+      --brand: #0f766e;
+      --brand-soft: #d9f3f1;
       --danger: #d90000;
     }
     * { box-sizing: border-box; }
@@ -291,7 +293,7 @@ function renderBlockedHtml({
       margin: 0;
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
       background:
-        radial-gradient(circle at 10% 10%, #f5f6fa 0, transparent 38%),
+        radial-gradient(circle at 10% 10%, #ffe0e0 0, transparent 38%),
         linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
       color: var(--text);
       min-height: 100vh;
@@ -302,21 +304,34 @@ function renderBlockedHtml({
     }
     .shell { width: min(760px, 100%); }
     .card {
+      position: relative;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 28px 30px 30px;
-      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+      border-radius: 18px;
+      padding: 26px;
+      overflow: hidden;
+      box-shadow:
+        0 16px 36px rgba(15, 23, 42, 0.1),
+        0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #b91c1c 0%, #f97316 100%);
     }
     h1 {
       margin: 2px 0 16px;
-      font-size: clamp(30px, 5vw, 48px);
-      line-height: 1.1;
+      font-size: clamp(30px, 6vw, 44px);
+      line-height: 1.05;
     }
     .dot {
       display: inline-block;
-      width: 13px;
-      height: 13px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
       background: var(--danger);
       vertical-align: middle;
@@ -324,72 +339,62 @@ function renderBlockedHtml({
     }
     .intro {
       margin-bottom: 22px;
-      border: 1px solid #bfc4cb;
-      background: #f7f7f8;
+      border: 1px solid var(--border);
+      background: #fff7f7;
       padding: 14px 16px;
       color: var(--muted);
-      line-height: 1.65;
-      font-size: 16px;
+      line-height: 1.6;
+      font-size: 15px;
     }
     .intro a {
-      color: #128f55;
+      color: var(--brand);
       text-decoration: underline;
       text-underline-offset: 2px;
     }
-    h2 {
-      margin: 0 0 14px;
-      font-size: 34px;
-      line-height: 1.2;
-      letter-spacing: -0.01em;
-    }
     .block-title {
       margin: 0 0 12px;
-      font-size: 38px;
+      font-size: clamp(30px, 6vw, 44px);
       line-height: 1.2;
-      letter-spacing: -0.01em;
-      color: #1f2937;
-    }
-    .label {
-      margin: 0 0 12px;
-      font-size: 36px;
-      font-weight: 700;
-      color: #2b2f36;
+      letter-spacing: -0.02em;
+      color: var(--text);
     }
     .details-title {
       margin: 20px 0 12px;
-      font-size: 36px;
+      font-size: 22px;
       font-weight: 700;
-      color: #2b2f36;
+      color: var(--text);
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #cfd4dc;
+      border: 1px solid #f7d4d4;
       background: #fff;
       font-size: 14px;
+      border-radius: 10px;
+      overflow: hidden;
     }
     td {
-      border-top: 1px solid #e4e7ec;
+      border-top: 1px solid #f4dddd;
       padding: 12px 14px;
       vertical-align: top;
-      color: #2c3442;
+      color: #334155;
       word-break: break-word;
     }
     tr:first-child td {
       border-top: 0;
     }
     td:first-child {
-      width: 180px;
+      width: 170px;
       font-weight: 700;
-      color: #2b3340;
-      background: #fafbfc;
+      color: #0f172a;
+      background: #fff7f7;
     }
   </style>
 </head>
 <body>
   <main class="shell">
     <section class="card">
-      <h2><span class="dot"></span>Access Denied - ${ATRAVAD_WAF_NAME}</h2>
+      <h1 class="block-title"><span class="dot"></span>Access Denied - ${ATRAVAD_WAF_NAME}</h1>
       <div class="intro">
         If you are the site owner (or you manage this site), please whitelist your IP or if you think this block is an error please
         <a href="mailto:support@atravad.com?subject=Access%20Denied%20Support%20Request">open a support ticket</a>
