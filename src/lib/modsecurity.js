@@ -242,7 +242,6 @@ export function generateModSecurityConfig(policy, options = {}) {
   config += 'SecAuditLogStorageDir /var/log/modsec_audit/\n';
   config += 'SecAuditLogFileMode 0600\n';
   config += 'SecAuditLogDirMode 0750\n';
-  config += 'SecAuditLogFileReopenLimit 1000\n';
   config += 'SecAuditLogDirPermissions 0750\n\n';
 
   // Error Handling
@@ -1551,7 +1550,13 @@ export function getStandaloneConfigForProxy(fullConfig) {
   if (!fullConfig || typeof fullConfig !== 'string') return '';
   return fullConfig
     .split('\n')
-    .filter((line) => !/^\s*Include\s+/i.test(line.trim()))
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (/^\s*Include\s+/i.test(trimmed)) return false;
+      // Legacy directive found in older stored policy configs; unsupported by Rules.add().
+      if (/^\s*SecAuditLogFileReopenLimit\b/i.test(trimmed)) return false;
+      return true;
+    })
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
