@@ -1553,8 +1553,12 @@ export function getStandaloneConfigForProxy(fullConfig) {
     .filter((line) => {
       const trimmed = line.trim();
       if (/^\s*Include\s+/i.test(trimmed)) return false;
-      // Legacy directive found in older stored policy configs; unsupported by Rules.add().
+      // Strip file-system audit directives that are unsupported in Rules.add() context.
       if (/^\s*SecAuditLogFileReopenLimit\b/i.test(trimmed)) return false;
+      if (/^\s*SecAuditLogStorageDir\b/i.test(trimmed)) return false;
+      if (/^\s*SecAuditLogFileMode\b/i.test(trimmed)) return false;
+      if (/^\s*SecAuditLogDirMode\b/i.test(trimmed)) return false;
+      if (/^\s*SecAuditLogDirPermissions\b/i.test(trimmed)) return false;
       return true;
     })
     .join('\n')
