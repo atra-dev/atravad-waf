@@ -98,15 +98,16 @@ export default function AnalyticsPage() {
           const logTime = new Date(log.timestamp).getTime();
           return (now.getTime() - logTime) <= timeFilter;
         });
+        const attackLogs = filteredLogs.filter((log) => Boolean(log.blocked));
 
         // Calculate analytics
         const attackTypes = {};
         const topIPs = {};
         const uniqueIPSet = new Set();
-        const severityCounts = { critical: 0, high: 0, warning: 0, info: 0 };
+        const severityCounts = { critical: 0, high: 0, medium: 0, warning: 0, info: 0 };
         const hourlyData = {};
 
-        filteredLogs.forEach(log => {
+        attackLogs.forEach(log => {
           // Attack types
           const attackCategory = classifyAttack(log);
           attackTypes[attackCategory] = (attackTypes[attackCategory] || 0) + 1;
@@ -130,7 +131,7 @@ export default function AnalyticsPage() {
         });
 
         setAnalytics({
-          totalAttacks: filteredLogs.length,
+          totalAttacks: attackLogs.length,
           attackTypes: Object.entries(attackTypes)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10),

@@ -33,6 +33,7 @@ export default function LogsPage() {
   const [filters, setFilters] = useState({
     site: '',
     severity: '',
+    action: '',
     search: '',
   });
   const [exporting, setExporting] = useState(false);
@@ -180,6 +181,12 @@ export default function LogsPage() {
             const hostSite = normalizeDomainInput(String(log.request?.host || ''));
             const nodeSite = normalizeDomainInput(String(log.nodeId || ''));
             return sourceSite === selectedSite || hostSite === selectedSite || nodeSite === selectedSite;
+          });
+        }
+        if (filters.action) {
+          filteredLogs = filteredLogs.filter((log) => {
+            const action = log.blocked ? 'blocked' : 'allowed';
+            return action === filters.action;
           });
         }
         // Client-side search filter
@@ -464,7 +471,7 @@ export default function LogsPage() {
             {/* Filters */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
                   <input
@@ -489,6 +496,18 @@ export default function LogsPage() {
                     <option value="warning">Warning</option>
                     <option value="low">Low</option>
                     <option value="info">Info</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
+                  <select
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    value={filters.action}
+                    onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                  >
+                    <option value="">All Actions</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="allowed">Allowed</option>
                   </select>
                 </div>
                 <div>
@@ -538,6 +557,9 @@ export default function LogsPage() {
                       Severity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Action
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Source
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -560,6 +582,17 @@ export default function LogsPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getSeverityColor(log.severity)}`}>
                           {log.severity || 'info'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                            log.blocked
+                              ? 'bg-red-100 text-red-700 border-red-200'
+                              : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                          }`}
+                        >
+                          {log.blocked ? 'Blocked' : 'Allowed'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
