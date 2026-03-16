@@ -529,17 +529,47 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
 }
 
 function extractClientIp(req) {
-  const forwarded = String(req?.headers?.["x-forwarded-for"] || "");
-  const firstForwarded = forwarded
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)[0];
-  const rawIp = firstForwarded || req?.socket?.remoteAddress || null;
-  return normalizeIpAddress(rawIp) || null;
+  const headers = req?.headers || {};
+  const candidates = [
+    headers["cf-connecting-ip"],
+    headers["x-real-ip"],
+    headers["true-client-ip"],
+    headers["x-client-ip"],
+    String(headers["x-forwarded-for"] || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)[0],
+    req?.socket?.remoteAddress,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeIpAddress(String(candidate || ""));
+    if (normalized) return normalized;
+  }
+  return null;
 }
 
 function isHealthPath(pathname) {
   return pathname === "/health" || pathname === "/_atravad/health";
+}
+
+function parseBooleanEnv(value, defaultValue = false) {
+  if (value === undefined || value === null || value === "") return defaultValue;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+function parsePositiveInt(value, defaultValue) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : defaultValue;
+}
+
+function parseCsvList(value, fallback = []) {
+  if (value === undefined || value === null || value === "") return [...fallback];
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -588,6 +618,60 @@ export class ProxyWAFServer {
       options.logHealthRequests === true ||
       process.env.WAF_LOG_HEALTH_REQUESTS === "true" ||
       process.env.WAF_LOG_HEALTH_REQUESTS === "1";
+    this.allowedLogSampleRate = parsePositiveInt(
+      options.allowedLogSampleRate ?? process.env.WAF_ALLOWED_LOG_SAMPLE_RATE,
+      20,
+    );
+    this.logDedupWindowMs =
+      parsePositiveInt(
+        options.logDedupWindowSec ?? process.env.WAF_LOG_DEDUPE_WINDOW_SEC,
+        30,
+      ) * 1000;
+    this.logDedupCache = new Map();
+    this.skipLowValuePaths =
+      options.skipLowValuePaths ??
+      parseBooleanEnv(process.env.WAF_LOG_SKIP_LOW_VALUE_PATHS, true);
+    this.skipPathPrefixes = parseCsvList(process.env.WAF_LOG_SKIP_PATH_PREFIXES, [
+      "/_next/",
+      "/static/",
+      "/assets/",
+      "/favicon.ico",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/manifest.json",
+      "/apple-touch-icon",
+    ]).map((value) => value.toLowerCase());
+    this.skipPathExtensions = parseCsvList(process.env.WAF_LOG_SKIP_PATH_EXTENSIONS, [
+      ".js",
+      ".css",
+      ".map",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".svg",
+      ".ico",
+      ".webp",
+      ".woff",
+      ".woff2",
+      ".ttf",
+      ".eot",
+    ]).map((value) => value.toLowerCase());
+    this.skipBotUAs =
+      options.skipBotUAs ??
+      parseBooleanEnv(process.env.WAF_LOG_SKIP_BOT_UA, true);
+    this.skipBotPatterns = parseCsvList(process.env.WAF_LOG_SKIP_BOT_UA_PATTERNS, [
+      "googlebot",
+      "bingbot",
+      "yandexbot",
+      "duckduckbot",
+      "baiduspider",
+      "slurp",
+      "crawler",
+      "spider",
+      "bot/",
+      "headlesschrome",
+    ]).map((value) => value.toLowerCase());
 
     // Load applications from Firestore
     this.loadApplications();
@@ -601,6 +685,56 @@ export class ProxyWAFServer {
     if (blocked) return true;
     if (this.logAllowedRequests) return true;
     return Number.isFinite(statusCode) && statusCode >= 400;
+  }
+
+  shouldSkipLowValueRequest(pathname, userAgent = "") {
+    if (!this.skipLowValuePaths) return false;
+    const normalizedPath = String(pathname || "/").toLowerCase();
+    if (this.skipPathPrefixes.some((prefix) => normalizedPath.startsWith(prefix))) {
+      return true;
+    }
+    if (this.skipPathExtensions.some((ext) => normalizedPath.endsWith(ext))) {
+      return true;
+    }
+
+    if (!this.skipBotUAs) return false;
+    const normalizedUa = String(userAgent || "").toLowerCase();
+    if (!normalizedUa) return false;
+    return this.skipBotPatterns.some((pattern) => normalizedUa.includes(pattern));
+  }
+
+  shouldSampleAllowedLog(blocked) {
+    if (blocked) return true;
+    if (this.allowedLogSampleRate <= 1) return true;
+    return Math.random() < 1 / this.allowedLogSampleRate;
+  }
+
+  shouldSkipDuplicateLog({ tenantName, host, uriPath, ruleId, clientIp, statusCode }) {
+    if (this.logDedupWindowMs <= 0) return false;
+    const now = Date.now();
+
+    if (this.logDedupCache.size > 5000) {
+      for (const [cacheKey, expiresAt] of this.logDedupCache.entries()) {
+        if (expiresAt <= now) this.logDedupCache.delete(cacheKey);
+      }
+    }
+
+    const key = [
+      tenantName || "",
+      String(host || "").toLowerCase(),
+      uriPath || "/",
+      String(ruleId || ""),
+      clientIp || "",
+      String(statusCode ?? ""),
+    ].join("|");
+
+    const existing = this.logDedupCache.get(key);
+    if (existing && existing > now) {
+      return true;
+    }
+
+    this.logDedupCache.set(key, now + this.logDedupWindowMs);
+    return false;
   }
 
   queueSecurityLog({
@@ -617,8 +751,33 @@ export class ProxyWAFServer {
   }) {
     if (!adminDb || !app?.tenantName || !req) return;
     const uri = req.url || "/";
-    if (!this.shouldLogRequest(uri.split("?")[0], blocked, statusCode)) return;
+    const uriPath = uri.split("?")[0] || "/";
+    const userAgent = req.headers?.["user-agent"] || "";
+    if (!this.shouldLogRequest(uriPath, blocked, statusCode)) return;
+    if (this.shouldSkipLowValueRequest(uriPath, userAgent)) return;
+    if (!this.shouldSampleAllowedLog(blocked)) return;
     const clientIp = extractClientIp(req);
+    const host = req.headers?.host || null;
+    const derivedRuleId = deriveRuleId({
+      ruleId,
+      ruleMessage,
+      message,
+      blocked,
+      statusCode,
+    });
+    if (
+      this.shouldSkipDuplicateLog({
+        tenantName: app.tenantName,
+        host,
+        uriPath,
+        ruleId: derivedRuleId,
+        clientIp,
+        statusCode,
+      })
+    ) {
+      return;
+    }
+
     const entry = {
       source: app.domain || "proxy-waf",
       tenantName: app.tenantName,
@@ -626,17 +785,17 @@ export class ProxyWAFServer {
       level,
       severity,
       message: message || "WAF request event",
-      ruleId: deriveRuleId({ ruleId, ruleMessage, message, blocked, statusCode }),
+      ruleId: derivedRuleId,
       ruleMessage,
       request: {
-        host: req.headers?.host || null,
+        host,
         method: req.method || "GET",
         uri,
       },
       response,
       clientIp,
       ipAddress: clientIp,
-      userAgent: req.headers?.["user-agent"] || null,
+      userAgent: userAgent || null,
       uri,
       method: req.method || "GET",
       statusCode,
