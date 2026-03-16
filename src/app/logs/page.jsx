@@ -30,6 +30,12 @@ export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 100,
+    totalCount: 0,
+    totalPages: 1,
+  });
   const [filters, setFilters] = useState({
     site: '',
     severity: '',
@@ -64,12 +70,19 @@ export default function LogsPage() {
     }
   }, [isAuthenticated]);
 
-  // Refetch logs when filters change (only if authenticated and has tenant)
+  // Reset to first page when filters change
   useEffect(() => {
     if (isAuthenticated && hasTenant) {
-      fetchLogs();
+      setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
     }
   }, [filters, hasTenant]);
+
+  // Fetch logs when page changes
+  useEffect(() => {
+    if (isAuthenticated && hasTenant) {
+      fetchLogs(false, pagination.page);
+    }
+  }, [isAuthenticated, hasTenant, pagination.page]);
 
   const checkTenantAndFetchData = async () => {
     try {
@@ -154,11 +167,12 @@ export default function LogsPage() {
     }
   };
 
-  const fetchLogs = async (forceRefresh = false) => {
+  const fetchLogs = async (forceRefresh = false, pageToFetch = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('limit', '100');
+      params.append('page', String(pageToFetch));
+      params.append('pageSize', String(pagination.pageSize || 100));
       if (filters.action === 'blocked') params.append('blocked', 'true');
       if (filters.action === 'allowed') params.append('blocked', 'false');
       if (forceRefresh) params.append('_ts', String(Date.now()));
@@ -209,6 +223,13 @@ export default function LogsPage() {
         }
         
         setLogs(filteredLogs);
+        setPagination((prev) => ({
+          ...prev,
+          page: Number(data.page || pageToFetch || 1),
+          pageSize: Number(data.pageSize || prev.pageSize || 100),
+          totalCount: Number(data.totalCount || 0),
+          totalPages: Number(data.totalPages || 1),
+        }));
       }
     } catch (error) {
       console.error('Error fetching logs:', error);
@@ -220,11 +241,28 @@ export default function LogsPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchLogs(true), fetchSites()]);
+      await Promise.all([fetchLogs(true, pagination.page), fetchSites()]);
     } finally {
       setRefreshing(false);
     }
   };
+
+  const handlePageChange = (nextPage) => {
+    const page = Number(nextPage);
+    if (!Number.isFinite(page)) return;
+    if (page < 1 || page > (pagination.totalPages || 1)) return;
+    setPagination((prev) => ({ ...prev, page }));
+  };
+
+  const visiblePages = (() => {
+    const total = pagination.totalPages || 1;
+    const current = pagination.page || 1;
+    const pageSet = new Set([1, total]);
+    for (let p = current - 2; p <= current + 2; p += 1) {
+      if (p >= 1 && p <= total) pageSet.add(p);
+    }
+    return Array.from(pageSet).sort((a, b) => a - b);
+  })();
 
   const handleExport = async () => {
     setExporting(true);
@@ -532,7 +570,7 @@ export default function LogsPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Logs ({logs.length})
+              Logs ({pagination.totalCount.toLocaleString()})
             </h2>
           </div>
 
@@ -548,72 +586,113 @@ export default function LogsPage() {
               <p>No logs found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Timestamp
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Severity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Source
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Rule ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Message
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      IP Address
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getSeverityColor(log.severity)}`}>
-                          {log.severity || 'info'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            log.blocked
-                              ? 'bg-red-100 text-red-700 border-red-200'
-                              : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+            <>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Timestamp
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Severity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Action
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Source
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Rule ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Message
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        IP Address
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getSeverityColor(log.severity)}`}>
+                            {log.severity || 'info'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                              log.blocked
+                                ? 'bg-red-100 text-red-700 border-red-200'
+                                : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                            }`}
+                          >
+                            {log.blocked ? 'Blocked' : 'Allowed'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {log.nodeId || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {deriveRuleId(log)}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {log.message || 'No message'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <p className="text-sm text-gray-600">
+                  Page {pagination.page} of {pagination.totalPages}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => handlePageChange(pagination.page - 1)}
+                    disabled={pagination.page <= 1}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {visiblePages
+                    .map((p, i, arr) => (
+                      <span key={`page-wrap-${p}`} className="inline-flex items-center">
+                        {i > 0 && arr[i - 1] !== p - 1 ? (
+                          <span className="px-1 text-gray-400">...</span>
+                        ) : null}
+                        <button
+                          onClick={() => handlePageChange(p)}
+                          className={`px-3 py-1.5 text-sm border rounded-lg ${
+                            p === pagination.page
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                           }`}
                         >
-                          {log.blocked ? 'Blocked' : 'Allowed'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {log.nodeId || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {deriveRuleId(log)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {log.message || 'No message'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          {p}
+                        </button>
+                      </span>
+                    ))}
+                  <button
+                    onClick={() => handlePageChange(pagination.page + 1)}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
           </>

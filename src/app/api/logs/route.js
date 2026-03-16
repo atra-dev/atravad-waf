@@ -169,7 +169,9 @@ export async function GET(request) {
     const severity = normalizeSeverity(searchParams.get('severity'));
     const blockedParam = searchParams.get('blocked');
     const decisionParam = String(searchParams.get('decision') || '').trim().toLowerCase();
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
+    const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
+    const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
     const startAfter = searchParams.get('startAfter');
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
@@ -179,11 +181,9 @@ export async function GET(request) {
       .where('tenantName', '==', tenantName);
 
     // Mixed historical values (INFO/info, warning/warn, MEDIUM, etc.) make strict
-    // Firestore equality filters unreliable. Fetch a wider tenant slice and filter
-    // normalized values in-memory for stable behavior.
-    const hasExtraFilters = Boolean(level || severity || blockedFilter !== null || decisionParam);
-    const fetchLimit = startAfter ? limit * 4 : (hasExtraFilters ? limit * 6 : limit);
-    const logsSnapshot = await query.limit(fetchLimit).get();
+    // Firestore equality filters unreliable. Fetch tenant logs then apply normalized
+    // filters and pagination in-memory for stable, page-based navigation.
+    const logsSnapshot = await query.get();
 
     let logs = logsSnapshot.docs
       .map((doc) => ({
@@ -217,13 +217,22 @@ export async function GET(request) {
       }
     }
 
-    const hasMore = logs.length > limit;
-    logs = logs.slice(0, limit);
+    const totalCount = logs.length;
+    const totalPages = Math.max(Math.ceil(totalCount / pageSize), 1);
+    const pageClamped = Math.min(page, totalPages);
+    const startIndex = (pageClamped - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const hasMore = endIndex < totalCount;
+    logs = logs.slice(startIndex, endIndex);
 
     return NextResponse.json({
       logs,
       count: logs.length,
       hasMore,
+      page: pageClamped,
+      pageSize,
+      totalCount,
+      totalPages,
     });
   } catch (error) {
     console.error('Error fetching logs:', error);
