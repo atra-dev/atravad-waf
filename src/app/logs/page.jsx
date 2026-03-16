@@ -29,7 +29,6 @@ export default function LogsPage() {
   
   const [logs, setLogs] = useState([]);
   const [sites, setSites] = useState([]);
-  const [appsMeta, setAppsMeta] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     site: '',
@@ -145,23 +144,12 @@ export default function LogsPage() {
             .filter(Boolean)
         )].sort((a, b) => a.localeCompare(b));
         setSites(uniqueSites);
-        setAppsMeta(
-          data.map((app) => ({
-            id: app.id || '',
-            domain: normalizeDomainInput(String(app?.domain || '')),
-            originCountry: String(app?.originCountry || '').trim() || null,
-            originContinent: String(app?.originContinent || '').trim() || null,
-            firewallIp: String(app?.firewallIp || '').trim() || null,
-          }))
-        );
       } else {
         setSites([]);
-        setAppsMeta([]);
       }
     } catch (error) {
       console.error('Error fetching sites:', error);
       setSites([]);
-      setAppsMeta([]);
     }
   };
 
@@ -603,7 +591,7 @@ export default function LogsPage() {
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
-              <GeographicAnalytics logs={logs} apps={appsMeta} />
+              <GeographicAnalytics logs={logs} />
             )}
           </div>
         )}
