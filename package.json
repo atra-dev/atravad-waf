@@ -10,16 +10,16 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "acme-client": "^5.3.1",
-    "selfsigned": "^2.4.1",
     "@opentelemetry/api": "^1.9.0",
+    "acme-client": "^5.3.1",
     "firebase": "^10.13.0",
     "firebase-admin": "^12.6.0",
     "next": "^16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-simple-maps": "^3.0.0",
-    "recharts": "^3.7.0"
+    "recharts": "^3.7.0",
+    "selfsigned": "^2.4.1"
   },
   "optionalDependencies": {
     "modsecurity": "^0.0.3"
@@ -30,6 +30,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "lightningcss": "^1.31.1",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "typescript": "^5.9.3"
   }
 }

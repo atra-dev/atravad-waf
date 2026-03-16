@@ -66,6 +66,7 @@ export async function POST(request) {
       advancedFileUpload,
       apiProtection,
       exceptions,
+      exceptionHandling,
       virtualPatching,
       customRules,
       applicationId,
@@ -76,6 +77,27 @@ export async function POST(request) {
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
+
+    const normalizedExceptions = Array.isArray(exceptions)
+      ? exceptions
+      : (exceptionHandling?.enabled && Array.isArray(exceptionHandling.excludedPaths))
+        ? exceptionHandling.excludedPaths
+            .map((path) => String(path || '').trim())
+            .filter(Boolean)
+            .map((path) => ({
+              path,
+              ruleIds: Array.isArray(exceptionHandling.excludedRules)
+                ? exceptionHandling.excludedRules
+                    .map((ruleId) => String(ruleId || '').trim())
+                    .filter(Boolean)
+                : [],
+              reason: 'UI exception rule',
+            }))
+        : [];
+
+    const normalizedVirtualPatching = Array.isArray(virtualPatching)
+      ? virtualPatching
+      : [];
 
     const policy = {
       sqlInjection: sqlInjection || false,
@@ -100,8 +122,8 @@ export async function POST(request) {
       botDetection: botDetection || null,
       advancedFileUpload: advancedFileUpload || null,
       apiProtection: apiProtection || null,
-      exceptions: exceptions || [],
-      virtualPatching: virtualPatching || [],
+      exceptions: normalizedExceptions,
+      virtualPatching: normalizedVirtualPatching,
       customRules: customRules || [],
     };
 

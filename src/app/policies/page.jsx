@@ -315,6 +315,34 @@ export default function PoliciesPage() {
     setSubmitting(true);
 
     try {
+      const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const exceptions = formData.exceptionHandling.enabled
+        ? (formData.exceptionHandling.excludedPaths || [])
+            .map((path) => String(path || '').trim())
+            .filter(Boolean)
+            .map((path) => ({
+              path,
+              ruleIds: (formData.exceptionHandling.excludedRules || [])
+                .map((ruleId) => String(ruleId || '').trim())
+                .filter(Boolean),
+              reason: 'UI exception rule',
+            }))
+        : [];
+
+      // UI currently collects CVE IDs only, so we generate conservative keyword-match patches.
+      // Full exploit signatures should be supplied through dedicated patch rule inputs.
+      const virtualPatching = formData.virtualPatching.enabled
+        ? (formData.virtualPatching.cveRules || [])
+            .map((cve) => String(cve || '').trim().toUpperCase())
+            .filter(Boolean)
+            .map((cve) => ({
+              cve,
+              description: `CVE keyword match for ${cve}`,
+              pattern: escapeRegex(cve),
+              severity: 'WARNING',
+            }))
+        : [];
+
       // Prepare policy data
       const policyData = {
         name: formData.name,
@@ -343,8 +371,8 @@ export default function PoliciesPage() {
         botDetection: formData.botDetection.enabled ? formData.botDetection : null,
         advancedFileUpload: formData.advancedFileUpload.enabled ? formData.advancedFileUpload : null,
         apiProtection: formData.apiProtection.enabled ? formData.apiProtection : null,
-        exceptionHandling: formData.exceptionHandling.enabled ? formData.exceptionHandling : null,
-        virtualPatching: formData.virtualPatching.enabled ? formData.virtualPatching : null,
+        exceptions,
+        virtualPatching,
         applicationId: formData.applicationId || null,
       };
 

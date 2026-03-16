@@ -9,6 +9,25 @@ import { deriveRuleId } from '@/lib/log-rule-utils';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 
+function normalizeSeverity(severity) {
+  const value = String(severity || '').trim().toLowerCase();
+  if (value === 'critical') return 'critical';
+  if (value === 'high') return 'high';
+  if (value === 'medium') return 'medium';
+  if (value === 'warn' || value === 'warning') return 'warning';
+  if (value === 'low') return 'low';
+  if (value === 'info' || value === 'informational') return 'info';
+  return value;
+}
+
+function normalizeLevel(level) {
+  const value = String(level || '').trim().toLowerCase();
+  if (value === 'warning') return 'warn';
+  if (value === 'err') return 'error';
+  if (value === 'information') return 'info';
+  return value;
+}
+
 /**
  * POST /api/logs
  * Log ingestion for WAF edge. Auth via LOG_INGEST_API_KEY + tenant name.
@@ -60,12 +79,15 @@ export async function POST(request) {
     for (const log of logs) {
       const clientIp = normalizeIpAddress(log.clientIp || log.ipAddress || '') || null;
       const geo = clientIp ? await geolocateIpCached(clientIp) : null;
+      const normalizedLevel = normalizeLevel(log.level || 'info') || 'info';
+      const normalizedSeverity = normalizeSeverity(log.severity || null) || null;
       const logRef = adminDb.collection('logs').doc();
       batch.set(logRef, {
         source: tenantName,
         tenantName: tenantName.trim(),
         timestamp: log.timestamp || now,
-        level: log.level || 'info',
+        level: log.level || normalizedLevel,
+        levelNormalized: normalizedLevel,
         message: log.message,
         ruleId: deriveRuleId({
           ruleId: log.ruleId,
@@ -75,7 +97,8 @@ export async function POST(request) {
           statusCode: log.statusCode || null,
         }),
         ruleMessage: log.ruleMessage || null,
-        severity: log.severity || null,
+        severity: log.severity || normalizedSeverity,
+        severityNormalized: normalizedSeverity,
         request: log.request || null,
         response: log.response || null,
         clientIp,
@@ -142,8 +165,8 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const level = searchParams.get('level');
-    const severity = searchParams.get('severity');
+    const level = normalizeLevel(searchParams.get('level'));
+    const severity = normalizeSeverity(searchParams.get('severity'));
     const limit = parseInt(searchParams.get('limit') || '100', 10);
     const startAfter = searchParams.get('startAfter');
 
@@ -151,14 +174,10 @@ export async function GET(request) {
       .collection('logs')
       .where('tenantName', '==', tenantName);
 
-    if (level) {
-      query = query.where('level', '==', level);
-    }
-    if (severity) {
-      query = query.where('severity', '==', severity);
-    }
-
-    const fetchLimit = startAfter ? limit * 2 : limit;
+    // Mixed historical values (INFO/info, warning/warn, MEDIUM, etc.) make strict
+    // Firestore equality filters unreliable. Fetch a wider tenant slice and filter
+    // normalized values in-memory for stable behavior.
+    const fetchLimit = startAfter ? limit * 4 : (level || severity ? limit * 5 : limit);
     const logsSnapshot = await query.limit(fetchLimit).get();
 
     let logs = logsSnapshot.docs
@@ -172,6 +191,13 @@ export async function GET(request) {
         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
         return timeB - timeA;
       });
+
+    if (level) {
+      logs = logs.filter((log) => normalizeLevel(log.levelNormalized || log.level) === level);
+    }
+    if (severity) {
+      logs = logs.filter((log) => normalizeSeverity(log.severityNormalized || log.severity) === severity);
+    }
 
     if (startAfter) {
       const startAfterIndex = logs.findIndex((log) => log.id === startAfter);

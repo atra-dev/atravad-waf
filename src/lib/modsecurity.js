@@ -895,11 +895,17 @@ function generateRateLimitingRules(ruleIdBase, rateLimitingConfig) {
 function generateIPAccessControlRules(ruleIdBase, ipAccessControl) {
   const { whitelist = [], blacklist = [], action = 'block' } = ipAccessControl;
   let rules = '# IP Access Control Rules\n';
+  const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const normalizeIpList = (items = []) =>
+    items
+      .map((item) => String(item || '').trim())
+      .filter(Boolean);
 
   // IP Whitelist (allow only specified IPs)
-  if (whitelist.length > 0) {
-    const ipList = whitelist.join('|');
-    rules += `SecRule REMOTE_ADDR "!@rx ^(?:${ipList.replace(/\./g, '\\.')})$" \\
+  const normalizedWhitelist = normalizeIpList(whitelist);
+  if (normalizedWhitelist.length > 0) {
+    const ipList = normalizedWhitelist.map(escapeRegex).join('|');
+    rules += `SecRule REMOTE_ADDR "!@rx ^(?:${ipList})$" \\
     "id:${ruleIdBase},phase:1,block,msg:'IP Access Control: IP Address Not Whitelisted',\\
     logdata:'IP: %{REMOTE_ADDR}',\\
     severity:'CRITICAL',\\
@@ -910,9 +916,10 @@ function generateIPAccessControlRules(ruleIdBase, ipAccessControl) {
   }
 
   // IP Blacklist (block specified IPs)
-  if (blacklist.length > 0) {
-    const ipList = blacklist.join('|');
-    rules += `SecRule REMOTE_ADDR "@rx ^(?:${ipList.replace(/\./g, '\\.')})$" \\
+  const normalizedBlacklist = normalizeIpList(blacklist);
+  if (normalizedBlacklist.length > 0) {
+    const ipList = normalizedBlacklist.map(escapeRegex).join('|');
+    rules += `SecRule REMOTE_ADDR "@rx ^(?:${ipList})$" \\
     "id:${ruleIdBase + 1},phase:1,block,msg:'IP Access Control: IP Address Blacklisted',\\
     logdata:'IP: %{REMOTE_ADDR}',\\
     severity:'CRITICAL',\\
@@ -1410,29 +1417,50 @@ export function validateModSecurityConfig(config) {
 
   // Basic syntax checks
   const lines = config.split('\n');
+  let inChain = false;
+
   lines.forEach((line, index) => {
     const trimmed = line.trim();
-    
+
     // Skip comments and empty lines
     if (trimmed.startsWith('#') || trimmed === '') {
       return;
     }
 
-    // Check for SecRule syntax
-    if (trimmed.startsWith('SecRule')) {
-      if (!trimmed.includes('"id:')) {
+    // Check SecRule directives only (skip SecRuleEngine, etc.)
+    if (/^SecRule\s+/.test(trimmed)) {
+      // Most generated rules place action list (id/phase/chain) on the next line.
+      // Validate using a short lookahead window instead of the current line only.
+      const lookahead = lines.slice(index, Math.min(index + 15, lines.length)).join(' ');
+      const hasId = /\bid:\d+\b/.test(lookahead);
+      const hasPhase = /\bphase:\d+\b/.test(lookahead);
+      const hasChain = /\bchain\b/.test(lookahead);
+
+      // Chained sub-rules are allowed to omit id/phase.
+      if (!inChain && !hasId) {
         errors.push(`Line ${index + 1}: SecRule missing id parameter`);
       }
-      if (!trimmed.includes('phase:')) {
+      if (!inChain && !hasPhase) {
         warnings.push(`Line ${index + 1}: SecRule missing phase parameter`);
       }
+
+      inChain = hasChain;
+      return;
     }
 
-    // Check for SecAction syntax
-    if (trimmed.startsWith('SecAction')) {
-      if (!trimmed.includes('"id:')) {
+    // Check SecAction syntax
+    if (/^SecAction\s+/.test(trimmed)) {
+      const lookahead = lines.slice(index, Math.min(index + 3, lines.length)).join(' ');
+      if (!/\bid:\d+\b/.test(lookahead)) {
         errors.push(`Line ${index + 1}: SecAction missing id parameter`);
       }
+      inChain = false;
+      return;
+    }
+
+    // Reset chain state when a new directive begins.
+    if (/^Sec[A-Za-z]/.test(trimmed)) {
+      inChain = false;
     }
   });
 
