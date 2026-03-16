@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { isPrivateIp } from '@/lib/ip-utils';
+import { normalizeDomainInput } from '@/lib/domain-utils';
 
 // Try to import react-simple-maps (React 19 compatible fork)
-let ComposableMap, Geographies, Geography, Marker, Line;
+let ComposableMap, Geographies, Geography, Line, Marker;
 try {
   const maps = require('react-simple-maps');
   ComposableMap = maps.ComposableMap;
   Geographies = maps.Geographies;
   Geography = maps.Geography;
-  Marker = maps.Marker;
   Line = maps.Line;
+  Marker = maps.Marker;
 } catch (e) {
   // Library not installed - will show placeholder
   ComposableMap = null;
@@ -21,8 +22,15 @@ try {
  * Geographic Analytics Component
  * Displays world map with traffic by country and geographic insights
  */
-export default function GeographicAnalytics({ logs = [] }) {
-  const [liveAttackIndex, setLiveAttackIndex] = useState(0);
+export default function GeographicAnalytics({ logs = [], apps = [] }) {
+  const appByDomain = useMemo(() => {
+    const map = new Map();
+    apps.forEach((app) => {
+      const domain = normalizeDomainInput(String(app?.domain || ''));
+      if (domain) map.set(domain, app);
+    });
+    return map;
+  }, [apps]);
 
   const countryData = useMemo(() => {
     const countryMap = new Map();
@@ -76,45 +84,6 @@ export default function GeographicAnalytics({ logs = [] }) {
   const blockedRequests = logs.filter(log => log.blocked).length;
   const allowedRequests = totalRequests - blockedRequests;
 
-  const liveAttackEvents = useMemo(() => {
-    return logs
-      .filter((log) => {
-        const ip = log.ipAddress || log.clientIp;
-        const code =
-          (typeof log.geoCountryCode === 'string' && log.geoCountryCode.trim().toUpperCase()) ||
-          (isPrivateIp(ip) ? 'XX' : '');
-        return Boolean(log.blocked && code && code !== 'XX');
-      })
-      .sort((a, b) => {
-        const ta = new Date(a.timestamp || 0).getTime();
-        const tb = new Date(b.timestamp || 0).getTime();
-        return tb - ta;
-      })
-      .slice(0, 40)
-      .map((log, idx) => {
-        const code = String(log.geoCountryCode || '').trim().toUpperCase();
-        return {
-          id: `${log.id || idx}-${code}-${log.timestamp || ''}`,
-          countryCode: code,
-          countryName: log.geoCountry || code,
-          source: log.source || log.nodeId || 'Unknown source',
-          message: log.message || 'Blocked request',
-          timestamp: log.timestamp || null,
-        };
-      })
-      .filter((item) => item.countryCode && item.countryCode !== 'XX');
-  }, [logs]);
-
-  useEffect(() => {
-    if (liveAttackEvents.length <= 1) return;
-    const timer = setInterval(() => {
-      setLiveAttackIndex((prev) => (prev + 1) % liveAttackEvents.length);
-    }, 1800);
-    return () => clearInterval(timer);
-  }, [liveAttackEvents.length]);
-
-  const currentAttack = liveAttackEvents[liveAttackIndex] || null;
-
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
@@ -143,127 +112,6 @@ export default function GeographicAnalytics({ logs = [] }) {
         </div>
       </div>
 
-      {/* Live Threat Map */}
-      <div className="rounded-xl border border-slate-700 bg-slate-950 text-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold tracking-wide">Live Cyber Threat Map</h3>
-            <p className="text-xs text-slate-400 mt-1">
-              {blockedRequests.toLocaleString()} blocked attacks in current log window
-            </p>
-          </div>
-          <div className="text-xs uppercase tracking-widest text-red-400 font-semibold">
-            Live
-          </div>
-        </div>
-
-        {ComposableMap ? (
-          <div className="p-4 md:p-6">
-            <div className="rounded-lg border border-slate-800 bg-[#090d1f] p-3 md:p-4">
-              <ComposableMap
-                projection="geoEqualEarth"
-                projectionConfig={{ scale: 165, center: [10, 10] }}
-                className="w-full"
-                style={{ width: '100%', height: 'auto' }}
-              >
-                <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
-                  {({ geographies }) => {
-                    const coordinateIndex = buildCountryCoordinateIndex(geographies);
-                    const eventsWithCoordinates = liveAttackEvents
-                      .map((event) => ({
-                        ...event,
-                        coordinates: resolveAttackCoordinates(event, coordinateIndex),
-                      }))
-                      .filter((event) => Array.isArray(event.coordinates));
-
-                    const currentAttackWithCoordinates = (() => {
-                      if (eventsWithCoordinates.length === 0) return null;
-                      const preferred = eventsWithCoordinates.find(
-                        (event) => event.id === currentAttack?.id
-                      );
-                      return preferred || eventsWithCoordinates[0];
-                    })();
-
-                    return (
-                      <>
-                        {geographies.map((geo) => (
-                          <Geography
-                            key={geo.rsmKey}
-                            geography={geo}
-                            fill="#1f2937"
-                            stroke="#334155"
-                            strokeWidth={0.35}
-                            style={{
-                              default: { outline: 'none' },
-                              hover: { outline: 'none' },
-                              pressed: { outline: 'none' },
-                            }}
-                          />
-                        ))}
-
-                        {currentAttackWithCoordinates && (
-                          <Line
-                            from={currentAttackWithCoordinates.coordinates}
-                            to={PROTECTED_ASSET_COORDS}
-                            stroke="#f59e0b"
-                            strokeWidth={1.8}
-                            strokeLinecap="round"
-                            strokeDasharray="4 4"
-                            className="threat-line"
-                          />
-                        )}
-
-                        {eventsWithCoordinates.slice(0, 12).map((event) => (
-                          <Marker key={`src-${event.id}`} coordinates={event.coordinates}>
-                            <circle r={2.8} fill="#ef4444" opacity="0.9" />
-                            <circle r={6} fill="none" stroke="#ef4444" strokeWidth="1.2" className="threat-pulse" />
-                          </Marker>
-                        ))}
-                      </>
-                    );
-                  }}
-                </Geographies>
-
-                <Marker coordinates={PROTECTED_ASSET_COORDS}>
-                  <circle r={3.2} fill="#22c55e" />
-                  <circle r={7} fill="none" stroke="#22c55e" strokeWidth="1.2" className="threat-pulse-slow" />
-                </Marker>
-              </ComposableMap>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">Current Attack</div>
-                {currentAttack ? (
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold text-red-300">
-                      {currentAttack.countryName} ({currentAttack.countryCode}) {'->'} Protected Asset
-                      </div>
-                    <div className="text-xs text-slate-300 truncate">{currentAttack.message}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {currentAttack.timestamp ? new Date(currentAttack.timestamp).toLocaleString() : 'No timestamp'}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-xs text-slate-400">No blocked geo attacks yet.</div>
-                )}
-              </div>
-              <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
-                <div className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">Recent Attack Sources</div>
-                <div className="text-sm text-slate-200">
-                  {liveAttackEvents.slice(0, 6).map((event) => event.countryCode).join(' - ') || 'N/A'}
-                </div>
-                <div className="text-xs text-slate-500 mt-1">Updated from latest blocked requests.</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="px-6 py-8 text-sm text-slate-400">
-            World map library is not installed. Install `react-simple-maps` to enable the live threat map.
-          </div>
-        )}
-      </div>
-
       {/* World Map Visualization */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic by Country</h3>
@@ -278,34 +126,95 @@ export default function GeographicAnalytics({ logs = [] }) {
               style={{ width: '100%', height: 'auto' }}
             >
               <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
-                {({ geographies }) =>
-                  geographies.map((geo) => {
-                    const countryInfo = findCountryInfoForGeo(geo, countryData);
-                    const fillColor = countryInfo
-                      ? countryInfo.blocked > 0
-                        ? `rgba(239, 68, 68, ${Math.min(0.3 + (countryInfo.blocked / countryInfo.count) * 0.7, 1)})`
-                        : `rgba(34, 197, 94, ${Math.min(0.45 + (countryInfo.count / maxCountryCount) * 0.55, 1)})`
-                      : '#E5E7EB';
-                    
-                    return (
-                      <Geography
-                        key={geo.rsmKey}
-                        geography={geo}
-                        fill={fillColor}
-                        stroke="#FFFFFF"
-                        strokeWidth={0.5}
-                        style={{
-                          default: { outline: 'none' },
-                          hover: { outline: 'none', fill: countryInfo ? '#3B82F6' : '#D1D5DB' },
-                          pressed: { outline: 'none' },
-                        }}
-                      />
-                    );
-                  })
-                }
+                {({ geographies }) => {
+                  const coordinateIndex = buildCountryCoordinateIndex(geographies);
+
+                  const routeLines = logs
+                    .filter((log) => typeof log?.blocked === 'boolean')
+                    .slice(0, 100)
+                    .map((log, idx) => {
+                      const sourceCode = String(log.geoCountryCode || '').trim().toUpperCase();
+                      const sourceName = String(log.geoCountry || '').trim();
+                      const sourceCoordinates = resolveCountryCoordinates(
+                        { code: sourceCode, name: sourceName },
+                        coordinateIndex
+                      );
+
+                      const rawHost = String(log?.request?.host || log?.source || '').split(':')[0];
+                      const host = normalizeDomainInput(rawHost);
+                      const app = host ? appByDomain.get(host) : null;
+                      const destinationCountryName = String(app?.originCountry || '').trim();
+                      const destinationCoordinates = resolveCountryCoordinates(
+                        { code: '', name: destinationCountryName },
+                        coordinateIndex
+                      );
+
+                      if (!sourceCoordinates || !destinationCoordinates) return null;
+
+                      return {
+                        id: `${log.id || idx}-${sourceCode}-${host || 'dst'}`,
+                        sourceCoordinates,
+                        destinationCoordinates,
+                        blocked: Boolean(log.blocked),
+                      };
+                    })
+                    .filter(Boolean)
+                    .slice(0, 50);
+
+                  return (
+                    <>
+                      {geographies.map((geo) => {
+                        const countryInfo = findCountryInfoForGeo(geo, countryData);
+                        const fillColor = countryInfo
+                          ? countryInfo.blocked > 0
+                            ? `rgba(239, 68, 68, ${Math.min(0.3 + (countryInfo.blocked / countryInfo.count) * 0.7, 1)})`
+                            : `rgba(34, 197, 94, ${Math.min(0.45 + (countryInfo.count / maxCountryCount) * 0.55, 1)})`
+                          : '#E5E7EB';
+
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            fill={fillColor}
+                            stroke="#FFFFFF"
+                            strokeWidth={0.5}
+                            style={{
+                              default: { outline: 'none' },
+                              hover: { outline: 'none', fill: countryInfo ? '#3B82F6' : '#D1D5DB' },
+                              pressed: { outline: 'none' },
+                            }}
+                          />
+                        );
+                      })}
+
+                      {routeLines.map((line) => (
+                        <Line
+                          key={`line-${line.id}`}
+                          from={line.sourceCoordinates}
+                          to={line.destinationCoordinates}
+                          stroke={line.blocked ? '#F97316' : '#10B981'}
+                          strokeWidth={1.1}
+                          strokeOpacity={line.blocked ? 0.7 : 0.45}
+                        />
+                      ))}
+
+                      {routeLines.map((line) => (
+                        <Marker key={`src-${line.id}`} coordinates={line.sourceCoordinates}>
+                          <circle r={1.4} fill={line.blocked ? '#EF4444' : '#059669'} />
+                        </Marker>
+                      ))}
+
+                      {routeLines.map((line) => (
+                        <Marker key={`dst-${line.id}`} coordinates={line.destinationCoordinates}>
+                          <circle r={1.4} fill="#2563EB" />
+                        </Marker>
+                      ))}
+                    </>
+                  );
+                }}
               </Geographies>
             </ComposableMap>
-            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600">
+            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600 flex-wrap">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-green-200 rounded"></div>
                 <span>Allowed Traffic</span>
@@ -313,6 +222,14 @@ export default function GeographicAnalytics({ logs = [] }) {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-200 rounded"></div>
                 <span>Blocked Traffic</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-1 bg-orange-500 rounded"></div>
+                <span>Blocked Route (Source -{">"} Destination)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-1 bg-emerald-500 rounded"></div>
+                <span>Allowed Route (Source -{">"} Destination)</span>
               </div>
             </div>
           </div>
@@ -416,50 +333,9 @@ export default function GeographicAnalytics({ logs = [] }) {
           </table>
         </div>
       </div>
-
-      <style jsx>{`
-        .threat-line {
-          animation: dashShift 1.2s linear infinite;
-        }
-        .threat-pulse {
-          transform-origin: center;
-          animation: pulseFast 1.4s ease-out infinite;
-        }
-        .threat-pulse-slow {
-          transform-origin: center;
-          animation: pulseSlow 2s ease-out infinite;
-        }
-        @keyframes dashShift {
-          to {
-            stroke-dashoffset: -16;
-          }
-        }
-        @keyframes pulseFast {
-          0% {
-            opacity: 0.9;
-            transform: scale(0.55);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(1.35);
-          }
-        }
-        @keyframes pulseSlow {
-          0% {
-            opacity: 0.8;
-            transform: scale(0.65);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(1.5);
-          }
-        }
-      `}</style>
     </div>
   );
 }
-
-const PROTECTED_ASSET_COORDS = [121.0, 14.6];
 
 /**
  * Get country flag emoji from country code
@@ -555,20 +431,16 @@ function buildCountryCoordinateIndex(geographies = []) {
   return { byCode, byName };
 }
 
-function resolveAttackCoordinates(event, coordinateIndex) {
-  const byCode = coordinateIndex?.byCode || new Map();
-  const byName = coordinateIndex?.byName || new Map();
+function resolveCountryCoordinates(country, coordinateIndex) {
+  const code = String(country?.code || '').trim().toUpperCase();
+  const name = normalizeCountryName(country?.name || '');
 
-  const rawCode = String(event?.countryCode || '').trim().toUpperCase();
-  if (rawCode) {
-    const exact = byCode.get(rawCode);
-    if (exact) return exact;
+  if (code && coordinateIndex.byCode.has(code)) {
+    return coordinateIndex.byCode.get(code);
   }
 
-  const normalizedName = normalizeCountryName(event?.countryName || '');
-  if (normalizedName) {
-    const exactName = byName.get(normalizedName);
-    if (exactName) return exactName;
+  if (name && coordinateIndex.byName.has(name)) {
+    return coordinateIndex.byName.get(name);
   }
 
   return null;
