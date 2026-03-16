@@ -13,6 +13,7 @@ import http from "http";
 import https from "https";
 import tls from "tls";
 import { URL } from "url";
+import os from "os";
 import { createRequire } from "module";
 import { adminDb } from "./firebase-admin.js";
 import { createModSecurityProxy } from "./modsecurity-proxy.js";
@@ -241,11 +242,33 @@ function shouldReturnJsonBlockedResponse(req) {
   return false;
 }
 
-function renderBlockedHtml({ host, path, clientIp, reason } = {}) {
-  const safeHost = host || "unknown-host";
-  const safePath = path || "/";
-  const safeIp = clientIp || "unknown-ip";
-  const safeReason = reason || "Security policy violation";
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderBlockedHtml({
+  host,
+  path,
+  clientIp,
+  reason,
+  browser,
+  blockId,
+  timestamp,
+  serverId,
+} = {}) {
+  const safeHost = escapeHtml(host || "unknown-host");
+  const safePath = escapeHtml(path || "/");
+  const safeIp = escapeHtml(clientIp || "unknown-ip");
+  const safeReason = escapeHtml(reason || "Security policy violation");
+  const safeBrowser = escapeHtml(browser || "unknown");
+  const safeBlockId = escapeHtml(blockId || "WAF-403");
+  const safeTime = escapeHtml(timestamp || new Date().toISOString());
+  const safeServerId = escapeHtml(serverId || "atravad-waf");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -255,23 +278,20 @@ function renderBlockedHtml({ host, path, clientIp, reason } = {}) {
   <style>
     :root {
       color-scheme: light;
-      --bg-top: #fff4f4;
-      --bg-bottom: #eef3fb;
+      --bg-top: #f7f7f8;
+      --bg-bottom: #eceef2;
       --card: #ffffff;
-      --text: #0b1d2a;
-      --muted: #4b5c6b;
-      --border: #f2caca;
-      --brand: #0f766e;
-      --brand-soft: #d9f3f1;
-      --danger: #b91c1c;
-      --danger-soft: #fee2e2;
+      --text: #1a1a1a;
+      --muted: #50555e;
+      --border: #d3d7df;
+      --danger: #d90000;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
       background:
-        radial-gradient(circle at 10% 10%, #ffe0e0 0, transparent 38%),
+        radial-gradient(circle at 10% 10%, #f5f6fa 0, transparent 38%),
         linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
       color: var(--text);
       min-height: 100vh;
@@ -282,95 +302,109 @@ function renderBlockedHtml({ host, path, clientIp, reason } = {}) {
     }
     .shell { width: min(760px, 100%); }
     .card {
-      position: relative;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 26px;
-      overflow: hidden;
-      box-shadow:
-        0 16px 36px rgba(15, 23, 42, 0.1),
-        0 2px 8px rgba(15, 23, 42, 0.06);
-    }
-    .card::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #b91c1c 0%, #f97316 100%);
-    }
-    .top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-    .status {
-      background: var(--danger-soft);
-      color: var(--danger);
-      border: 1px solid #fecaca;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 6px 10px;
-      text-transform: uppercase;
-    }
-    .waf {
-      display: inline-block;
-      background: var(--brand-soft);
-      color: var(--brand);
-      border: 1px solid #99e0da;
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-weight: 600;
-      font-size: 12px;
-      letter-spacing: 0.02em;
+      border-radius: 4px;
+      padding: 28px 30px 30px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
     }
     h1 {
-      margin: 2px 0 10px;
-      font-size: clamp(30px, 6vw, 44px);
-      letter-spacing: -0.02em;
-      line-height: 1.05;
+      margin: 2px 0 16px;
+      font-size: clamp(30px, 5vw, 48px);
+      line-height: 1.1;
     }
-    p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 15px; }
-    .meta { margin-top: 18px; display: grid; gap: 10px; }
-    .meta-row {
-      background: #fff7f7;
-      border: 1px solid #f7d4d4;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 13px;
-      color: #334155;
-    }
-    .meta-label {
+    .dot {
       display: inline-block;
-      min-width: 72px;
-      font-weight: 700;
-      color: #0f172a;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--danger);
+      vertical-align: middle;
+      margin-right: 10px;
     }
-    code {
+    .intro {
+      margin-bottom: 22px;
+      border: 1px solid #bfc4cb;
+      background: #f7f7f8;
+      padding: 14px 16px;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 16px;
+    }
+    .intro a {
+      color: #128f55;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    .block-title {
+      margin: 0 0 12px;
+      font-size: 38px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: #1f2937;
+    }
+    .label {
+      margin: 0 0 12px;
+      font-size: 36px;
+      font-weight: 700;
+      color: #2b2f36;
+    }
+    .details-title {
+      margin: 20px 0 12px;
+      font-size: 36px;
+      font-weight: 700;
+      color: #2b2f36;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #cfd4dc;
       background: #fff;
-      border: 1px solid #f2d2d2;
-      padding: 2px 7px;
-      border-radius: 6px;
-      color: #0f172a;
-      word-break: break-all;
+      font-size: 14px;
+    }
+    td {
+      border-top: 1px solid #e4e7ec;
+      padding: 12px 14px;
+      vertical-align: top;
+      color: #2c3442;
+      word-break: break-word;
+    }
+    tr:first-child td {
+      border-top: 0;
+    }
+    td:first-child {
+      width: 180px;
+      font-weight: 700;
+      color: #2b3340;
+      background: #fafbfc;
     }
   </style>
 </head>
 <body>
   <main class="shell">
     <section class="card">
-      <div class="top">
-        <span class="status">HTTP 403</span>
-        <span class="waf">WAF: ${ATRAVAD_WAF_NAME}</span>
+      <h2><span class="dot"></span>Access Denied - ${ATRAVAD_WAF_NAME}</h2>
+      <div class="intro">
+        If you are the site owner (or you manage this site), please whitelist your IP or if you think this block is an error please
+        <a href="mailto:support@atravad.com?subject=Access%20Denied%20Support%20Request">open a support ticket</a>
+        and include the block details below so we can assist in troubleshooting.
       </div>
-      <h1>Access Blocked</h1>
-      <p>Your request was blocked by the security policy configured for this site.</p>
-      <div class="meta">
-        <div class="meta-row"><span class="meta-label">Host</span> <code>${safeHost}</code></div>
-        <div class="meta-row"><span class="meta-label">Path</span> <code>${safePath}</code></div>
-        <div class="meta-row"><span class="meta-label">Client IP</span> <code>${safeIp}</code></div>
-        <div class="meta-row"><span class="meta-label">Reason</span> <code>${safeReason}</code></div>
-      </div>
+      <div class="details-title">Block details:</div>
+      <table>
+        <tr><td>Your IP:</td><td>${safeIp}</td></tr>
+        <tr><td>URL:</td><td>${safeHost}${safePath}</td></tr>
+        <tr><td>Your Browser:</td><td>${safeBrowser}</td></tr>
+        <tr><td>Block ID:</td><td>${safeBlockId}</td></tr>
+        <tr><td>Block reason:</td><td>${safeReason}</td></tr>
+        <tr><td>Time:</td><td>${safeTime}</td></tr>
+        <tr><td>Server ID:</td><td>${safeServerId}</td></tr>
+      </table>
     </section>
   </main>
 </body>
@@ -399,7 +433,21 @@ function sendBlockedResponse(res, req, { host, path, clientIp, reason, matchedRu
     return;
   }
 
-  const body = renderBlockedHtml({ host, path, clientIp, reason });
+  const blockIdFromRule = matchedRules?.[0]?.id ? `IPB-${matchedRules[0].id}` : "IPB-403";
+  const normalizedReason = /ip.*block|blacklist|not\s+whitelist|ip access control/i.test(String(reason || ""))
+    ? "Your request was not allowed due to IP blocking (not white listed)."
+    : "Your request was blocked by the website firewall policy.";
+  const serverId = `${os.hostname()}:${process.pid}`;
+  const body = renderBlockedHtml({
+    host,
+    path,
+    clientIp,
+    reason: normalizedReason,
+    browser: req?.headers?.["user-agent"] || "unknown",
+    blockId: blockIdFromRule,
+    timestamp: new Date().toISOString(),
+    serverId,
+  });
   res.writeHead(403, {
     ...headers,
     "Content-Type": "text/html; charset=utf-8",
