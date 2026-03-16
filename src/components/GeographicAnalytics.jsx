@@ -114,10 +114,11 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
       </div>
 
       {/* World Map Visualization */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic by Country</h3>
+      <div className="bg-[#090d1f] rounded-xl shadow-sm border border-slate-800 p-6 overflow-hidden relative">
+        <div className="absolute inset-0 threat-grid opacity-40 pointer-events-none" />
+        <h3 className="text-lg font-semibold text-slate-100 mb-4 relative z-10">Traffic by Country</h3>
         {ComposableMap ? (
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-transparent rounded-lg p-2 relative z-10">
             <ComposableMap
               projectionConfig={{
                 scale: 147,
@@ -157,12 +158,19 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
                       }
 
                       if (!sourceCoordinates) return null;
+                      const adjustedDestination = adjustDestinationForVisibility(
+                        sourceCoordinates,
+                        destinationCoordinates,
+                        idx
+                      );
 
                       return {
                         id: `${log.id || idx}-${sourceCode}-${host || 'dst'}`,
                         sourceCoordinates,
-                        destinationCoordinates,
+                        destinationCoordinates: adjustedDestination,
                         blocked: Boolean(log.blocked),
+                        sourceName: sourceName || sourceCode || 'Unknown',
+                        destinationName: destinationCountryName || String(app?.originContinent || '').trim() || 'Protected',
                       };
                     })
                     .filter(Boolean)
@@ -182,12 +190,12 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
                           <Geography
                             key={geo.rsmKey}
                             geography={geo}
-                            fill={fillColor}
-                            stroke="#FFFFFF"
-                            strokeWidth={0.5}
+                            fill={countryInfo ? fillColor : '#1f2937'}
+                            stroke="#4b5563"
+                            strokeWidth={0.35}
                             style={{
                               default: { outline: 'none' },
-                              hover: { outline: 'none', fill: countryInfo ? '#3B82F6' : '#D1D5DB' },
+                              hover: { outline: 'none', fill: countryInfo ? '#64748b' : '#374151' },
                               pressed: { outline: 'none' },
                             }}
                           />
@@ -199,23 +207,28 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
                           key={`line-${line.id}`}
                           from={line.sourceCoordinates}
                           to={line.destinationCoordinates}
-                          stroke={line.blocked ? '#F97316' : '#10B981'}
-                          strokeWidth={line.blocked ? 2.2 : 1.8}
-                          strokeOpacity={line.blocked ? 0.95 : 0.8}
-                          strokeDasharray={line.blocked ? '7 5' : '5 4'}
+                          stroke="#f59e0b"
+                          strokeWidth={line.blocked ? 2.4 : 1.9}
+                          strokeOpacity={line.blocked ? 0.96 : 0.8}
+                          strokeDasharray={line.blocked ? '10 6' : '8 6'}
                           className={line.blocked ? 'route-line route-line-blocked' : 'route-line route-line-allowed'}
                         />
                       ))}
 
                       {routeLines.map((line) => (
                         <Marker key={`src-${line.id}`} coordinates={line.sourceCoordinates}>
-                          <circle r={2.2} fill={line.blocked ? '#EF4444' : '#059669'} />
+                          <circle r={3.3} fill="#f59e0b" opacity="0.95" />
+                          <circle r={8} fill="none" stroke="#f59e0b" strokeWidth="1.3" className="threat-pulse" />
+                          <text y={-10} textAnchor="middle" fill="#e5e7eb" fontSize="8">
+                            {shortCountryLabel(line.sourceName)}
+                          </text>
                         </Marker>
                       ))}
 
                       {routeLines.map((line) => (
                         <Marker key={`dst-${line.id}`} coordinates={line.destinationCoordinates}>
-                          <circle r={2.2} fill="#2563EB" />
+                          <circle r={2.8} fill="#fbbf24" opacity="0.95" />
+                          <circle r={6.5} fill="none" stroke="#fbbf24" strokeWidth="1.1" className="threat-pulse-slow" />
                         </Marker>
                       ))}
                     </>
@@ -223,22 +236,18 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
                 }}
               </Geographies>
             </ComposableMap>
-            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600 flex-wrap">
+            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-slate-300 flex-wrap">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-200 rounded"></div>
-                <span>Allowed Traffic</span>
+                <div className="w-4 h-4 bg-emerald-400/80 rounded"></div>
+                <span>Allowed Country</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-200 rounded"></div>
-                <span>Blocked Traffic</span>
+                <div className="w-4 h-4 bg-rose-400/80 rounded"></div>
+                <span>Blocked Country</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-1 bg-orange-500 rounded"></div>
-                <span>Blocked Route (Source -{">"} Destination)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-1 bg-emerald-500 rounded"></div>
-                <span>Allowed Route (Source -{">"} Destination)</span>
+                <div className="w-4 h-1 bg-amber-400 rounded"></div>
+                <span>Route Flow (Source -{">"} Destination)</span>
               </div>
             </div>
           </div>
@@ -344,23 +353,56 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
       </div>
 
       <style jsx>{`
+        .threat-grid {
+          background-image:
+            repeating-linear-gradient(to right, rgba(244, 63, 94, 0.22) 0 1px, transparent 1px 64px),
+            repeating-linear-gradient(to bottom, rgba(244, 63, 94, 0.22) 0 1px, transparent 1px 64px);
+        }
         .route-line {
-          filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.18));
+          filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.55));
         }
         .route-line-blocked {
-          animation: blockedDash 0.9s linear infinite;
+          animation: blockedDash 0.8s linear infinite;
         }
         .route-line-allowed {
-          animation: allowedDash 1.2s linear infinite;
+          animation: allowedDash 1.1s linear infinite;
         }
         @keyframes blockedDash {
           to {
-            stroke-dashoffset: -24;
+            stroke-dashoffset: -38;
           }
         }
         @keyframes allowedDash {
           to {
-            stroke-dashoffset: -18;
+            stroke-dashoffset: -28;
+          }
+        }
+        .threat-pulse {
+          animation: pulseFast 1.3s ease-out infinite;
+          transform-origin: center;
+        }
+        .threat-pulse-slow {
+          animation: pulseSlow 2.1s ease-out infinite;
+          transform-origin: center;
+        }
+        @keyframes pulseFast {
+          0% {
+            opacity: 0.9;
+            transform: scale(0.5);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.4);
+          }
+        }
+        @keyframes pulseSlow {
+          0% {
+            opacity: 0.7;
+            transform: scale(0.6);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.5);
           }
         }
       `}</style>
@@ -510,6 +552,27 @@ function collectGeometryPoints(value, out) {
   }
 
   value.forEach((item) => collectGeometryPoints(item, out));
+}
+
+function adjustDestinationForVisibility(source, destination, idx = 0) {
+  if (!Array.isArray(source) || !Array.isArray(destination)) return destination;
+  const [slon, slat] = source;
+  const [dlon, dlat] = destination;
+  const lonDiff = Math.abs(slon - dlon);
+  const latDiff = Math.abs(slat - dlat);
+  if (lonDiff > 2 || latDiff > 2) return destination;
+
+  const spread = 8 + (idx % 4) * 2;
+  const latSpread = 4 + (idx % 3);
+  const sign = idx % 2 === 0 ? 1 : -1;
+  return [dlon + spread * sign, Math.max(-70, Math.min(80, dlat + latSpread * sign))];
+}
+
+function shortCountryLabel(name) {
+  const text = String(name || '').trim();
+  if (!text) return 'N/A';
+  if (text.length <= 16) return text;
+  return `${text.slice(0, 14)}..`;
 }
 
 const DEFAULT_DESTINATION_COORDS = [121.0, 14.6];
