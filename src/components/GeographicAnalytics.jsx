@@ -235,10 +235,10 @@ export default function GeographicAnalytics({ logs = [] }) {
               <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
                 <div className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">Current Attack</div>
                 {currentAttack ? (
-                  <div className="space-y-1">
-                    <div className="text-sm font-semibold text-red-300">
-                      {currentAttack.countryName} ({currentAttack.countryCode}) -> Protected Asset
-                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-semibold text-red-300">
+                      {currentAttack.countryName} ({currentAttack.countryCode}) {'->'} Protected Asset
+                      </div>
                     <div className="text-xs text-slate-300 truncate">{currentAttack.message}</div>
                     <div className="text-[11px] text-slate-500">
                       {currentAttack.timestamp ? new Date(currentAttack.timestamp).toLocaleString() : 'No timestamp'}
