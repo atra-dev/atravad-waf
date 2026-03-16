@@ -233,6 +233,181 @@ function sendCustomNotFound(res, { host, path } = {}) {
   res.end(body);
 }
 
+function shouldReturnJsonBlockedResponse(req) {
+  const pathname = req?.url?.split("?")[0] || "/";
+  if (pathname.startsWith("/api/")) return true;
+  const accept = String(req?.headers?.accept || "").toLowerCase();
+  if (accept.includes("application/json") && !accept.includes("text/html")) return true;
+  return false;
+}
+
+function renderBlockedHtml({ host, path, clientIp, reason } = {}) {
+  const safeHost = host || "unknown-host";
+  const safePath = path || "/";
+  const safeIp = clientIp || "unknown-ip";
+  const safeReason = reason || "Security policy violation";
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>403 Access Blocked | ATRAVAD-WAF</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-top: #fff4f4;
+      --bg-bottom: #eef3fb;
+      --card: #ffffff;
+      --text: #0b1d2a;
+      --muted: #4b5c6b;
+      --border: #f2caca;
+      --brand: #0f766e;
+      --brand-soft: #d9f3f1;
+      --danger: #b91c1c;
+      --danger-soft: #fee2e2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background:
+        radial-gradient(circle at 10% 10%, #ffe0e0 0, transparent 38%),
+        linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .shell { width: min(760px, 100%); }
+    .card {
+      position: relative;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 26px;
+      overflow: hidden;
+      box-shadow:
+        0 16px 36px rgba(15, 23, 42, 0.1),
+        0 2px 8px rgba(15, 23, 42, 0.06);
+    }
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #b91c1c 0%, #f97316 100%);
+    }
+    .top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .status {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid #fecaca;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 6px 10px;
+      text-transform: uppercase;
+    }
+    .waf {
+      display: inline-block;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid #99e0da;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    h1 {
+      margin: 2px 0 10px;
+      font-size: clamp(30px, 6vw, 44px);
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    p { margin: 0; color: var(--muted); line-height: 1.6; font-size: 15px; }
+    .meta { margin-top: 18px; display: grid; gap: 10px; }
+    .meta-row {
+      background: #fff7f7;
+      border: 1px solid #f7d4d4;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #334155;
+    }
+    .meta-label {
+      display: inline-block;
+      min-width: 72px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    code {
+      background: #fff;
+      border: 1px solid #f2d2d2;
+      padding: 2px 7px;
+      border-radius: 6px;
+      color: #0f172a;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="card">
+      <div class="top">
+        <span class="status">HTTP 403</span>
+        <span class="waf">WAF: ${ATRAVAD_WAF_NAME}</span>
+      </div>
+      <h1>Access Blocked</h1>
+      <p>Your request was blocked by the security policy configured for this site.</p>
+      <div class="meta">
+        <div class="meta-row"><span class="meta-label">Host</span> <code>${safeHost}</code></div>
+        <div class="meta-row"><span class="meta-label">Path</span> <code>${safePath}</code></div>
+        <div class="meta-row"><span class="meta-label">Client IP</span> <code>${safeIp}</code></div>
+        <div class="meta-row"><span class="meta-label">Reason</span> <code>${safeReason}</code></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function sendBlockedResponse(res, req, { host, path, clientIp, reason, matchedRules } = {}) {
+  const headers = withWafFingerprintHeaders({
+    "X-ATRAVAD-Blocked": "true",
+    "X-ATRAVAD-Reason": reason || "Security rule violation",
+    "Cache-Control": "no-store",
+  });
+
+  if (shouldReturnJsonBlockedResponse(req)) {
+    const payload = JSON.stringify({
+      error: "Request blocked by WAF",
+      reason: reason || "Security rule violation",
+      matchedRules: matchedRules || [],
+    });
+    res.writeHead(403, {
+      ...headers,
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(payload),
+    });
+    res.end(payload);
+    return;
+  }
+
+  const body = renderBlockedHtml({ host, path, clientIp, reason });
+  res.writeHead(403, {
+    ...headers,
+    "Content-Type": "text/html; charset=utf-8",
+    "Content-Length": Buffer.byteLength(body),
+  });
+  res.end(body);
+}
+
 function looksLikeNginx404(statusCode, headers, bodyBuffer) {
   if (statusCode !== 404) return false;
   const contentType = String(headers?.["content-type"] || "").toLowerCase();
@@ -956,20 +1131,13 @@ export class ProxyWAFServer {
         );
         if (!inspection.allowed || inspection.blocked) {
           const topRule = inspection.matchedRules?.[0] || null;
-          res.writeHead(403, {
-            "Content-Type": "application/json",
-            "X-ATRAVAD-Blocked": "true",
-            "X-ATRAVAD-Reason":
-              topRule?.message || "Security rule violation",
-            ...withWafFingerprintHeaders(),
+          sendBlockedResponse(res, req, {
+            host,
+            path: req.url,
+            clientIp: extractClientIp(req),
+            reason: topRule?.message || "Security rule violation",
+            matchedRules: inspection.matchedRules,
           });
-          res.end(
-            JSON.stringify({
-              error: "Request blocked by WAF",
-              reason: topRule?.message || "Security rule violation",
-              matchedRules: inspection.matchedRules,
-            }),
-          );
           console.warn(`Request blocked for ${host}:`, {
             url: req.url,
             method: req.method,
