@@ -285,6 +285,35 @@ export default function AppsPage() {
     );
   }, [apps, searchQuery]);
 
+  const policyOptions = useMemo(() => {
+    if (!Array.isArray(policies) || policies.length === 0) return [];
+
+    const latestVersionByName = policies.reduce((acc, policy) => {
+      if (!policy?.name) return acc;
+      const currentVersion = Number(policy.version || 1);
+      const previous = acc[policy.name];
+      if (!previous || currentVersion > previous) {
+        acc[policy.name] = currentVersion;
+      }
+      return acc;
+    }, {});
+
+    return [...policies]
+      .filter((policy) => policy?.id && policy?.name)
+      .sort((a, b) => {
+        if (a.name !== b.name) return a.name.localeCompare(b.name);
+        return Number(b.version || 1) - Number(a.version || 1);
+      })
+      .map((policy) => {
+        const version = Number(policy.version || 1);
+        const isLatest = latestVersionByName[policy.name] === version;
+        return {
+          id: policy.id,
+          label: `${policy.name} (v${version}${isLatest ? ' - Latest' : ''})`,
+        };
+      });
+  }, [policies]);
+
   const createSslValidation = useMemo(
     () => validateSslInput(formData),
     [formData.sslMode, formData.customCert, formData.customKey, formData.customFullchain]
@@ -1097,18 +1126,18 @@ export default function AppsPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Security Policy (Optional)
                       </label>
-                      <select
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        value={formData.policyId}
-                        onChange={(e) => setFormData({ ...formData, policyId: e.target.value })}
-                      >
-                        <option value="">Default Protection (OWASP CRS)</option>
-                        {policies.map((policy) => (
-                          <option key={policy.id} value={policy.id}>
-                            {policy.name}
-                          </option>
-                        ))}
-                      </select>
+                        <select
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          value={formData.policyId}
+                          onChange={(e) => setFormData({ ...formData, policyId: e.target.value })}
+                        >
+                          <option value="">Default Protection (OWASP CRS)</option>
+                          {policyOptions.map((policy) => (
+                            <option key={policy.id} value={policy.id}>
+                              {policy.label}
+                            </option>
+                          ))}
+                        </select>
                     </div>
                     <div className="space-y-4">
                       <label className="block text-sm font-medium text-gray-700">SSL Certificate</label>
@@ -1404,18 +1433,18 @@ export default function AppsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Security Policy</label>
-                  <select
-                    value={editFormData.policyId}
-                    onChange={(e) => setEditFormData({ ...editFormData, policyId: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                  >
-                    <option value="">Default Protection (OWASP CRS)</option>
-                    {policies.map((policy) => (
-                      <option key={policy.id} value={policy.id}>
-                        {policy.name}
-                      </option>
-                    ))}
-                  </select>
+                    <select
+                      value={editFormData.policyId}
+                      onChange={(e) => setEditFormData({ ...editFormData, policyId: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    >
+                      <option value="">Default Protection (OWASP CRS)</option>
+                      {policyOptions.map((policy) => (
+                        <option key={policy.id} value={policy.id}>
+                          {policy.label}
+                        </option>
+                      ))}
+                    </select>
                 </div>
                 </div>
 
