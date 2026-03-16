@@ -1,15 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { isPrivateIp } from '@/lib/ip-utils';
 
 // Try to import react-simple-maps (React 19 compatible fork)
-let ComposableMap, Geographies, Geography;
+let ComposableMap, Geographies, Geography, Marker, Line;
 try {
   const maps = require('react-simple-maps');
   ComposableMap = maps.ComposableMap;
   Geographies = maps.Geographies;
   Geography = maps.Geography;
+  Marker = maps.Marker;
+  Line = maps.Line;
 } catch (e) {
   // Library not installed - will show placeholder
   ComposableMap = null;
@@ -20,6 +22,8 @@ try {
  * Displays world map with traffic by country and geographic insights
  */
 export default function GeographicAnalytics({ logs = [] }) {
+  const [liveAttackIndex, setLiveAttackIndex] = useState(0);
+
   const countryData = useMemo(() => {
     const countryMap = new Map();
 
@@ -72,6 +76,45 @@ export default function GeographicAnalytics({ logs = [] }) {
   const blockedRequests = logs.filter(log => log.blocked).length;
   const allowedRequests = totalRequests - blockedRequests;
 
+  const liveAttackEvents = useMemo(() => {
+    return logs
+      .filter((log) => {
+        const ip = log.ipAddress || log.clientIp;
+        const code =
+          (typeof log.geoCountryCode === 'string' && log.geoCountryCode.trim().toUpperCase()) ||
+          (isPrivateIp(ip) ? 'XX' : '');
+        return Boolean(log.blocked && code && code !== 'XX');
+      })
+      .sort((a, b) => {
+        const ta = new Date(a.timestamp || 0).getTime();
+        const tb = new Date(b.timestamp || 0).getTime();
+        return tb - ta;
+      })
+      .slice(0, 40)
+      .map((log, idx) => {
+        const code = String(log.geoCountryCode || '').trim().toUpperCase();
+        return {
+          id: `${log.id || idx}-${code}-${log.timestamp || ''}`,
+          countryCode: code,
+          countryName: log.geoCountry || code,
+          source: log.source || log.nodeId || 'Unknown source',
+          message: log.message || 'Blocked request',
+          timestamp: log.timestamp || null,
+        };
+      })
+      .filter((item) => item.countryCode && item.countryCode !== 'XX');
+  }, [logs]);
+
+  useEffect(() => {
+    if (liveAttackEvents.length <= 1) return;
+    const timer = setInterval(() => {
+      setLiveAttackIndex((prev) => (prev + 1) % liveAttackEvents.length);
+    }, 1800);
+    return () => clearInterval(timer);
+  }, [liveAttackEvents.length]);
+
+  const currentAttack = liveAttackEvents[liveAttackIndex] || null;
+
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
@@ -98,6 +141,127 @@ export default function GeographicAnalytics({ logs = [] }) {
           <div className="text-sm text-gray-600 mb-1">Countries</div>
           <div className="text-2xl font-bold text-blue-600">{uniqueCountries}</div>
         </div>
+      </div>
+
+      {/* Live Threat Map */}
+      <div className="rounded-xl border border-slate-700 bg-slate-950 text-slate-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold tracking-wide">Live Cyber Threat Map</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              {blockedRequests.toLocaleString()} blocked attacks in current log window
+            </p>
+          </div>
+          <div className="text-xs uppercase tracking-widest text-red-400 font-semibold">
+            Live
+          </div>
+        </div>
+
+        {ComposableMap ? (
+          <div className="p-4 md:p-6">
+            <div className="rounded-lg border border-slate-800 bg-[#090d1f] p-3 md:p-4">
+              <ComposableMap
+                projection="geoEqualEarth"
+                projectionConfig={{ scale: 165, center: [10, 10] }}
+                className="w-full"
+                style={{ width: '100%', height: 'auto' }}
+              >
+                <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
+                  {({ geographies }) => {
+                    const coordinateIndex = buildCountryCoordinateIndex(geographies);
+                    const eventsWithCoordinates = liveAttackEvents
+                      .map((event) => ({
+                        ...event,
+                        coordinates: resolveAttackCoordinates(event, coordinateIndex),
+                      }))
+                      .filter((event) => Array.isArray(event.coordinates));
+
+                    const currentAttackWithCoordinates = (() => {
+                      if (eventsWithCoordinates.length === 0) return null;
+                      const preferred = eventsWithCoordinates.find(
+                        (event) => event.id === currentAttack?.id
+                      );
+                      return preferred || eventsWithCoordinates[0];
+                    })();
+
+                    return (
+                      <>
+                        {geographies.map((geo) => (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            fill="#1f2937"
+                            stroke="#334155"
+                            strokeWidth={0.35}
+                            style={{
+                              default: { outline: 'none' },
+                              hover: { outline: 'none' },
+                              pressed: { outline: 'none' },
+                            }}
+                          />
+                        ))}
+
+                        {currentAttackWithCoordinates && (
+                          <Line
+                            from={currentAttackWithCoordinates.coordinates}
+                            to={PROTECTED_ASSET_COORDS}
+                            stroke="#f59e0b"
+                            strokeWidth={1.8}
+                            strokeLinecap="round"
+                            strokeDasharray="4 4"
+                            className="threat-line"
+                          />
+                        )}
+
+                        {eventsWithCoordinates.slice(0, 12).map((event) => (
+                          <Marker key={`src-${event.id}`} coordinates={event.coordinates}>
+                            <circle r={2.8} fill="#ef4444" opacity="0.9" />
+                            <circle r={6} fill="none" stroke="#ef4444" strokeWidth="1.2" className="threat-pulse" />
+                          </Marker>
+                        ))}
+                      </>
+                    );
+                  }}
+                </Geographies>
+
+                <Marker coordinates={PROTECTED_ASSET_COORDS}>
+                  <circle r={3.2} fill="#22c55e" />
+                  <circle r={7} fill="none" stroke="#22c55e" strokeWidth="1.2" className="threat-pulse-slow" />
+                </Marker>
+              </ComposableMap>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">Current Attack</div>
+                {currentAttack ? (
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-red-300">
+                      {currentAttack.countryName} ({currentAttack.countryCode}) -> Protected Asset
+                    </div>
+                    <div className="text-xs text-slate-300 truncate">{currentAttack.message}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {currentAttack.timestamp ? new Date(currentAttack.timestamp).toLocaleString() : 'No timestamp'}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400">No blocked geo attacks yet.</div>
+                )}
+              </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-900/60 px-4 py-3">
+                <div className="text-[11px] uppercase tracking-widest text-slate-400 mb-1">Recent Attack Sources</div>
+                <div className="text-sm text-slate-200">
+                  {liveAttackEvents.slice(0, 6).map((event) => event.countryCode).join(' - ') || 'N/A'}
+                </div>
+                <div className="text-xs text-slate-500 mt-1">Updated from latest blocked requests.</div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 py-8 text-sm text-slate-400">
+            World map library is not installed. Install `react-simple-maps` to enable the live threat map.
+          </div>
+        )}
       </div>
 
       {/* World Map Visualization */}
@@ -252,10 +416,50 @@ export default function GeographicAnalytics({ logs = [] }) {
           </table>
         </div>
       </div>
+
+      <style jsx>{`
+        .threat-line {
+          animation: dashShift 1.2s linear infinite;
+        }
+        .threat-pulse {
+          transform-origin: center;
+          animation: pulseFast 1.4s ease-out infinite;
+        }
+        .threat-pulse-slow {
+          transform-origin: center;
+          animation: pulseSlow 2s ease-out infinite;
+        }
+        @keyframes dashShift {
+          to {
+            stroke-dashoffset: -16;
+          }
+        }
+        @keyframes pulseFast {
+          0% {
+            opacity: 0.9;
+            transform: scale(0.55);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.35);
+          }
+        }
+        @keyframes pulseSlow {
+          0% {
+            opacity: 0.8;
+            transform: scale(0.65);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.5);
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
+const PROTECTED_ASSET_COORDS = [121.0, 14.6];
 
 /**
  * Get country flag emoji from country code
@@ -309,5 +513,99 @@ function findCountryInfoForGeo(geo, countryData) {
     }) ||
     null
   );
+}
+
+function buildCountryCoordinateIndex(geographies = []) {
+  const byCode = new Map();
+  const byName = new Map();
+
+  geographies.forEach((geo) => {
+    const props = geo?.properties || {};
+    const centroid = calculateGeometryCentroid(geo?.geometry);
+    if (!centroid) return;
+
+    const possibleCodes = [
+      props.ISO_A2,
+      props.iso_a2,
+      props.ISO2,
+      props.iso2,
+      props.ADM0_A3,
+      props.adm0_a3,
+    ]
+      .map((value) => String(value || '').trim().toUpperCase())
+      .filter(Boolean)
+      .filter((value) => value !== '-99');
+
+    possibleCodes.forEach((code) => byCode.set(code, centroid));
+
+    const possibleNames = [
+      props.NAME,
+      props.name,
+      props.ADMIN,
+      props.admin,
+      props.NAME_LONG,
+      props.name_long,
+    ]
+      .map((value) => normalizeCountryName(value))
+      .filter(Boolean);
+
+    possibleNames.forEach((name) => byName.set(name, centroid));
+  });
+
+  return { byCode, byName };
+}
+
+function resolveAttackCoordinates(event, coordinateIndex) {
+  const byCode = coordinateIndex?.byCode || new Map();
+  const byName = coordinateIndex?.byName || new Map();
+
+  const rawCode = String(event?.countryCode || '').trim().toUpperCase();
+  if (rawCode) {
+    const exact = byCode.get(rawCode);
+    if (exact) return exact;
+  }
+
+  const normalizedName = normalizeCountryName(event?.countryName || '');
+  if (normalizedName) {
+    const exactName = byName.get(normalizedName);
+    if (exactName) return exactName;
+  }
+
+  return null;
+}
+
+function calculateGeometryCentroid(geometry) {
+  if (!geometry || !geometry.type || !geometry.coordinates) return null;
+
+  const points = [];
+  collectGeometryPoints(geometry.coordinates, points);
+  if (points.length === 0) return null;
+
+  let lonTotal = 0;
+  let latTotal = 0;
+  points.forEach(([lon, lat]) => {
+    lonTotal += Number(lon) || 0;
+    latTotal += Number(lat) || 0;
+  });
+
+  const lon = lonTotal / points.length;
+  const lat = latTotal / points.length;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  return [lon, lat];
+}
+
+function collectGeometryPoints(value, out) {
+  if (!Array.isArray(value) || value.length === 0) return;
+
+  if (
+    value.length >= 2 &&
+    typeof value[0] === 'number' &&
+    typeof value[1] === 'number'
+  ) {
+    out.push([value[0], value[1]]);
+    return;
+  }
+
+  value.forEach((item) => collectGeometryPoints(item, out));
 }
 
