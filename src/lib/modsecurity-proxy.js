@@ -10,6 +10,7 @@
 import { createRequire } from 'module';
 import { getStandaloneConfigForProxy, generateModSecurityConfig } from './modsecurity.js';
 import { adminDb } from './firebase-admin.js';
+import { normalizeIpAddress } from './ip-utils.js';
 
 const requireMod = createRequire(import.meta.url);
 let ModSecurityNapi = null;
@@ -29,6 +30,112 @@ try {
 }
 
 const useNativeModSecurity = Boolean(ModSecurityNapi && RulesNapi && TransactionNapi);
+
+function extractClientIp(req) {
+  const headers = req?.headers || {};
+  const candidates = [
+    headers['cf-connecting-ip'],
+    headers['x-real-ip'],
+    (headers['x-forwarded-for'] || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)[0],
+    req?.socket?.remoteAddress,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeIpAddress(String(candidate || ''));
+    if (normalized) return normalized;
+  }
+  return '127.0.0.1';
+}
+
+function ipv4ToInt(ip) {
+  const parts = String(ip || '').split('.').map((n) => Number(n));
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
+    return null;
+  }
+  return ((parts[0] << 24) >>> 0) + ((parts[1] << 16) >>> 0) + ((parts[2] << 8) >>> 0) + parts[3];
+}
+
+function ipInCidr(ip, cidr) {
+  const [network, bitsRaw] = String(cidr || '').split('/');
+  const ipInt = ipv4ToInt(ip);
+  const networkInt = ipv4ToInt(network);
+  const bits = Number(bitsRaw);
+  if (ipInt === null || networkInt === null || !Number.isInteger(bits) || bits < 0 || bits > 32) {
+    return false;
+  }
+  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+  return (ipInt & mask) === (networkInt & mask);
+}
+
+function fallbackIpAccessCheck(req, policy) {
+  const ipAccessControl = policy?.policy?.ipAccessControl || policy?.ipAccessControl;
+  if (!ipAccessControl) {
+    return { blocked: false, matchedRules: [] };
+  }
+
+  const clientIp = extractClientIp(req);
+  const whitelist = Array.isArray(ipAccessControl.whitelist) ? ipAccessControl.whitelist.map((v) => String(v || '').trim()).filter(Boolean) : [];
+  const blacklist = Array.isArray(ipAccessControl.blacklist) ? ipAccessControl.blacklist.map((v) => String(v || '').trim()).filter(Boolean) : [];
+  const whitelistCIDR = Array.isArray(ipAccessControl.whitelistCIDR) ? ipAccessControl.whitelistCIDR.map((v) => String(v || '').trim()).filter(Boolean) : [];
+  const blacklistCIDR = Array.isArray(ipAccessControl.blacklistCIDR) ? ipAccessControl.blacklistCIDR.map((v) => String(v || '').trim()).filter(Boolean) : [];
+
+  if (blacklist.includes(clientIp)) {
+    return {
+      blocked: true,
+      matchedRules: [{
+        id: 100001,
+        message: `IP Access Control: IP Address Blacklisted (${clientIp})`,
+        severity: 'CRITICAL',
+        matchedData: clientIp,
+        matchedVar: 'REMOTE_ADDR',
+      }],
+    };
+  }
+
+  if (blacklistCIDR.some((cidr) => ipInCidr(clientIp, cidr))) {
+    return {
+      blocked: true,
+      matchedRules: [{
+        id: 100021,
+        message: `IP Access Control: IP in Blacklisted CIDR (${clientIp})`,
+        severity: 'CRITICAL',
+        matchedData: clientIp,
+        matchedVar: 'REMOTE_ADDR',
+      }],
+    };
+  }
+
+  if (whitelist.length > 0 && !whitelist.includes(clientIp)) {
+    return {
+      blocked: true,
+      matchedRules: [{
+        id: 100000,
+        message: `IP Access Control: IP Address Not Whitelisted (${clientIp})`,
+        severity: 'CRITICAL',
+        matchedData: clientIp,
+        matchedVar: 'REMOTE_ADDR',
+      }],
+    };
+  }
+
+  if (whitelistCIDR.length > 0 && !whitelistCIDR.some((cidr) => ipInCidr(clientIp, cidr))) {
+    return {
+      blocked: true,
+      matchedRules: [{
+        id: 100010,
+        message: `IP Access Control: IP Not in Whitelisted CIDR (${clientIp})`,
+        severity: 'CRITICAL',
+        matchedData: clientIp,
+        matchedVar: 'REMOTE_ADDR',
+      }],
+    };
+  }
+
+  return { blocked: false, matchedRules: [] };
+}
 
 function interventionToMatchedRules(intervention) {
   const matchedRules = [];
@@ -54,7 +161,7 @@ function interventionToMatchedRules(intervention) {
   return matchedRules;
 }
 
-function runFallbackInspectRequest(req, _policyId, bodyBuffer = null) {
+function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
   const url = req.url || '';
   const headers = req.headers || {};
   const body = (bodyBuffer && Buffer.isBuffer(bodyBuffer))
@@ -68,6 +175,17 @@ function runFallbackInspectRequest(req, _policyId, bodyBuffer = null) {
   ];
   const matchedRules = [];
   let blocked = false;
+
+  const ipCheck = fallbackIpAccessCheck(req, policy);
+  if (ipCheck.blocked) {
+    return {
+      allowed: false,
+      blocked: true,
+      matchedRules: ipCheck.matchedRules,
+      severity: 'CRITICAL',
+      engine: 'fallback',
+    };
+  }
 
   for (const pattern of sqlPatterns) {
     if (pattern.test(url) || pattern.test(body)) {
@@ -172,11 +290,11 @@ export class ModSecurityProxy {
       const cached = this._getRules(policyId);
       if (!cached) await this.loadPolicy(policyId);
       const { rules } = this._getRules(policyId) || {};
-      if (!rules) return runFallbackInspectRequest(req, policyId, bodyBuffer);
+      if (!rules) return runFallbackInspectRequest(req, policy, bodyBuffer);
 
       const run = () => {
         const tx = new TransactionNapi(this.modsec, rules);
-        const remoteAddr = req.socket?.remoteAddress || '127.0.0.1';
+        const remoteAddr = extractClientIp(req);
         const remotePort = req.socket?.remotePort || 0;
         const localAddr = req.socket?.localAddress || '127.0.0.1';
         const localPort = req.socket?.localPort || 0;
@@ -235,7 +353,7 @@ export class ModSecurityProxy {
       }
     }
 
-    return runFallbackInspectRequest(req, policyId, bodyBuffer);
+    return runFallbackInspectRequest(req, policy, bodyBuffer);
   }
 
   /**
@@ -261,7 +379,7 @@ export class ModSecurityProxy {
 
         const run = () => {
           const tx = new TransactionNapi(this.modsec, rules);
-          const remoteAddr = req.socket?.remoteAddress || '127.0.0.1';
+          const remoteAddr = extractClientIp(req);
           const remotePort = req.socket?.remotePort || 0;
           const localAddr = req.socket?.localAddress || '127.0.0.1';
           const localPort = req.socket?.localPort || 0;

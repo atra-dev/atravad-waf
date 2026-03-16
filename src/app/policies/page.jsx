@@ -79,20 +79,8 @@ function TagListInput({ value = [], onChange, placeholder, normalize = (s) => s.
   );
 }
 
-export default function PoliciesPage() {
-  const [policies, setPolicies] = useState([]);
-  const [apps, setApps] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  
-  // Multi-tenancy state
-  const [hasTenant, setHasTenant] = useState(false);
-  const [tenantName, setTenantName] = useState('');
-  const [showTenantForm, setShowTenantForm] = useState(false);
-  const [tenantFormData, setTenantFormData] = useState({ name: '' });
-  const [submittingTenant, setSubmittingTenant] = useState(false);
-  
-  const [formData, setFormData] = useState({
+function getDefaultPolicyFormData() {
+  return {
     name: '',
     mode: 'detection',
     includeOWASPCRS: true,
@@ -194,8 +182,26 @@ export default function PoliciesPage() {
       cveRules: [],
     },
     applicationId: '',
-  });
+  };
+}
+
+export default function PoliciesPage() {
+  const [policies, setPolicies] = useState([]);
+  const [apps, setApps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  
+  // Multi-tenancy state
+  const [hasTenant, setHasTenant] = useState(false);
+  const [tenantName, setTenantName] = useState('');
+  const [showTenantForm, setShowTenantForm] = useState(false);
+  const [tenantFormData, setTenantFormData] = useState({ name: '' });
+  const [submittingTenant, setSubmittingTenant] = useState(false);
+  
+  const [formData, setFormData] = useState(getDefaultPolicyFormData());
   const [submitting, setSubmitting] = useState(false);
+  const [deletingPolicyName, setDeletingPolicyName] = useState('');
+  const [editingPolicyName, setEditingPolicyName] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
@@ -383,68 +389,8 @@ export default function PoliciesPage() {
       });
 
       if (response.ok) {
-        alert('Policy created successfully! Assign it to an application in the Applications page to use it with the proxy WAF.');
-
-        // Reset form
-        setFormData({
-          name: '',
-          mode: 'detection',
-          includeOWASPCRS: true,
-          sqlInjection: false,
-          xss: false,
-          fileUpload: false,
-          pathTraversal: false,
-          rce: false,
-          csrf: false,
-          sessionFixation: false,
-          ssrf: false,
-          xxe: false,
-          authBypass: false,
-          idor: false,
-          securityMisconfig: false,
-          sensitiveDataExposure: false,
-          brokenAccessControl: false,
-          securityHeaders: false,
-          owaspCRSRules: {
-            REQUEST_901_INITIALIZATION: true,
-            REQUEST_905_COMMON_EXCEPTIONS: true,
-            REQUEST_910_IP_REPUTATION: true,
-            REQUEST_911_METHOD_ENFORCEMENT: true,
-            REQUEST_912_DOS_PROTECTION: true,
-            REQUEST_913_SCANNER_DETECTION: true,
-            REQUEST_920_PROTOCOL_ENFORCEMENT: true,
-            REQUEST_921_PROTOCOL_ATTACK: true,
-            REQUEST_930_APPLICATION_ATTACK_LFI: true,
-            REQUEST_931_APPLICATION_ATTACK_RFI: true,
-            REQUEST_932_APPLICATION_ATTACK_RCE: true,
-            REQUEST_933_APPLICATION_ATTACK_PHP: true,
-            REQUEST_934_APPLICATION_ATTACK_NODEJS: true,
-            REQUEST_941_APPLICATION_ATTACK_XSS: true,
-            REQUEST_942_APPLICATION_ATTACK_SQLI: true,
-            REQUEST_943_APPLICATION_ATTACK_SESSION_FIXATION: true,
-            REQUEST_944_APPLICATION_ATTACK_JAVA: true,
-            REQUEST_949_BLOCKING_EVALUATION: true,
-            RESPONSE_950_DATA_LEAKAGES: true,
-            RESPONSE_951_DATA_LEAKAGES_SQL: true,
-            RESPONSE_952_DATA_LEAKAGES_JAVA: true,
-            RESPONSE_953_DATA_LEAKAGES_PHP: true,
-            RESPONSE_954_DATA_LEAKAGES_IIS: true,
-            RESPONSE_959_BLOCKING_EVALUATION: true,
-            RESPONSE_980_CORRELATION: true,
-          },
-          rateLimiting: { enabled: false, requestsPerMinute: 60, requestsPerHour: 1000, burstSize: 10 },
-          ipAccessControl: { enabled: false, whitelist: [], blacklist: [], whitelistCIDR: [], blacklistCIDR: [] },
-          geoBlocking: { enabled: false, blockedCountries: [], allowedCountries: [] },
-          advancedRateLimiting: { enabled: false, perEndpoint: {}, adaptive: false },
-          botDetection: { enabled: false, userAgentFiltering: true, botSignatureDetection: true, crawlerBlocking: false },
-          advancedFileUpload: { enabled: false, mimeTypeValidation: true, maxFileSize: 10485760, allowedExtensions: [], blockedExtensions: [] },
-          apiProtection: { enabled: false, apiKeyValidation: false, oauthValidation: false, jwtValidation: false },
-          exceptionHandling: { enabled: false, excludedPaths: [], excludedRules: [] },
-          virtualPatching: { enabled: false, cveRules: [] },
-          applicationId: '',
-        });
-        setActiveTab('basic');
-        setShowForm(false);
+        alert(editingPolicyName ? 'Policy version saved successfully!' : 'Policy created successfully! Assign it to an application in the Applications page to use it with the proxy WAF.');
+        closePolicyForm();
         fetchPolicies();
       } else {
         const error = await response.json();
@@ -456,6 +402,128 @@ export default function PoliciesPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleDeletePolicy = async (name) => {
+    if (!name || deletingPolicyName) return;
+
+    const confirmed = window.confirm(
+      `Delete policy "${name}" and all its versions? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingPolicyName(name);
+    try {
+      const response = await fetch(`/api/policies?name=${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        const details = Array.isArray(result?.details) && result.details.length > 0
+          ? `\nAssigned to: ${result.details.join(', ')}`
+          : '';
+        alert((result?.error || 'Failed to delete policy') + details);
+        return;
+      }
+      await fetchPolicies();
+      alert(`Deleted policy "${name}" successfully.`);
+    } catch (error) {
+      console.error('Error deleting policy:', error);
+      alert('Failed to delete policy');
+    } finally {
+      setDeletingPolicyName('');
+    }
+  };
+
+  const closePolicyForm = () => {
+    setShowForm(false);
+    setActiveTab('basic');
+    setEditingPolicyName('');
+    setFormData(getDefaultPolicyFormData());
+  };
+
+  const openNewPolicyForm = () => {
+    setEditingPolicyName('');
+    setFormData(getDefaultPolicyFormData());
+    setActiveTab('basic');
+    setShowForm(true);
+  };
+
+  const openEditPolicyForm = (policyVersion) => {
+    if (!policyVersion) return;
+    const defaults = getDefaultPolicyFormData();
+    const policy = policyVersion.policy || {};
+    const exceptions = Array.isArray(policy.exceptions) ? policy.exceptions : [];
+    const virtualPatching = Array.isArray(policy.virtualPatching) ? policy.virtualPatching : [];
+
+    const excludedPaths = exceptions
+      .map((item) => String(item?.path || '').trim())
+      .filter(Boolean);
+    const excludedRules = [...new Set(
+      exceptions
+        .flatMap((item) => Array.isArray(item?.ruleIds) ? item.ruleIds : [])
+        .map((ruleId) => String(ruleId || '').trim())
+        .filter(Boolean)
+    )];
+    const cveRules = virtualPatching
+      .map((item) => String(item?.cve || '').trim().toUpperCase())
+      .filter(Boolean);
+
+    setFormData({
+      ...defaults,
+      name: policyVersion.name || '',
+      mode: policyVersion.mode || defaults.mode,
+      includeOWASPCRS: policyVersion.includeOWASPCRS !== false,
+      sqlInjection: Boolean(policy.sqlInjection),
+      xss: Boolean(policy.xss),
+      fileUpload: Boolean(policy.fileUpload),
+      pathTraversal: Boolean(policy.pathTraversal),
+      rce: Boolean(policy.rce),
+      csrf: Boolean(policy.csrf),
+      sessionFixation: Boolean(policy.sessionFixation),
+      ssrf: Boolean(policy.ssrf),
+      xxe: Boolean(policy.xxe),
+      authBypass: Boolean(policy.authBypass),
+      idor: Boolean(policy.idor),
+      securityMisconfig: Boolean(policy.securityMisconfig),
+      sensitiveDataExposure: Boolean(policy.sensitiveDataExposure),
+      brokenAccessControl: Boolean(policy.brokenAccessControl),
+      securityHeaders: Boolean(policy.securityHeaders),
+      rateLimiting: policy.rateLimiting && typeof policy.rateLimiting === 'object'
+        ? { ...defaults.rateLimiting, ...policy.rateLimiting, enabled: true }
+        : defaults.rateLimiting,
+      ipAccessControl: policy.ipAccessControl && typeof policy.ipAccessControl === 'object'
+        ? { ...defaults.ipAccessControl, ...policy.ipAccessControl, enabled: true }
+        : defaults.ipAccessControl,
+      geoBlocking: policy.geoBlocking && typeof policy.geoBlocking === 'object'
+        ? { ...defaults.geoBlocking, ...policy.geoBlocking, enabled: true }
+        : defaults.geoBlocking,
+      advancedRateLimiting: policy.advancedRateLimiting && typeof policy.advancedRateLimiting === 'object'
+        ? { ...defaults.advancedRateLimiting, ...policy.advancedRateLimiting, enabled: true }
+        : defaults.advancedRateLimiting,
+      botDetection: policy.botDetection && typeof policy.botDetection === 'object'
+        ? { ...defaults.botDetection, ...policy.botDetection, enabled: true }
+        : defaults.botDetection,
+      advancedFileUpload: policy.advancedFileUpload && typeof policy.advancedFileUpload === 'object'
+        ? { ...defaults.advancedFileUpload, ...policy.advancedFileUpload, enabled: true }
+        : defaults.advancedFileUpload,
+      apiProtection: policy.apiProtection && typeof policy.apiProtection === 'object'
+        ? { ...defaults.apiProtection, ...policy.apiProtection, enabled: true }
+        : defaults.apiProtection,
+      exceptionHandling: {
+        enabled: excludedPaths.length > 0 || excludedRules.length > 0,
+        excludedPaths,
+        excludedRules,
+      },
+      virtualPatching: {
+        enabled: cveRules.length > 0,
+        cveRules,
+      },
+      applicationId: policyVersion.applicationId || '',
+    });
+    setEditingPolicyName(policyVersion.name || '');
+    setActiveTab('basic');
+    setShowForm(true);
   };
 
   // Group policies by name to show versions
@@ -680,7 +748,13 @@ export default function PoliciesPage() {
             <p className="mt-1 text-xs text-gray-500">Organization: <span className="font-medium text-gray-700">{tenantName}</span></p>
           </div>
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) {
+                closePolicyForm();
+              } else {
+                openNewPolicyForm();
+              }
+            }}
             className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-sm hover:shadow transition-all duration-200"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -830,10 +904,7 @@ export default function PoliciesPage() {
             {/* Backdrop */}
             <div 
               className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-              onClick={() => {
-                setShowForm(false);
-                setActiveTab('basic');
-              }}
+              onClick={closePolicyForm}
             ></div>
             
             {/* Modal Container */}
@@ -842,15 +913,12 @@ export default function PoliciesPage() {
                 {/* Modal Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Create Security Policy</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">{editingPolicyName ? 'Edit Security Policy' : 'Create Security Policy'}</h2>
                     <p className="mt-1 text-sm text-gray-600">Configure and deploy comprehensive security protections</p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setActiveTab('basic');
-                    }}
+                    onClick={closePolicyForm}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -898,7 +966,11 @@ export default function PoliciesPage() {
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-3 border transition-colors"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    disabled={Boolean(editingPolicyName)}
                   />
+                  {editingPolicyName && (
+                    <p className="mt-1 text-xs text-blue-600">Versioned edit keeps the same policy name and creates a new version.</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1500,10 +1572,7 @@ export default function PoliciesPage() {
                       <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                         <button
                           type="button"
-                          onClick={() => {
-                            setShowForm(false);
-                            setActiveTab('basic');
-                          }}
+                          onClick={closePolicyForm}
                           className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                           Cancel
@@ -1516,14 +1585,14 @@ export default function PoliciesPage() {
                           {submitting ? (
                             <span className="flex items-center space-x-2">
                               <LoadingSpinner size="sm" />
-                              <span>Creating...</span>
+                              <span>{editingPolicyName ? 'Saving Version...' : 'Creating...'}</span>
                             </span>
                           ) : (
                             <span className="flex items-center space-x-2">
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                               </svg>
-                              <span>Create Policy</span>
+                              <span>{editingPolicyName ? 'Save as New Version' : 'Create Policy'}</span>
                             </span>
                           )}
                         </button>
@@ -1611,15 +1680,32 @@ export default function PoliciesPage() {
                         </div>
                       </div>
                     </div>
-                    <Link
-                      href={`/policies/${name}`}
-                      className="flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                    >
-                      <span>View Versions</span>
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openEditPolicyForm(latestVersion)}
+                        className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100"
+                      >
+                        Edit
+                      </button>
+                      <Link
+                        href={`/policies/${name}`}
+                        className="flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        <span>View Versions</span>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePolicy(name)}
+                        disabled={deletingPolicyName === name}
+                        className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deletingPolicyName === name ? 'Deleting...' : 'Delete Policy'}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-3 pt-4 border-t border-gray-100">
                     <div className="flex items-center flex-wrap gap-2">

@@ -250,3 +250,88 @@ export async function GET(request) {
     );
   }
 }
+
+export async function DELETE(request) {
+  try {
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized. Please check your environment variables.' },
+        { status: 500 }
+      );
+    }
+
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const authCheck = await checkAuthorization(adminDb, user.email, 'delete', 'policies');
+    if (!authCheck.authorized) {
+      return NextResponse.json(
+        { error: 'Forbidden', details: authCheck.error },
+        { status: 403 }
+      );
+    }
+
+    const tenantName = await getTenantName(user);
+    if (!tenantName) {
+      return NextResponse.json({ error: 'No tenant assigned' }, { status: 400 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const name = String(searchParams.get('name') || '').trim();
+    if (!name) {
+      return NextResponse.json({ error: 'Policy name is required' }, { status: 400 });
+    }
+
+    const policiesSnapshot = await adminDb
+      .collection('policies')
+      .where('tenantName', '==', tenantName)
+      .where('name', '==', name)
+      .get();
+
+    if (policiesSnapshot.empty) {
+      return NextResponse.json({ error: 'Policy not found' }, { status: 404 });
+    }
+
+    const policyIds = policiesSnapshot.docs.map((doc) => doc.id);
+
+    // Guard: prevent deleting policies currently assigned to applications.
+    const appsSnapshot = await adminDb
+      .collection('applications')
+      .where('tenantName', '==', tenantName)
+      .get();
+
+    const assignedApps = appsSnapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((app) => app.policyId && policyIds.includes(app.policyId));
+
+    if (assignedApps.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'Cannot delete policy because it is assigned to application(s)',
+          details: assignedApps.map((app) => app.domain || app.name || app.id),
+        },
+        { status: 409 }
+      );
+    }
+
+    const batch = adminDb.batch();
+    policiesSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    return NextResponse.json({
+      success: true,
+      deletedPolicyName: name,
+      deletedVersions: policiesSnapshot.size,
+    });
+  } catch (error) {
+    console.error('Error deleting policy:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    );
+  }
+}
