@@ -159,6 +159,8 @@ export default function LogsPage() {
     try {
       const params = new URLSearchParams();
       params.append('limit', '100');
+      if (filters.action === 'blocked') params.append('blocked', 'true');
+      if (filters.action === 'allowed') params.append('blocked', 'false');
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
       const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });

@@ -748,6 +748,7 @@ export class ProxyWAFServer {
     ruleId = null,
     ruleMessage = null,
     response = null,
+    decision = null,
   }) {
     if (!adminDb || !app?.tenantName || !req) return;
     const uri = req.url || "/";
@@ -800,6 +801,13 @@ export class ProxyWAFServer {
       method: req.method || "GET",
       statusCode,
       blocked: Boolean(blocked),
+      decision:
+        decision ||
+        (blocked
+          ? "waf_blocked"
+          : Number.isFinite(statusCode) && statusCode >= 400
+            ? "origin_denied"
+            : "allowed"),
       ingestedAt: new Date().toISOString(),
     };
 

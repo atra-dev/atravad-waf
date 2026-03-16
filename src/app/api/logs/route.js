@@ -167,8 +167,12 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const level = normalizeLevel(searchParams.get('level'));
     const severity = normalizeSeverity(searchParams.get('severity'));
+    const blockedParam = searchParams.get('blocked');
+    const decisionParam = String(searchParams.get('decision') || '').trim().toLowerCase();
     const limit = parseInt(searchParams.get('limit') || '100', 10);
     const startAfter = searchParams.get('startAfter');
+    const blockedFilter =
+      blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
 
     let query = adminDb
       .collection('logs')
@@ -177,7 +181,8 @@ export async function GET(request) {
     // Mixed historical values (INFO/info, warning/warn, MEDIUM, etc.) make strict
     // Firestore equality filters unreliable. Fetch a wider tenant slice and filter
     // normalized values in-memory for stable behavior.
-    const fetchLimit = startAfter ? limit * 4 : (level || severity ? limit * 5 : limit);
+    const hasExtraFilters = Boolean(level || severity || blockedFilter !== null || decisionParam);
+    const fetchLimit = startAfter ? limit * 4 : (hasExtraFilters ? limit * 6 : limit);
     const logsSnapshot = await query.limit(fetchLimit).get();
 
     let logs = logsSnapshot.docs
@@ -197,6 +202,12 @@ export async function GET(request) {
     }
     if (severity) {
       logs = logs.filter((log) => normalizeSeverity(log.severityNormalized || log.severity) === severity);
+    }
+    if (blockedFilter !== null) {
+      logs = logs.filter((log) => Boolean(log.blocked) === blockedFilter);
+    }
+    if (decisionParam) {
+      logs = logs.filter((log) => String(log.decision || '').toLowerCase() === decisionParam);
     }
 
     if (startAfter) {

@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
     setLoading(true);
     try {
       // Fetch logs for analytics
-      const response = await fetch('/api/logs?limit=1000');
+      const response = await fetch('/api/logs?limit=1000&blocked=true');
       const data = await response.json();
       
       if (data.logs) {
