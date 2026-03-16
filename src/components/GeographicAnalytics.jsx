@@ -31,6 +31,7 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
     });
     return map;
   }, [apps]);
+  const singleAppFallback = apps.length === 1 ? apps[0] : null;
 
   const countryData = useMemo(() => {
     const countryMap = new Map();
@@ -142,14 +143,20 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
 
                       const rawHost = String(log?.request?.host || log?.source || '').split(':')[0];
                       const host = normalizeDomainInput(rawHost);
-                      const app = host ? appByDomain.get(host) : null;
+                      const app = (host ? appByDomain.get(host) : null) || singleAppFallback;
                       const destinationCountryName = String(app?.originCountry || '').trim();
-                      const destinationCoordinates = resolveCountryCoordinates(
+                      let destinationCoordinates = resolveCountryCoordinates(
                         { code: '', name: destinationCountryName },
                         coordinateIndex
                       );
+                      if (!destinationCoordinates) {
+                        destinationCoordinates = CONTINENT_DEFAULT_COORDS[String(app?.originContinent || '').trim().toUpperCase()] || null;
+                      }
+                      if (!destinationCoordinates) {
+                        destinationCoordinates = DEFAULT_DESTINATION_COORDS;
+                      }
 
-                      if (!sourceCoordinates || !destinationCoordinates) return null;
+                      if (!sourceCoordinates) return null;
 
                       return {
                         id: `${log.id || idx}-${sourceCode}-${host || 'dst'}`,
@@ -193,20 +200,22 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
                           from={line.sourceCoordinates}
                           to={line.destinationCoordinates}
                           stroke={line.blocked ? '#F97316' : '#10B981'}
-                          strokeWidth={1.1}
-                          strokeOpacity={line.blocked ? 0.7 : 0.45}
+                          strokeWidth={line.blocked ? 2.2 : 1.8}
+                          strokeOpacity={line.blocked ? 0.95 : 0.8}
+                          strokeDasharray={line.blocked ? '7 5' : '5 4'}
+                          className={line.blocked ? 'route-line route-line-blocked' : 'route-line route-line-allowed'}
                         />
                       ))}
 
                       {routeLines.map((line) => (
                         <Marker key={`src-${line.id}`} coordinates={line.sourceCoordinates}>
-                          <circle r={1.4} fill={line.blocked ? '#EF4444' : '#059669'} />
+                          <circle r={2.2} fill={line.blocked ? '#EF4444' : '#059669'} />
                         </Marker>
                       ))}
 
                       {routeLines.map((line) => (
                         <Marker key={`dst-${line.id}`} coordinates={line.destinationCoordinates}>
-                          <circle r={1.4} fill="#2563EB" />
+                          <circle r={2.2} fill="#2563EB" />
                         </Marker>
                       ))}
                     </>
@@ -333,6 +342,28 @@ export default function GeographicAnalytics({ logs = [], apps = [] }) {
           </table>
         </div>
       </div>
+
+      <style jsx>{`
+        .route-line {
+          filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.18));
+        }
+        .route-line-blocked {
+          animation: blockedDash 0.9s linear infinite;
+        }
+        .route-line-allowed {
+          animation: allowedDash 1.2s linear infinite;
+        }
+        @keyframes blockedDash {
+          to {
+            stroke-dashoffset: -24;
+          }
+        }
+        @keyframes allowedDash {
+          to {
+            stroke-dashoffset: -18;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -480,4 +511,15 @@ function collectGeometryPoints(value, out) {
 
   value.forEach((item) => collectGeometryPoints(item, out));
 }
+
+const DEFAULT_DESTINATION_COORDS = [121.0, 14.6];
+const CONTINENT_DEFAULT_COORDS = {
+  AF: [21.1, 7.4],
+  AN: [0.0, -82.9],
+  AS: [89.3, 34.0],
+  EU: [15.3, 54.5],
+  NA: [-102.5, 51.0],
+  OC: [134.5, -25.7],
+  SA: [-58.4, -14.2],
+};
 
