@@ -13,6 +13,17 @@ import {
 } from 'recharts';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 
+function getDecisionKey(log) {
+  const decision = String(log?.decision || '').trim().toLowerCase();
+  if (decision === 'waf_blocked' || decision === 'origin_denied' || decision === 'allowed') {
+    return decision;
+  }
+  if (Boolean(log?.blocked)) return 'waf_blocked';
+  const statusCode = Number(log?.statusCode);
+  if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
+  return 'allowed';
+}
+
 /**
  * Traffic Analytics Component
  * Displays time-series charts and traffic patterns
@@ -31,7 +42,8 @@ export default function TrafficAnalytics({ logs = [] }) {
       const existing = hourlyMap.get(hour) || {
         time: hour,
         total: 0,
-        blocked: 0,
+        wafBlocked: 0,
+        originDenied: 0,
         allowed: 0,
         critical: 0,
         high: 0,
@@ -40,8 +52,11 @@ export default function TrafficAnalytics({ logs = [] }) {
       };
       
       existing.total++;
-      if (log.blocked) {
-        existing.blocked++;
+      const decision = getDecisionKey(log);
+      if (decision === 'waf_blocked') {
+        existing.wafBlocked++;
+      } else if (decision === 'origin_denied') {
+        existing.originDenied++;
       } else {
         existing.allowed++;
       }
@@ -99,17 +114,23 @@ export default function TrafficAnalytics({ logs = [] }) {
     const ipMap = new Map();
     
     logs
-      .filter(log => log.blocked && (log.ipAddress || log.clientIp))
+      .filter(log => {
+        const decision = getDecisionKey(log);
+        return (decision === 'waf_blocked' || decision === 'origin_denied') && (log.ipAddress || log.clientIp);
+      })
       .forEach(log => {
         const ip = normalizeIpAddress(log.ipAddress || log.clientIp || '');
         if (!ip) return;
-        const existing = ipMap.get(ip) || { ip, count: 0 };
-        existing.count++;
+        const existing = ipMap.get(ip) || { ip, totalBlocked: 0, wafBlocked: 0, originDenied: 0 };
+        existing.totalBlocked++;
+        const decision = getDecisionKey(log);
+        if (decision === 'waf_blocked') existing.wafBlocked++;
+        if (decision === 'origin_denied') existing.originDenied++;
         ipMap.set(ip, existing);
       });
     
     return Array.from(ipMap.values())
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => b.totalBlocked - a.totalBlocked)
       .slice(0, 10);
   }, [logs]);
 
@@ -148,9 +169,17 @@ export default function TrafficAnalytics({ logs = [] }) {
                 />
                 <Line
                   type="monotone"
-                  dataKey="blocked"
-                  name="Blocked"
+                  dataKey="wafBlocked"
+                  name="Blocked by WAF"
                   stroke="#EF4444"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="originDenied"
+                  name="Blocked by Origin"
+                  stroke="#F59E0B"
                   strokeWidth={2}
                   dot={false}
                 />
@@ -251,7 +280,9 @@ export default function TrafficAnalytics({ logs = [] }) {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Blocked Requests</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Blocked by WAF</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Blocked by Origin</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Blocked</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -264,7 +295,13 @@ export default function TrafficAnalytics({ logs = [] }) {
                       {item.ip}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 text-right font-medium">
-                      {item.count.toLocaleString()}
+                      {item.wafBlocked.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-600 text-right font-medium">
+                      {item.originDenied.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                      {item.totalBlocked.toLocaleString()}
                     </td>
                   </tr>
                 ))}

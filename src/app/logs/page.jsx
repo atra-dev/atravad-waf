@@ -64,6 +64,37 @@ export default function LogsPage() {
     return value;
   };
 
+  const getDecisionKey = (log) => {
+    const decision = String(log?.decision || '').trim().toLowerCase();
+    if (decision === 'waf_blocked' || decision === 'origin_denied' || decision === 'allowed') {
+      return decision;
+    }
+    if (Boolean(log?.blocked)) return 'waf_blocked';
+    const statusCode = Number(log?.statusCode);
+    if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
+    return 'allowed';
+  };
+
+  const getActionDisplay = (log) => {
+    const decisionKey = getDecisionKey(log);
+    if (decisionKey === 'waf_blocked') {
+      return {
+        label: 'Blocked by WAF',
+        className: 'bg-red-100 text-red-700 border-red-200',
+      };
+    }
+    if (decisionKey === 'origin_denied') {
+      return {
+        label: 'Blocked by Origin',
+        className: 'bg-amber-100 text-amber-700 border-amber-200',
+      };
+    }
+    return {
+      label: 'Allowed',
+      className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    };
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       checkTenantAndFetchData();
@@ -173,8 +204,7 @@ export default function LogsPage() {
       const params = new URLSearchParams();
       params.append('page', String(pageToFetch));
       params.append('pageSize', String(pagination.pageSize || 100));
-      if (filters.action === 'blocked') params.append('blocked', 'true');
-      if (filters.action === 'allowed') params.append('blocked', 'false');
+      if (filters.action) params.append('decision', filters.action);
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
       const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
@@ -201,8 +231,7 @@ export default function LogsPage() {
         }
         if (filters.action) {
           filteredLogs = filteredLogs.filter((log) => {
-            const action = log.blocked ? 'blocked' : 'allowed';
-            return action === filters.action;
+            return getDecisionKey(log) === filters.action;
           });
         }
         // Client-side search filter
@@ -546,7 +575,8 @@ export default function LogsPage() {
                     onChange={(e) => setFilters({ ...filters, action: e.target.value })}
                   >
                     <option value="">All Actions</option>
-                    <option value="blocked">Blocked</option>
+                    <option value="waf_blocked">Blocked by WAF</option>
+                    <option value="origin_denied">Blocked by Origin</option>
                     <option value="allowed">Allowed</option>
                   </select>
                 </div>
@@ -626,15 +656,16 @@ export default function LogsPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
+                          {(() => {
+                            const action = getActionDisplay(log);
+                            return (
                           <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                              log.blocked
-                                ? 'bg-red-100 text-red-700 border-red-200'
-                                : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                            }`}
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${action.className}`}
                           >
-                            {log.blocked ? 'Blocked' : 'Allowed'}
+                            {action.label}
                           </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {log.nodeId || '-'}

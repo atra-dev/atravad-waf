@@ -28,6 +28,19 @@ function normalizeLevel(level) {
   return value;
 }
 
+function deriveDecision(log) {
+  const decision = String(log?.decision || '').trim().toLowerCase();
+  if (decision === 'blocked') return 'waf_blocked';
+  if (decision === 'denied') return 'origin_denied';
+  if (decision === 'waf_blocked' || decision === 'origin_denied' || decision === 'allowed') {
+    return decision;
+  }
+  if (Boolean(log?.blocked)) return 'waf_blocked';
+  const statusCode = Number(log?.statusCode);
+  if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
+  return 'allowed';
+}
+
 /**
  * POST /api/logs
  * Log ingestion for WAF edge. Auth via LOG_INGEST_API_KEY + tenant name.
@@ -107,6 +120,7 @@ export async function POST(request) {
         method: log.method || null,
         statusCode: log.statusCode || null,
         blocked: log.blocked || false,
+        decision: deriveDecision(log),
         ingestedAt: now,
         ipAddress: clientIp,
         geoCountry: geo?.success ? geo.country || null : null,
@@ -168,7 +182,13 @@ export async function GET(request) {
     const level = normalizeLevel(searchParams.get('level'));
     const severity = normalizeSeverity(searchParams.get('severity'));
     const blockedParam = searchParams.get('blocked');
-    const decisionParam = String(searchParams.get('decision') || '').trim().toLowerCase();
+    const decisionParamRaw = String(searchParams.get('decision') || '').trim().toLowerCase();
+    const decisionParam =
+      decisionParamRaw === 'blocked'
+        ? 'waf_blocked'
+        : decisionParamRaw === 'denied'
+          ? 'origin_denied'
+          : decisionParamRaw;
     const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
     const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
@@ -207,7 +227,7 @@ export async function GET(request) {
       logs = logs.filter((log) => Boolean(log.blocked) === blockedFilter);
     }
     if (decisionParam) {
-      logs = logs.filter((log) => String(log.decision || '').toLowerCase() === decisionParam);
+      logs = logs.filter((log) => deriveDecision(log) === decisionParam);
     }
 
     if (startAfter) {

@@ -3,6 +3,17 @@
 import { useMemo } from 'react';
 import { isPrivateIp } from '@/lib/ip-utils';
 
+function getDecisionKey(log) {
+  const decision = String(log?.decision || '').trim().toLowerCase();
+  if (decision === 'waf_blocked' || decision === 'origin_denied' || decision === 'allowed') {
+    return decision;
+  }
+  if (Boolean(log?.blocked)) return 'waf_blocked';
+  const statusCode = Number(log?.statusCode);
+  if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
+  return 'allowed';
+}
+
 // Try to import react-simple-maps (React 19 compatible fork)
 let ComposableMap, Geographies, Geography;
 try {
@@ -39,12 +50,19 @@ export default function GeographicAnalytics({ logs = [] }) {
         name: name || code,
         count: 0,
         blocked: 0,
+        wafBlocked: 0,
+        originDenied: 0,
         allowed: 0,
       };
 
       existing.count += 1;
-      if (log.blocked) {
+      const decision = getDecisionKey(log);
+      if (decision === 'waf_blocked') {
         existing.blocked += 1;
+        existing.wafBlocked += 1;
+      } else if (decision === 'origin_denied') {
+        existing.blocked += 1;
+        existing.originDenied += 1;
       } else {
         existing.allowed += 1;
       }
@@ -69,22 +87,31 @@ export default function GeographicAnalytics({ logs = [] }) {
 
   // Total requests
   const totalRequests = logs.length;
-  const blockedRequests = logs.filter(log => log.blocked).length;
+  const blockedByWafRequests = logs.filter((log) => getDecisionKey(log) === 'waf_blocked').length;
+  const blockedByOriginRequests = logs.filter((log) => getDecisionKey(log) === 'origin_denied').length;
+  const blockedRequests = blockedByWafRequests + blockedByOriginRequests;
   const allowedRequests = totalRequests - blockedRequests;
 
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-600 mb-1">Total Requests</div>
           <div className="text-2xl font-bold text-gray-900">{totalRequests.toLocaleString()}</div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-600 mb-1">Blocked</div>
-          <div className="text-2xl font-bold text-red-600">{blockedRequests.toLocaleString()}</div>
+          <div className="text-sm text-gray-600 mb-1">Blocked by WAF</div>
+          <div className="text-2xl font-bold text-red-600">{blockedByWafRequests.toLocaleString()}</div>
           <div className="text-xs text-gray-500 mt-1">
-            {totalRequests > 0 ? ((blockedRequests / totalRequests) * 100).toFixed(1) : 0}%
+            {totalRequests > 0 ? ((blockedByWafRequests / totalRequests) * 100).toFixed(1) : 0}%
+          </div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <div className="text-sm text-gray-600 mb-1">Blocked by Origin</div>
+          <div className="text-2xl font-bold text-amber-600">{blockedByOriginRequests.toLocaleString()}</div>
+          <div className="text-xs text-gray-500 mt-1">
+            {totalRequests > 0 ? ((blockedByOriginRequests / totalRequests) * 100).toFixed(1) : 0}%
           </div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -118,8 +145,10 @@ export default function GeographicAnalytics({ logs = [] }) {
                   geographies.map((geo) => {
                     const countryInfo = findCountryInfoForGeo(geo, countryData);
                     const fillColor = countryInfo
-                      ? countryInfo.blocked > 0
-                        ? `rgba(239, 68, 68, ${Math.min(0.3 + (countryInfo.blocked / countryInfo.count) * 0.7, 1)})`
+                      ? countryInfo.wafBlocked > 0
+                        ? `rgba(239, 68, 68, ${Math.min(0.3 + (countryInfo.wafBlocked / countryInfo.count) * 0.7, 1)})`
+                        : countryInfo.originDenied > 0
+                          ? `rgba(245, 158, 11, ${Math.min(0.3 + (countryInfo.originDenied / countryInfo.count) * 0.7, 1)})`
                         : `rgba(34, 197, 94, ${Math.min(0.45 + (countryInfo.count / maxCountryCount) * 0.55, 1)})`
                       : '#E5E7EB';
 
@@ -148,7 +177,11 @@ export default function GeographicAnalytics({ logs = [] }) {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-200 rounded"></div>
-                <span>Blocked Traffic</span>
+                <span>Blocked by WAF</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-amber-200 rounded"></div>
+                <span>Blocked by Origin</span>
               </div>
             </div>
           </div>
@@ -194,7 +227,10 @@ export default function GeographicAnalytics({ logs = [] }) {
                   Total Requests
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Blocked
+                  Blocked by WAF
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Blocked by Origin
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Allowed
@@ -207,7 +243,7 @@ export default function GeographicAnalytics({ logs = [] }) {
             <tbody className="bg-white divide-y divide-gray-200">
               {topCountries.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                     No geographic data available yet. New logs will include country metadata for SOC analysis.
                   </td>
                 </tr>
@@ -238,7 +274,10 @@ export default function GeographicAnalytics({ logs = [] }) {
                       {country.count.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                      {country.blocked.toLocaleString()}
+                      {country.wafBlocked.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-amber-600">
+                      {country.originDenied.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
                       {country.allowed.toLocaleString()}
