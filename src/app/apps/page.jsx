@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -217,8 +218,13 @@ export default function AppsPage() {
       setHasTenant(false);
     } finally {
       setLoading(false);
-    }
-  };
+  }
+};
+
+const getTrafficBarHeight = (value, maxValue) => {
+  if (!maxValue || value <= 0) return 10;
+  return Math.max(10, Math.min(56, Math.round((value / maxValue) * 56)));
+};
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();
@@ -800,29 +806,29 @@ export default function AppsPage() {
               const hostingIp = getHostingDisplay(app);
               const hasRealStats = activated && stats !== null;
               const sslMeta = getSslStatusMeta(app.ssl);
+              const maxTraffic = hasRealStats ? Math.max(stats.blocked, stats.allowed, 1) : 1;
               
               return (
                 <div
                   key={app.id}
-                  className={`bg-white rounded-xl border-2 ${
-                    activated ? 'border-gray-200' : 'border-red-200'
-                  } hover:shadow-lg transition-shadow`}
+                  className={`overflow-hidden rounded-[22px] border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_24px_rgba(15,23,42,0.06)] transition-shadow hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)] ${
+                    activated ? 'border-slate-200/90' : 'border-red-200'
+                  }`}
                 >
-                  {/* Card Header */}
-                  <div className="p-5">
-                    <div className="flex items-start justify-between">
+                  <div className="px-6 pb-0 pt-6">
+                    <div className="flex items-start justify-between gap-4">
                       <a
                         href={`https://${app.domain}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-teal-600 hover:text-teal-700 font-semibold text-lg hover:underline"
+                        className="max-w-[calc(100%-3rem)] break-all text-[1.7rem] font-semibold leading-tight text-cyan-700 underline decoration-cyan-300/70 underline-offset-3 hover:text-cyan-800"
                       >
                         {app.domain}
                       </a>
                       <div className="relative">
                         <button 
                           onClick={(e) => openSettingsWithPosition(e, app.id)}
-                          className="p-1 text-gray-400 hover:text-gray-600"
+                          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
                           aria-label="Site settings"
                         >
                           <SettingsIcon className="h-5 w-5" />
@@ -830,77 +836,79 @@ export default function AppsPage() {
                       </div>
                     </div>
                     
-                    {/* IPs */}
-                    <div className="mt-3 space-y-1 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">Hosting IP:</span>
-                        <span className="font-mono text-gray-700">{hostingIp}</span>
+                    <div className="mt-5 space-y-3 text-[15px] leading-6">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-slate-500">Hosting IP:</span>
+                        <span className="font-mono text-slate-800">{hostingIp}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500">Firewall IP:</span>
-                        <span className="font-mono text-gray-700">{app.firewallIp || 'Not assigned'}</span>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-slate-500">Firewall IP:</span>
+                        <span className="font-mono text-slate-800">{app.firewallIp || 'Not assigned'}</span>
                         {app.wafRegion && (
-                          <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                          <span className="ml-1 rounded-md bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700 uppercase">
                             {app.wafRegion.toUpperCase()}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-gray-500">SSL:</span>
-                        <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${sslMeta.tone}`}>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-slate-500">SSL:</span>
+                        <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-semibold tracking-wide ${sslMeta.tone}`}>
                           {sslMeta.label}
                         </span>
                       </div>
                     </div>
 
-                    {/* Quick Links */}
                     {activated && (
-                      <div className="mt-4 flex flex-wrap gap-2 text-sm">
-                        <a href="/logs" className="text-gray-600 hover:text-teal-600">Reports</a>
-                        <span className="text-gray-300">|</span>
-                        <a href="/logs" className="text-gray-600 hover:text-teal-600">Audit Trails</a>
-                        <span className="text-gray-300">|</span>
-                        <button className="text-gray-600 hover:text-teal-600">Clear Cache</button>
-                        <span className="text-gray-300">|</span>
-                        <a href="/policies" className="text-gray-600 hover:text-teal-600">IP Access Control</a>
+                      <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-[15px] text-slate-600">
+                        <Link href="/logs" className="hover:text-cyan-700">Reports</Link>
+                        <span className="text-slate-300">|</span>
+                        <Link href="/logs" className="hover:text-cyan-700">Audit Trails</Link>
+                        <span className="text-slate-300">|</span>
+                        <button className="hover:text-cyan-700">Clear Cache</button>
+                        <span className="text-slate-300">|</span>
+                        <Link href="/policies" className="hover:text-cyan-700">IP Access Control</Link>
                       </div>
                     )}
                   </div>
 
-                  {/* Stats or Not Activated */}
-                  <div className="border-t border-gray-100 px-5 py-4">
+                  <div className="mt-5 border-t border-slate-200/80 bg-slate-50/35 px-6 py-5">
                     {activated ? (
                       hasRealStats ? (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            {/* Stats Bar */}
-                            <div className="flex items-end gap-1 h-12">
+                        <div className="flex items-end justify-between gap-5">
+                          <div className="flex items-end gap-5">
+                            <div className="flex h-16 items-end gap-2">
                               <div 
-                                className="w-4 bg-red-400 rounded-t"
-                                style={{ height: `${Math.min(stats.blocked * 2, 48)}px` }}
+                                className="w-5 rounded-t-sm bg-red-200"
+                                style={{ height: `${getTrafficBarHeight(stats.blocked, maxTraffic)}px` }}
                               />
                               <div 
-                                className="w-4 bg-teal-400 rounded-t"
-                                style={{ height: `${Math.min(stats.allowed / 4, 48)}px` }}
+                                className="w-7 rounded-t-sm bg-emerald-200"
+                                style={{ height: `${getTrafficBarHeight(stats.allowed, maxTraffic)}px` }}
                               />
                             </div>
-                            <div className="text-sm">
-                              <div className="flex items-center gap-3">
-                                <span className="text-red-500 font-semibold">{stats.blocked}</span>
-                                <span className="text-teal-500 font-semibold">{stats.allowed}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-gray-500 text-xs">
-                                <span>Blocked</span>
-                                <span>Allowed</span>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex items-end gap-6">
+                                <div className="text-center">
+                                  <div className="text-[1.9rem] font-semibold leading-none text-red-500">{stats.blocked.toLocaleString()}</div>
+                                  <div className="mt-1 text-[13px] text-slate-700">Blocked</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-[1.9rem] font-semibold leading-none text-emerald-500">{stats.allowed.toLocaleString()}</div>
+                                  <div className="mt-1 text-[13px] text-slate-700">Allowed</div>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <CheckCircleIcon className="h-6 w-6 text-green-500" />
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 shadow-[0_6px_14px_rgba(34,197,94,0.25)]">
+                            <CheckCircleIcon className="h-6 w-6 text-white" />
+                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-500 text-sm">No traffic data yet</span>
-                          <CheckCircleIcon className="h-6 w-6 text-green-500" />
+                          <span className="text-sm text-slate-500">No traffic data yet</span>
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 shadow-[0_6px_14px_rgba(34,197,94,0.25)]">
+                            <CheckCircleIcon className="h-6 w-6 text-white" />
+                          </div>
                         </div>
                       )
                     ) : (
@@ -911,7 +919,7 @@ export default function AppsPage() {
                         </div>
                         <button 
                           onClick={() => setSelectedAppForSetup(app)}
-                          className="px-4 py-2 bg-teal-500 text-white text-sm font-medium rounded-lg hover:bg-teal-600"
+                          className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
                         >
                           Continue Setup
                         </button>
