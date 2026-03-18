@@ -48,6 +48,24 @@ export async function GET(request) {
       );
     }
 
+    if (userData.invitationPending === true) {
+      const acceptedAt = new Date().toISOString();
+      const normalizedEmail = userData.email.toLowerCase().trim();
+      await adminDb.collection('users').doc(normalizedEmail).update({
+        uid: user.uid,
+        invitationPending: false,
+        acceptedAt,
+        updatedAt: acceptedAt,
+      });
+      userData = {
+        ...userData,
+        uid: user.uid,
+        invitationPending: false,
+        acceptedAt,
+        updatedAt: acceptedAt,
+      };
+    }
+
     return NextResponse.json({
       ...userData,
       needsTenant: !userData.tenantName,

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { auth } from '@/lib/firebase';
 
 export default function TenantUsersPage() {
   const [users, setUsers] = useState([]);
@@ -17,12 +19,8 @@ export default function TenantUsersPage() {
 
   const [createFormData, setCreateFormData] = useState({
     email: '',
-    password: '',
     role: 'client',
   });
-  const [createConfirmPassword, setCreateConfirmPassword] = useState('');
-  const [showCreatePassword, setShowCreatePassword] = useState(false);
-  const [showCreateConfirmPassword, setShowCreateConfirmPassword] = useState(false);
 
   const [editFormData, setEditFormData] = useState({
     role: 'client',
@@ -64,20 +62,17 @@ export default function TenantUsersPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Tenant Users</h1>
             <p className="mt-2 text-sm text-gray-600">
-              Manage client and analyst accounts for your organization.
+              Invite and manage members for your organization.
             </p>
           </div>
           <button
             onClick={() => {
-              setCreateFormData({ email: '', password: '', role: 'client' });
-              setCreateConfirmPassword('');
-              setShowCreatePassword(false);
-              setShowCreateConfirmPassword(false);
+              setCreateFormData({ email: '', role: 'client' });
               setShowCreateModal(true);
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            + Create User
+            + Invite Member
           </button>
         </div>
 
@@ -106,6 +101,9 @@ export default function TenantUsersPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
@@ -120,8 +118,8 @@ export default function TenantUsersPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === 'analyst'
-                              ? 'bg-yellow-100 text-yellow-800'
+                            user.role === 'admin'
+                              ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >
@@ -130,6 +128,17 @@ export default function TenantUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.invitationPending
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {user.invitationPending ? 'Invite Pending' : 'Active'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
@@ -187,7 +196,7 @@ export default function TenantUsersPage() {
                   {users.length === 0 && (
                     <tr>
                       <td
-                        colSpan={4}
+                        colSpan={5}
                         className="px-6 py-4 text-center text-sm text-gray-500"
                       >
                         No users found
@@ -205,7 +214,7 @@ export default function TenantUsersPage() {
           <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Create New User</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Invite New Member</h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
                   className="text-gray-400 hover:text-gray-600 focus:outline-none"
@@ -228,19 +237,6 @@ export default function TenantUsersPage() {
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
-
-                  // Basic validation for password + confirm password
-                  if (createFormData.password && createFormData.password.length > 0) {
-                    if (createFormData.password.length < 6) {
-                      alert('Password must be at least 6 characters.');
-                      return;
-                    }
-                    if (createFormData.password !== createConfirmPassword) {
-                      alert('Passwords do not match.');
-                      return;
-                    }
-                  }
-
                   setActionLoading(true);
                   try {
                     const res = await fetch('/api/tenant/users', {
@@ -252,12 +248,15 @@ export default function TenantUsersPage() {
                     if (!res.ok) {
                       throw new Error(data.error || 'Failed to create user');
                     }
+                    await sendPasswordResetEmail(auth, createFormData.email.trim(), {
+                      url: `${window.location.origin}/login`,
+                    });
                     setShowCreateModal(false);
-                    setCreateFormData({ email: '', password: '', role: 'client' });
-                    setCreateConfirmPassword('');
+                    setCreateFormData({ email: '', role: 'client' });
                     await fetchUsers();
+                    alert(`Invitation sent to ${createFormData.email.trim()}.`);
                   } catch (err) {
-                    alert(err.message || 'Failed to create user');
+                    alert(err.message || 'Failed to invite user');
                   } finally {
                     setActionLoading(false);
                   }
@@ -278,55 +277,6 @@ export default function TenantUsersPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="you@gmail.com"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showCreatePassword ? 'text' : 'password'}
-                      required
-                      value={createFormData.password}
-                      onChange={(e) =>
-                        setCreateFormData({ ...createFormData, password: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
-                      placeholder="Enter a strong password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCreatePassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-0 px-3 flex items-center text-xs text-gray-500 hover:text-gray-700 focus:outline-none"
-                    >
-                      {showCreatePassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Minimum 6 characters.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showCreateConfirmPassword ? 'text' : 'password'}
-                      required
-                      value={createConfirmPassword}
-                      onChange={(e) => setCreateConfirmPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
-                      placeholder="Repeat password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateConfirmPassword((prev) => !prev)}
-                      className="absolute inset-y-0 right-0 px-3 flex items-center text-xs text-gray-500 hover:text-gray-700 focus:outline-none"
-                    >
-                      {showCreateConfirmPassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -357,9 +307,12 @@ export default function TenantUsersPage() {
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     disabled={actionLoading}
                   >
-                    {actionLoading ? 'Creating...' : 'Create User'}
+                    {actionLoading ? 'Sending Invite...' : 'Send Invite'}
                   </button>
                 </div>
+                <p className="text-xs text-gray-500">
+                  The member will receive a Firebase email to set their password and join this tenant.
+                </p>
               </form>
             </div>
           </div>

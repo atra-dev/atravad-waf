@@ -4,6 +4,10 @@ import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getUserRole, ROLES } from '@/lib/rbac';
 import { normalizeEmail } from '@/lib/user-utils';
 
+function generateTemporaryPassword() {
+  return `Tmp!${Math.random().toString(36).slice(2, 10)}9Z`;
+}
+
 async function requireTenantAdmin(request) {
   if (!adminDb || !adminAuth) {
     return { errorResponse: NextResponse.json({ error: 'Firebase Admin not initialized' }, { status: 500 }) };
@@ -64,6 +68,9 @@ export async function GET(request) {
         email: data.email,
         role: data.role,
         tenantName: data.tenantName,
+        invitationPending: data.invitationPending === true,
+        invitedAt: data.invitedAt || null,
+        acceptedAt: data.acceptedAt || null,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       };
@@ -88,8 +95,8 @@ export async function GET(request) {
 
 /**
  * POST /api/tenant/users
- * Create a new client/analyst user inside the current admin's tenant
- * Body: { email, password?, role }  // role: 'client' | 'analyst'
+ * Invite a new client/admin user inside the current admin's tenant.
+ * Body: { email, role }
  */
 export async function POST(request) {
   try {
@@ -98,7 +105,7 @@ export async function POST(request) {
 
     const { tenantName } = ctx;
     const body = await request.json();
-    const { email, password, role } = body;
+    const { email, role } = body;
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return NextResponse.json(
@@ -116,14 +123,6 @@ export async function POST(request) {
       );
     }
 
-    // Require password and basic validation
-    if (!password || typeof password !== 'string' || password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password is required and must be at least 6 characters' },
-        { status: 400 }
-      );
-    }
-
     const normalizedEmail = normalizeEmail(email);
 
     // Check if user already exists in Firestore
@@ -135,23 +134,21 @@ export async function POST(request) {
       );
     }
 
-    // Create user in Firebase Auth (password is required and already validated)
+    // Create or reuse Firebase Auth user so Firebase can send a password-setup email.
     let firebaseUser;
     try {
-      firebaseUser = await adminAuth.createUser({
-        email: normalizedEmail,
-        password,
-        emailVerified: false,
-      });
+      firebaseUser = await adminAuth.getUserByEmail(normalizedEmail);
     } catch (authError) {
-      console.error('Error creating Firebase Auth user (tenant):', authError);
-      if (authError.code === 'auth/email-already-exists') {
-        return NextResponse.json(
-          { error: 'User already exists in Firebase Auth' },
-          { status: 400 }
-        );
+      if (authError.code === 'auth/user-not-found') {
+        firebaseUser = await adminAuth.createUser({
+          email: normalizedEmail,
+          password: generateTemporaryPassword(),
+          emailVerified: false,
+        });
+      } else {
+        console.error('Error preparing Firebase Auth user (tenant):', authError);
+        throw authError;
       }
-      throw authError;
     }
 
     const now = new Date().toISOString();
@@ -160,6 +157,9 @@ export async function POST(request) {
       uid: firebaseUser.uid,
       role: userRoleToSet,
       tenantName,
+      invitationPending: true,
+      invitedAt: now,
+      acceptedAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -172,6 +172,8 @@ export async function POST(request) {
         email: normalizedEmail,
         role: userRoleToSet,
         tenantName,
+        invitationPending: true,
+        invitedAt: now,
         createdAt: now,
         updatedAt: now,
       },
