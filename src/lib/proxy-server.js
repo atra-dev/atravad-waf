@@ -27,6 +27,7 @@ import { normalizeDomainInput } from "./domain-utils.js";
 import { geolocateIpCached } from "./geolocation.js";
 import { normalizeIpAddress } from "./ip-utils.js";
 import { deriveRuleId } from "./log-rule-utils.js";
+import { getDefaultOriginServername } from "./origin-utils.js";
 
 const requireMod = createRequire(import.meta.url);
 let selfsigned = null;
@@ -469,6 +470,111 @@ function looksLikeNginx404(statusCode, headers, bodyBuffer) {
   if (!contentType.includes("text/html")) return false;
   const body = (bodyBuffer || Buffer.alloc(0)).toString("utf8").toLowerCase();
   return body.includes("nginx") && body.includes("404 not found");
+}
+
+function getRequestHostHeader(req) {
+  return String(req?.headers?.host || "").trim() || null;
+}
+
+function getHostWithoutPort(hostHeader) {
+  if (!hostHeader) return null;
+  try {
+    return new URL(`https://${hostHeader}`).hostname;
+  } catch {
+    return hostHeader.split(":")[0] || null;
+  }
+}
+
+function isStreamingResponse(proxyRes) {
+  const contentType = String(proxyRes?.headers?.["content-type"] || "").toLowerCase();
+  if (contentType.includes("text/event-stream")) return true;
+  if (contentType.includes("application/x-ndjson")) return true;
+
+  const cacheControl = String(proxyRes?.headers?.["cache-control"] || "").toLowerCase();
+  if (cacheControl.includes("no-transform")) return true;
+
+  return false;
+}
+
+function getOriginTargetPath(originUrlObj, clientPath) {
+  return clientPath + (originUrlObj.search || "");
+}
+
+function buildOriginRequestOptions(clientReq, origin) {
+  const originUrl = origin?.url;
+  const originUrlObj = new URL(originUrl);
+  const incomingHostHeader = getRequestHostHeader(clientReq);
+  const upstreamHostHeader =
+    origin?.upstreamHost || incomingHostHeader || originUrlObj.host;
+  const tlsServername =
+    origin?.tlsServername ||
+    getDefaultOriginServername(originUrlObj.toString(), upstreamHostHeader);
+  const headers = { ...clientReq.headers };
+
+  delete headers["connection"];
+  delete headers["host"];
+  delete headers["transfer-encoding"];
+  delete headers["upgrade"];
+
+  headers["host"] = upstreamHostHeader;
+  headers["x-forwarded-for"] =
+    (clientReq.headers["x-forwarded-for"] || "") +
+    (clientReq.headers["x-forwarded-for"] ? ", " : "") +
+    (clientReq.socket.remoteAddress || "unknown");
+  headers["x-forwarded-proto"] = clientReq.secure ? "https" : "http";
+  if (incomingHostHeader) {
+    headers["x-forwarded-host"] = incomingHostHeader;
+  }
+  headers["x-atravad-origin-url"] = originUrlObj.toString();
+  headers["x-atravad-upstream-host"] = upstreamHostHeader;
+
+  if (origin?.authHeader?.name && origin?.authHeader?.value) {
+    headers[origin.authHeader.name] = origin.authHeader.value;
+  }
+
+  const requestOptions = {
+    method: clientReq.method,
+    hostname: originUrlObj.hostname,
+    port: originUrlObj.port || (originUrlObj.protocol === "https:" ? 443 : 80),
+    path: getOriginTargetPath(originUrlObj, clientReq.url),
+    headers,
+  };
+
+  if (originUrlObj.protocol === "https:" && tlsServername) {
+    requestOptions.servername = tlsServername;
+  }
+
+  return {
+    requestOptions,
+    originUrlObj,
+    incomingHostHeader,
+    upstreamHostHeader,
+  };
+}
+
+function sendUpgradeError(socket, statusCode, message) {
+  if (!socket || socket.destroyed) return;
+  const body = message || "Bad Request";
+  socket.write(
+    `HTTP/1.1 ${statusCode} ${body}\r\n` +
+      "Connection: close\r\n" +
+      "Content-Type: text/plain; charset=utf-8\r\n" +
+      `Content-Length: ${Buffer.byteLength(body)}\r\n` +
+      "\r\n" +
+      body,
+  );
+  socket.destroy();
+}
+
+function getWebSocketIdleTimeoutMs(origin) {
+  const configured = Number.parseInt(
+    String(origin?.websocketIdleTimeoutSec ?? process.env.WAF_WEBSOCKET_IDLE_TIMEOUT_SEC ?? "900"),
+    10,
+  );
+  if (!Number.isInteger(configured) || configured < 10) {
+    return 900000;
+  }
+  return configured * 1000;
 }
 
 function hasRequestBody(req) {
@@ -1380,7 +1486,7 @@ export class ProxyWAFServer {
         }
       }
 
-      await this.forwardRequest(req, res, origin.url, app, bodyBuffer);
+      await this.forwardRequest(req, res, origin, app, bodyBuffer);
     } catch (error) {
       console.error("Error handling request:", error);
       if (!res.headersSent) {
@@ -1393,47 +1499,227 @@ export class ProxyWAFServer {
     }
   }
 
+  async handleUpgrade(clientReq, clientSocket, head, { secure = false } = {}) {
+    try {
+      clientReq.secure = secure;
+      const upgradeHeader = String(clientReq.headers?.upgrade || "").toLowerCase();
+      const connectionHeader = String(clientReq.headers?.connection || "").toLowerCase();
+      if (upgradeHeader !== "websocket" || !connectionHeader.includes("upgrade")) {
+        sendUpgradeError(clientSocket, 400, "Invalid WebSocket upgrade request");
+        return;
+      }
+
+      const host = normalizeDomainInput(getHostWithoutPort(getRequestHostHeader(clientReq)) || "");
+      if (!host) {
+        sendUpgradeError(clientSocket, 400, "Missing Host header");
+        return;
+      }
+
+      const app = this.applications.get(host);
+      if (!app) {
+        sendUpgradeError(clientSocket, 404, "Application not found");
+        return;
+      }
+
+      const origin = this.getHealthyOrigin(app);
+      if (!origin?.url) {
+        sendUpgradeError(clientSocket, 503, "No origin server configured");
+        return;
+      }
+      if (origin.websocketEnabled === false) {
+        this.queueSecurityLog({
+          app,
+          req: clientReq,
+          level: "warn",
+          severity: "MEDIUM",
+          message: `WebSocket upgrade denied for ${host}: disabled by origin policy`,
+          blocked: true,
+          statusCode: 403,
+          response: { statusCode: 403, origin: origin.url, protocol: "websocket" },
+          decision: "websocket_denied",
+        });
+        sendUpgradeError(clientSocket, 403, "WebSocket disabled for this origin");
+        return;
+      }
+
+      if (app.policyId && this.modSecurity) {
+        const inspection = await this.modSecurity.inspectRequest(
+          clientReq,
+          app.policyId,
+          null,
+        );
+        if (!inspection.allowed || inspection.blocked) {
+          const topRule = inspection.matchedRules?.[0] || null;
+          this.queueSecurityLog({
+            app,
+            req: clientReq,
+            level: "warn",
+            severity: "CRITICAL",
+            message: `WebSocket handshake blocked by WAF for ${host}`,
+            blocked: true,
+            statusCode: 403,
+            ruleId: topRule?.id || null,
+            ruleMessage: topRule?.message || null,
+            response: { statusCode: 403, origin: origin.url, protocol: "websocket" },
+            decision: "websocket_blocked",
+          });
+          sendUpgradeError(clientSocket, 403, "WebSocket blocked by WAF");
+          return;
+        }
+      }
+
+      const { requestOptions, originUrlObj } = buildOriginRequestOptions(
+        clientReq,
+        origin,
+      );
+      requestOptions.method = clientReq.method || "GET";
+      requestOptions.headers["connection"] =
+        clientReq.headers["connection"] || "Upgrade";
+      requestOptions.headers["upgrade"] =
+        clientReq.headers["upgrade"] || "websocket";
+
+      const protocol = originUrlObj.protocol === "https:" ? https : http;
+      const proxyReq = protocol.request(requestOptions);
+      const idleTimeoutMs = getWebSocketIdleTimeoutMs(origin);
+
+      clientSocket.setTimeout(idleTimeoutMs);
+      clientSocket.on("timeout", () => {
+        if (!clientSocket.destroyed) clientSocket.destroy();
+      });
+
+      proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
+        const statusLine = `HTTP/1.1 ${proxyRes.statusCode || 101} ${proxyRes.statusMessage || "Switching Protocols"}\r\n`;
+        const headerLines = Object.entries(proxyRes.headers || {})
+          .flatMap(([key, value]) => {
+            if (Array.isArray(value)) {
+              return value.map((entry) => `${key}: ${entry}\r\n`);
+            }
+            if (value === undefined) return [];
+            return [`${key}: ${value}\r\n`];
+          })
+          .join("");
+
+        clientSocket.write(`${statusLine}${headerLines}\r\n`);
+        if (proxyHead?.length) {
+          clientSocket.write(proxyHead);
+        }
+        if (head?.length) {
+          proxySocket.write(head);
+        }
+
+        proxySocket.setTimeout(idleTimeoutMs);
+        proxySocket.on("timeout", () => {
+          if (!proxySocket.destroyed) proxySocket.destroy();
+        });
+
+        this.queueSecurityLog({
+          app,
+          req: clientReq,
+          level: "info",
+          severity: "INFO",
+          message: `WebSocket upgrade accepted for ${host}`,
+          blocked: false,
+          statusCode: proxyRes.statusCode || 101,
+          response: {
+            statusCode: proxyRes.statusCode || 101,
+            origin: origin.url,
+            protocol: "websocket",
+          },
+          decision: "websocket_allowed",
+        });
+
+        proxySocket.pipe(clientSocket);
+        clientSocket.pipe(proxySocket);
+
+        const closeBoth = () => {
+          if (!proxySocket.destroyed) proxySocket.destroy();
+          if (!clientSocket.destroyed) clientSocket.destroy();
+        };
+
+        proxySocket.on("error", (error) => {
+          console.error("WebSocket proxy socket error:", error);
+          closeBoth();
+        });
+        clientSocket.on("error", (error) => {
+          console.error("WebSocket client socket error:", error);
+          closeBoth();
+        });
+        proxySocket.on("end", closeBoth);
+        clientSocket.on("end", closeBoth);
+      });
+
+      proxyReq.on("response", (proxyRes) => {
+        this.queueSecurityLog({
+          app,
+          req: clientReq,
+          level: proxyRes.statusCode >= 500 ? "error" : "warn",
+          severity: proxyRes.statusCode >= 500 ? "HIGH" : "MEDIUM",
+          message: `WebSocket upgrade rejected by origin for ${host}`,
+          blocked: proxyRes.statusCode >= 400,
+          statusCode: proxyRes.statusCode || 502,
+          response: {
+            statusCode: proxyRes.statusCode || 502,
+            origin: origin.url,
+            protocol: "websocket",
+          },
+          decision: "websocket_origin_response",
+        });
+        const statusLine = `HTTP/1.1 ${proxyRes.statusCode || 502} ${proxyRes.statusMessage || "Bad Gateway"}\r\n`;
+        const headerLines = Object.entries(proxyRes.headers || {})
+          .flatMap(([key, value]) => {
+            if (Array.isArray(value)) {
+              return value.map((entry) => `${key}: ${entry}\r\n`);
+            }
+            if (value === undefined) return [];
+            return [`${key}: ${value}\r\n`];
+          })
+          .join("");
+        clientSocket.write(`${statusLine}${headerLines}\r\n`);
+        proxyRes.pipe(clientSocket);
+      });
+
+      proxyReq.on("error", (error) => {
+        console.error("WebSocket proxy request error:", error);
+        this.queueSecurityLog({
+          app,
+          req: clientReq,
+          level: "error",
+          severity: "HIGH",
+          message: `WebSocket proxy request error for ${host}: ${error.message}`,
+          blocked: true,
+          statusCode: 502,
+          response: { statusCode: 502, origin: origin.url, protocol: "websocket" },
+          decision: "websocket_proxy_error",
+        });
+        sendUpgradeError(clientSocket, 502, "Bad Gateway");
+      });
+
+      proxyReq.end();
+    } catch (error) {
+      console.error("Error handling WebSocket upgrade:", error);
+      sendUpgradeError(clientSocket, 500, "Internal Server Error");
+    }
+  }
+
   /**
    * Forward request to origin server.
    * @param {object} clientReq - Incoming request
    * @param {object} clientRes - Response to client
-   * @param {string} originUrl - Origin base URL
+   * @param {object} origin - Origin config
    * @param {object} app - Application config (policyId, etc.)
    * @param {Buffer|null} bodyBuffer - Buffered request body when already consumed for inspection
    */
-  forwardRequest(clientReq, clientRes, originUrl, app, bodyBuffer = null) {
+  forwardRequest(clientReq, clientRes, origin, app, bodyBuffer = null) {
     try {
-      const originUrlObj = new URL(originUrl);
-      const targetPath = clientReq.url;
-
-      const requestOptions = {
-        method: clientReq.method,
-        hostname: originUrlObj.hostname,
-        port:
-          originUrlObj.port || (originUrlObj.protocol === "https:" ? 443 : 80),
-        path: targetPath + (originUrlObj.search || ""),
-        headers: { ...clientReq.headers },
-      };
-
-      delete requestOptions.headers["connection"];
-      delete requestOptions.headers["host"];
-      delete requestOptions.headers["transfer-encoding"];
-      delete requestOptions.headers["upgrade"];
-      requestOptions.headers["host"] = originUrlObj.host;
-      requestOptions.headers["x-forwarded-for"] =
-        (clientReq.headers["x-forwarded-for"] || "") +
-        (clientReq.headers["x-forwarded-for"] ? ", " : "") +
-        (clientReq.socket.remoteAddress || "unknown");
-      requestOptions.headers["x-forwarded-proto"] = clientReq.secure
-        ? "https"
-        : "http";
-      requestOptions.headers["x-forwarded-host"] = clientReq.headers.host;
+      const { requestOptions, originUrlObj, incomingHostHeader } =
+        buildOriginRequestOptions(clientReq, origin);
 
       const protocol = originUrlObj.protocol === "https:" ? https : http;
       const doResponseInspection = Boolean(
         app.policyId &&
         this.modSecurity &&
         app.responseInspectionEnabled !== false &&
+        origin?.responseBuffering !== false &&
         this.modSecurity.responseInspectionEnabled !== false,
       );
       const responseBodyLimit =
@@ -1469,7 +1755,7 @@ export class ProxyWAFServer {
       };
 
       const proxyReq = protocol.request(requestOptions, (proxyRes) => {
-        if (doResponseInspection) {
+        if (doResponseInspection && !isStreamingResponse(proxyRes)) {
           const chunks = [];
           let total = 0;
           proxyRes.on("data", (chunk) => {
@@ -1522,7 +1808,7 @@ export class ProxyWAFServer {
             }
             if (looksLikeNginx404(proxyRes.statusCode, proxyRes.headers, body)) {
               sendCustomNotFound(clientRes, {
-                host: clientReq.headers.host?.split(":")[0],
+                host: getHostWithoutPort(incomingHostHeader),
                 path: clientReq.url,
               });
               return;
@@ -1571,7 +1857,7 @@ export class ProxyWAFServer {
                 looksLikeNginx404(proxyRes.statusCode, proxyRes.headers, body)
               ) {
                 sendCustomNotFound(clientRes, {
-                  host: clientReq.headers.host?.split(":")[0],
+                  host: getHostWithoutPort(incomingHostHeader),
                   path: clientReq.url,
                 });
                 return;
@@ -1675,6 +1961,10 @@ export class ProxyWAFServer {
       this.handleRequest(req, res);
     });
 
+    this.httpServer.on("upgrade", (req, socket, head) => {
+      this.handleUpgrade(req, socket, head, { secure: false });
+    });
+
     this.httpServer.listen(this.port, () => {
       console.log(
         `ATRAVAD Proxy WAF HTTP server listening on port ${this.port}`,
@@ -1757,6 +2047,10 @@ export class ProxyWAFServer {
 
     this.httpsServer = https.createServer(serverOptions, (req, res) => {
       this.handleRequest(req, res);
+    });
+
+    this.httpsServer.on("upgrade", (req, socket, head) => {
+      this.handleUpgrade(req, socket, head, { secure: true });
     });
 
     this.httpsServer.listen(this.httpsPort, () => {

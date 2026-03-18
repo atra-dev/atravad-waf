@@ -133,6 +133,25 @@ const validateSslInput = (data) => {
   return { valid: true, message: 'Custom SSL PEM looks valid.' };
 };
 
+const createDefaultAppFormData = () => ({
+  name: '',
+  domain: '',
+  originUrl: '',
+  originUpstreamHost: '',
+  originTlsServername: '',
+  originAuthHeaderName: '',
+  originAuthHeaderValue: '',
+  responseInspectionEnabled: true,
+  websocketEnabled: true,
+  websocketIdleTimeoutSec: '900',
+  policyId: '',
+  sslMode: SSL_MODE.AUTO,
+  autoProvisionSSL: true,
+  customCert: '',
+  customKey: '',
+  customFullchain: '',
+});
+
 export default function AppsPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,17 +160,7 @@ export default function AppsPage() {
   const [connecting, setConnecting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    domain: '',
-    originUrl: '',
-    policyId: '',
-    sslMode: 'auto',
-    autoProvisionSSL: true,
-    customCert: '',
-    customKey: '',
-    customFullchain: '',
-  });
+  const [formData, setFormData] = useState(createDefaultAppFormData);
   const [policies, setPolicies] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedAppForSetup, setSelectedAppForSetup] = useState(null); // For Continue Setup modal
@@ -159,7 +168,7 @@ export default function AppsPage() {
   const [dropdownPosition, setDropdownPosition] = useState(null); // { top, left } for portal dropdown
   const [selectedAppForEdit, setSelectedAppForEdit] = useState(null); // For edit modal
   const [editModalTab, setEditModalTab] = useState('general'); // 'general' | 'ssl' - Sucuri-style separation
-  const [editFormData, setEditFormData] = useState({ originUrl: '', policyId: '', sslMode: SSL_MODE.AUTO, autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
+  const [editFormData, setEditFormData] = useState(() => createDefaultAppFormData());
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [createSslUiError, setCreateSslUiError] = useState('');
@@ -336,17 +345,7 @@ export default function AppsPage() {
   };
 
   const handleAddSite = () => {
-    setFormData({
-      name: '',
-      domain: '',
-      originUrl: '',
-      policyId: '',
-      sslMode: SSL_MODE.AUTO,
-      autoProvisionSSL: true,
-      customCert: '',
-      customKey: '',
-      customFullchain: '',
-    });
+    setFormData(createDefaultAppFormData());
     setCreateSslUiError('');
     setWizardStep(1);
     setShowModal(true);
@@ -395,11 +394,20 @@ export default function AppsPage() {
         domain: formData.domain,
         origins: [{ 
           url: formData.originUrl, 
+          upstreamHost: formData.originUpstreamHost?.trim() || undefined,
+          tlsServername: formData.originTlsServername?.trim() || undefined,
+          authHeaderName: formData.originAuthHeaderName?.trim() || undefined,
+          authHeaderValue: formData.originAuthHeaderValue?.trim() || undefined,
+          websocketEnabled: formData.websocketEnabled !== false,
+          websocketIdleTimeoutSec: formData.websocketEnabled !== false
+            ? Number.parseInt(formData.websocketIdleTimeoutSec, 10) || 900
+            : undefined,
           weight: 100, 
-          healthCheck: { path: '/health', interval: 30, timeout: 5 } 
+          healthCheck: { path: '/health', interval: 30, timeout: 5 },
+          responseBuffering: formData.responseInspectionEnabled !== false,
         }],
         policyId: formData.policyId || null,
-        responseInspectionEnabled: true,
+        responseInspectionEnabled: formData.responseInspectionEnabled !== false,
         ssl: formData.sslMode === SSL_MODE.CUSTOM
           ? { customCert: true, cert: formData.customCert?.trim() || '', key: formData.customKey?.trim() || '', fullchain: formData.customFullchain?.trim() || null }
           : { autoProvision: formData.autoProvisionSSL !== false, customCert: false },
@@ -415,7 +423,7 @@ export default function AppsPage() {
 
       if (response.ok) {
         setShowModal(false);
-        setFormData({ name: '', domain: '', originUrl: '', policyId: '', sslMode: SSL_MODE.AUTO, autoProvisionSSL: true, customCert: '', customKey: '', customFullchain: '' });
+        setFormData(createDefaultAppFormData());
         setWizardStep(1);
         fetchApps();
       } else {
@@ -434,13 +442,21 @@ export default function AppsPage() {
   const handleOpenEdit = (app) => {
     const useCustom = !!app.ssl?.customCert;
     setEditFormData({
+      ...createDefaultAppFormData(),
       originUrl: app.origins?.[0]?.url || '',
+      originUpstreamHost: app.origins?.[0]?.upstreamHost || '',
+      originTlsServername: app.origins?.[0]?.tlsServername || '',
+      originAuthHeaderName: app.origins?.[0]?.authHeader?.name || '',
+      originAuthHeaderValue: '',
+      websocketEnabled: app.origins?.[0]?.websocketEnabled !== false,
+      websocketIdleTimeoutSec: String(app.origins?.[0]?.websocketIdleTimeoutSec || 900),
+      responseInspectionEnabled: app.responseInspectionEnabled !== false,
       policyId: app.policyId || '',
       sslMode: useCustom ? SSL_MODE.CUSTOM : SSL_MODE.AUTO,
       autoProvisionSSL: !useCustom && app.ssl?.autoProvision !== false,
-      customCert: app.ssl?.cert || '',
-      customKey: app.ssl?.key || '',
-      customFullchain: app.ssl?.fullchain || '',
+      customCert: '',
+      customKey: '',
+      customFullchain: '',
     });
     setEditModalTab('general');
     setEditSslUiError('');
@@ -513,10 +529,20 @@ export default function AppsPage() {
         body: JSON.stringify({
           origins: [{ 
             url: editFormData.originUrl, 
+            upstreamHost: editFormData.originUpstreamHost?.trim() || undefined,
+            tlsServername: editFormData.originTlsServername?.trim() || undefined,
+            authHeaderName: editFormData.originAuthHeaderName?.trim() || undefined,
+            authHeaderValue: editFormData.originAuthHeaderValue?.trim() || undefined,
+            websocketEnabled: editFormData.websocketEnabled !== false,
+            websocketIdleTimeoutSec: editFormData.websocketEnabled !== false
+              ? Number.parseInt(editFormData.websocketIdleTimeoutSec, 10) || 900
+              : undefined,
             weight: 100, 
-            healthCheck: { path: '/health', interval: 30, timeout: 5 } 
+            healthCheck: { path: '/health', interval: 30, timeout: 5 },
+            responseBuffering: editFormData.responseInspectionEnabled !== false,
           }],
           policyId: editFormData.policyId || null,
+          responseInspectionEnabled: editFormData.responseInspectionEnabled !== false,
           ssl: editFormData.sslMode === SSL_MODE.CUSTOM
             ? { customCert: true, cert: editFormData.customCert?.trim() || '', key: editFormData.customKey?.trim() || '', fullchain: editFormData.customFullchain?.trim() || null }
             : { autoProvision: editFormData.autoProvisionSSL, customCert: false },
@@ -1122,6 +1148,115 @@ export default function AppsPage() {
                       onChange={(e) => setFormData({ ...formData, originUrl: e.target.value })}
                       autoFocus
                     />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Upstream Host Header
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Optional: app.internal.example or your public domain"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          value={formData.originUpstreamHost}
+                          onChange={(e) => setFormData({ ...formData, originUpstreamHost: e.target.value })}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Leave empty to forward the visitor&apos;s original host header. Set this when the origin expects a different host.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Origin TLS Server Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Optional: origin.example.com"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          value={formData.originTlsServername}
+                          onChange={(e) => setFormData({ ...formData, originTlsServername: e.target.value })}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          Use this when your origin URL is an IP or provider hostname, but the HTTPS certificate expects a different name. Example: connect to `https://1.2.3.4` using `app.example.com` for TLS.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Origin Auth Header Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Optional: X-ATRAVAD-Origin-Auth"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          value={formData.originAuthHeaderName}
+                          onChange={(e) => setFormData({ ...formData, originAuthHeaderName: e.target.value })}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          The header name ATRAVAD will send to your origin, such as `X-ATRAVAD-Origin-Auth`.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Origin Auth Header Value
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Optional shared secret"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          value={formData.originAuthHeaderValue}
+                          onChange={(e) => setFormData({ ...formData, originAuthHeaderValue: e.target.value })}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          The shared secret value your origin verifies. Use this to block direct bypass traffic that does not come through ATRAVAD.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-amber-900">Allow WebSockets through ATRAVAD</p>
+                          <p className="mt-1 text-xs text-amber-800">
+                            ATRAVAD inspects the WebSocket handshake, then tunnels frames. Post-upgrade frames are not inspected individually.
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={formData.websocketEnabled !== false}
+                          onChange={(e) => setFormData({ ...formData, websocketEnabled: e.target.checked })}
+                          className="h-4 w-4 text-teal-600 focus:ring-teal-500 rounded"
+                        />
+                      </div>
+                      {formData.websocketEnabled !== false && (
+                        <div className="mt-3">
+                          <label className="block text-sm font-medium text-amber-900 mb-2">
+                            WebSocket Idle Timeout (seconds)
+                          </label>
+                          <input
+                            type="number"
+                            min="10"
+                            max="86400"
+                            className="w-full md:w-60 px-4 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                            value={formData.websocketIdleTimeoutSec}
+                            onChange={(e) => setFormData({ ...formData, websocketIdleTimeoutSec: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="pr-4 text-sm text-gray-700">
+                        Inspect and buffer origin responses
+                        <span className="block text-xs text-gray-500">
+                          Disable this for SSE, AI streaming, or serverless responses that must stay streamed.
+                        </span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={formData.responseInspectionEnabled !== false}
+                        onChange={(e) => setFormData({ ...formData, responseInspectionEnabled: e.target.checked })}
+                        className="h-4 w-4 text-teal-600 focus:ring-teal-500 rounded"
+                      />
+                    </label>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Security Policy (Optional)
@@ -1302,14 +1437,44 @@ export default function AppsPage() {
                         <span className="text-sm text-gray-600">Origin:</span>
                         <span className="font-mono text-sm">{formData.originUrl}</span>
                       </div>
+                      {formData.originUpstreamHost && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Upstream Host:</span>
+                          <span className="font-mono text-sm">{formData.originUpstreamHost}</span>
+                        </div>
+                      )}
+                      {formData.originTlsServername && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Origin TLS SNI:</span>
+                          <span className="font-mono text-sm">{formData.originTlsServername}</span>
+                        </div>
+                      )}
+                      {formData.originAuthHeaderName && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Origin Auth:</span>
+                          <span className="font-mono text-sm">{formData.originAuthHeaderName}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">WebSockets:</span>
+                        <span className="text-sm font-medium">
+                          {formData.websocketEnabled !== false
+                            ? `Handshake-only protection, ${formData.websocketIdleTimeoutSec || '900'}s timeout`
+                            : 'Disabled'}
+                        </span>
+                      </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">SSL:</span>
                         <span className="text-sm font-medium">{formData.sslMode === SSL_MODE.CUSTOM ? 'Custom certificate' : 'Let\'s Encrypt (auto)'}</span>
                       </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Response Inspection:</span>
+                        <span className="text-sm font-medium">{formData.responseInspectionEnabled !== false ? 'Enabled' : 'Streaming-safe mode'}</span>
+                      </div>
                       <hr className="border-gray-200" />
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                         <p className="text-sm text-blue-800">
-                          <strong>Next Step:</strong> After adding your site, you'll receive a Firewall IP address based on your origin server's location. Update your DNS to point to this IP.
+                          <strong>Next Step:</strong> After adding your site, you&apos;ll receive a Firewall IP address based on your origin server&apos;s location. Update your DNS to point to this IP.
                         </p>
                       </div>
                     </div>
@@ -1431,6 +1596,107 @@ export default function AppsPage() {
                   />
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Upstream Host Header</label>
+                    <input
+                      type="text"
+                      placeholder="Optional override"
+                      value={editFormData.originUpstreamHost}
+                      onChange={(e) => setEditFormData({ ...editFormData, originUpstreamHost: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Leave empty to pass the visitor&apos;s original host header to the origin.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin TLS Server Name</label>
+                    <input
+                      type="text"
+                      placeholder="Optional SNI override"
+                      value={editFormData.originTlsServername}
+                      onChange={(e) => setEditFormData({ ...editFormData, originTlsServername: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Set this when the origin URL is an IP or provider host, but HTTPS upstream must present a different certificate name.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin Auth Header Name</label>
+                    <input
+                      type="text"
+                      placeholder="Optional shared-secret header"
+                      value={editFormData.originAuthHeaderName}
+                      onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderName: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Header name ATRAVAD sends to the origin, for example `X-ATRAVAD-Origin-Auth`.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin Auth Header Value</label>
+                    <input
+                      type="password"
+                      placeholder="Optional shared secret"
+                      value={editFormData.originAuthHeaderValue}
+                      onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderValue: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {selectedAppForEdit?.origins?.[0]?.authHeaderConfigured
+                        ? 'Leave blank to keep the existing secret, or enter a new value to rotate it.'
+                        : 'Shared secret the origin checks before serving traffic. Requests that bypass ATRAVAD should not have this value.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-amber-900">Allow WebSockets through ATRAVAD</p>
+                      <p className="mt-1 text-xs text-amber-800">
+                        The handshake is inspected by the WAF. After the upgrade, frames pass through as a tunnel.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={editFormData.websocketEnabled !== false}
+                      onChange={(e) => setEditFormData({ ...editFormData, websocketEnabled: e.target.checked })}
+                      className="h-4 w-4 text-teal-600 focus:ring-teal-500 rounded"
+                    />
+                  </div>
+                  {editFormData.websocketEnabled !== false && (
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-amber-900 mb-2">WebSocket Idle Timeout (seconds)</label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="86400"
+                        value={editFormData.websocketIdleTimeoutSec}
+                        onChange={(e) => setEditFormData({ ...editFormData, websocketIdleTimeoutSec: e.target.value })}
+                        className="w-full md:w-60 px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                  <span className="pr-4 text-sm text-gray-700">
+                    Inspect and buffer origin responses
+                    <span className="block text-xs text-gray-500">
+                      Disable this for streaming SSR, SSE, AI responses, and similar serverless output.
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={editFormData.responseInspectionEnabled !== false}
+                    onChange={(e) => setEditFormData({ ...editFormData, responseInspectionEnabled: e.target.checked })}
+                    className="h-4 w-4 text-teal-600 focus:ring-teal-500 rounded"
+                  />
+                </label>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Security Policy</label>
                     <select
@@ -1537,7 +1803,7 @@ export default function AppsPage() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Certificate (PEM)</label>
                         <textarea
-                          placeholder="-----BEGIN CERTIFICATE-----..."
+                          placeholder={selectedAppForEdit?.ssl?.hasStoredCustomCert ? 'Leave blank to keep the existing certificate, or paste a replacement.' : '-----BEGIN CERTIFICATE-----...'}
                           value={editFormData.customCert}
                           onChange={(e) => {
                             setEditSslUiError('');
@@ -1550,7 +1816,7 @@ export default function AppsPage() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Private key (PEM)</label>
                         <textarea
-                          placeholder="-----BEGIN PRIVATE KEY-----..."
+                          placeholder={selectedAppForEdit?.ssl?.hasStoredCustomCert ? 'Leave blank to keep the existing private key, or paste a replacement.' : '-----BEGIN PRIVATE KEY-----...'}
                           value={editFormData.customKey}
                           onChange={(e) => {
                             setEditSslUiError('');
@@ -1563,7 +1829,7 @@ export default function AppsPage() {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">CA chain / full chain (optional)</label>
                         <textarea
-                          placeholder="Optional intermediate + root certificates"
+                          placeholder={selectedAppForEdit?.ssl?.hasStoredCustomCert ? 'Leave blank to keep the existing chain, or paste a replacement.' : 'Optional intermediate + root certificates'}
                           value={editFormData.customFullchain}
                           onChange={(e) => {
                             setEditSslUiError('');

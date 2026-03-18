@@ -4,12 +4,36 @@ import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getRegionByContinent, getDefaultRegion } from '@/lib/waf-config';
 import { geolocateOrigin } from '@/lib/geolocation';
+import { normalizeOriginConfig } from '@/lib/origin-utils';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
+import { hydrateAppActivation } from '@/lib/activation-utils';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 
 function sanitizeAppForClient(app) {
-  const { tlsManaged, ...safeApp } = app || {};
-  return safeApp;
+  const { tlsManaged, ssl, origins, ...safeApp } = app || {};
+  const sanitizedSsl = ssl
+    ? {
+        ...ssl,
+        cert: ssl.customCert ? '' : ssl.cert,
+        key: ssl.customCert ? '' : ssl.key,
+        fullchain: ssl.customCert ? '' : ssl.fullchain,
+        hasStoredCustomCert: Boolean(ssl.customCert && ssl.cert && ssl.key),
+      }
+    : ssl;
+  const sanitizedOrigins = Array.isArray(origins)
+    ? origins.map((origin) => ({
+        ...origin,
+        authHeader: origin?.authHeader?.name
+          ? { name: origin.authHeader.name, value: '' }
+          : undefined,
+        authHeaderConfigured: Boolean(origin?.authHeader?.name && origin?.authHeader?.value),
+      }))
+    : origins;
+  return {
+    ...safeApp,
+    ssl: sanitizedSsl,
+    origins: sanitizedOrigins,
+  };
 }
 
 export async function POST(request) {
@@ -58,24 +82,25 @@ export async function POST(request) {
       );
     }
 
+    let normalizedOrigins = [];
+
     // Validate origins if provided
     if (origins && Array.isArray(origins)) {
       for (const origin of origins) {
-        if (!origin.url) {
+        const normalizedOrigin = normalizeOriginConfig(origin);
+        if (!normalizedOrigin.valid) {
           return NextResponse.json(
-            { error: 'Each origin must have a URL' },
+            { error: normalizedOrigin.error },
             { status: 400 }
           );
         }
-        try {
-          new URL(origin.url);
-        } catch (error) {
-          return NextResponse.json(
-            { error: `Invalid origin URL: ${origin.url}` },
-            { status: 400 }
-          );
-        }
+        normalizedOrigins.push(normalizedOrigin.origin);
       }
+    } else if (origins !== undefined) {
+      return NextResponse.json(
+        { error: 'Origins must be an array' },
+        { status: 400 }
+      );
     }
 
     // Validate and normalize SSL (custom certificate)
@@ -101,9 +126,9 @@ export async function POST(request) {
     let originGeoData = null;
 
     // Try to geolocate the first origin to determine best WAF region
-    if (origins && origins.length > 0 && origins[0].url) {
+    if (normalizedOrigins.length > 0 && normalizedOrigins[0].url) {
       try {
-        originGeoData = await geolocateOrigin(origins[0].url);
+        originGeoData = await geolocateOrigin(normalizedOrigins[0].url);
         if (originGeoData.success && originGeoData.continentCode) {
           wafRegion = getRegionByContinent(originGeoData.continentCode);
         }
@@ -115,7 +140,7 @@ export async function POST(request) {
     const appRef = await adminDb.collection('applications').add({
       name,
       domain: normalizedDomain,
-      origins: origins || [],
+      origins: normalizedOrigins,
       ssl: sslConfig || ssl || null,
       routing: routing || { pathPrefix: '/', stripPath: false },
       policyId: policyId || null,
@@ -139,7 +164,7 @@ export async function POST(request) {
       ...sanitizeAppForClient({
         name,
         domain: normalizedDomain,
-        origins: origins || [],
+        origins: normalizedOrigins,
         ssl: sslConfig || ssl || null,
         routing: routing || { pathPrefix: '/', stripPath: false },
         policyId: policyId || null,
@@ -186,12 +211,13 @@ export async function GET(request) {
       .where('tenantName', '==', tenantName)
       .get();
 
-    const apps = appsSnapshot.docs.map((doc) =>
-      sanitizeAppForClient({
+    const apps = await Promise.all(appsSnapshot.docs.map(async (doc) => {
+      const app = await hydrateAppActivation({
         id: doc.id,
         ...doc.data(),
-      })
-    );
+      });
+      return sanitizeAppForClient(app);
+    }));
 
     return NextResponse.json(apps);
   } catch (error) {

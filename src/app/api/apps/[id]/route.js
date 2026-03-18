@@ -2,11 +2,35 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
+import { normalizeOriginConfig } from '@/lib/origin-utils';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
+import { hydrateAppActivation } from '@/lib/activation-utils';
 
 function sanitizeAppForClient(app) {
-  const { tlsManaged, ...safeApp } = app || {};
-  return safeApp;
+  const { tlsManaged, ssl, origins, ...safeApp } = app || {};
+  const sanitizedSsl = ssl
+    ? {
+        ...ssl,
+        cert: ssl.customCert ? '' : ssl.cert,
+        key: ssl.customCert ? '' : ssl.key,
+        fullchain: ssl.customCert ? '' : ssl.fullchain,
+        hasStoredCustomCert: Boolean(ssl.customCert && ssl.cert && ssl.key),
+      }
+    : ssl;
+  const sanitizedOrigins = Array.isArray(origins)
+    ? origins.map((origin) => ({
+        ...origin,
+        authHeader: origin?.authHeader?.name
+          ? { name: origin.authHeader.name, value: '' }
+          : undefined,
+        authHeaderConfigured: Boolean(origin?.authHeader?.name && origin?.authHeader?.value),
+      }))
+    : origins;
+  return {
+    ...safeApp,
+    ssl: sanitizedSsl,
+    origins: sanitizedOrigins,
+  };
 }
 
 /**
@@ -46,10 +70,12 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return NextResponse.json({
+    const app = await hydrateAppActivation({
       id: appDoc.id,
       ...sanitizeAppForClient(appData),
     });
+
+    return NextResponse.json(app);
   } catch (error) {
     console.error('Error fetching application:', error);
     return NextResponse.json(
@@ -118,24 +144,31 @@ export async function PATCH(request, { params }) {
     if (origins !== undefined) {
       // Validate origins
       if (Array.isArray(origins)) {
-        for (const origin of origins) {
-          if (!origin.url) {
+        const normalizedOrigins = [];
+        for (const [index, origin] of origins.entries()) {
+          const normalizedOrigin = normalizeOriginConfig(origin);
+          if (!normalizedOrigin.valid) {
             return NextResponse.json(
-              { error: 'Each origin must have a URL' },
+              { error: normalizedOrigin.error },
               { status: 400 }
             );
           }
-          try {
-            new URL(origin.url);
-          } catch {
-            return NextResponse.json(
-              { error: `Invalid origin URL: ${origin.url}` },
-              { status: 400 }
-            );
+          const existingOrigin = Array.isArray(appData.origins) ? appData.origins[index] : null;
+          const mergedOrigin = { ...normalizedOrigin.origin };
+
+          if (!mergedOrigin.authHeader && existingOrigin?.authHeader?.name && existingOrigin?.authHeader?.value) {
+            mergedOrigin.authHeader = existingOrigin.authHeader;
           }
+
+          normalizedOrigins.push(mergedOrigin);
         }
+        updateData.origins = normalizedOrigins;
+      } else {
+        return NextResponse.json(
+          { error: 'Origins must be an array' },
+          { status: 400 }
+        );
       }
-      updateData.origins = origins;
     }
 
     if (policyId !== undefined) {
@@ -148,17 +181,33 @@ export async function PATCH(request, { params }) {
 
     if (ssl !== undefined) {
       if (ssl && ssl.customCert) {
-        const validation = validateCustomSsl(ssl);
-        if (!validation.valid) {
-          return NextResponse.json({ error: validation.error }, { status: 400 });
+        const hasNewCustomMaterial = Boolean(ssl.cert?.trim() || ssl.key?.trim() || ssl.fullchain?.trim());
+        if (hasNewCustomMaterial) {
+          const validation = validateCustomSsl(ssl);
+          if (!validation.valid) {
+            return NextResponse.json({ error: validation.error }, { status: 400 });
+          }
+          updateData.ssl = {
+            autoProvision: false,
+            customCert: true,
+            cert: normalizePem(ssl.cert),
+            key: normalizePem(ssl.key),
+            fullchain: ssl.fullchain ? normalizePem(ssl.fullchain) : null,
+          };
+        } else if (appData.ssl?.customCert && appData.ssl?.cert && appData.ssl?.key) {
+          updateData.ssl = {
+            autoProvision: false,
+            customCert: true,
+            cert: appData.ssl.cert,
+            key: appData.ssl.key,
+            fullchain: appData.ssl.fullchain || null,
+          };
+        } else {
+          return NextResponse.json(
+            { error: 'Custom SSL is enabled but no stored certificate exists. Upload a certificate and private key.' },
+            { status: 400 }
+          );
         }
-        updateData.ssl = {
-          autoProvision: false,
-          customCert: true,
-          cert: normalizePem(ssl.cert),
-          key: normalizePem(ssl.key),
-          fullchain: ssl.fullchain ? normalizePem(ssl.fullchain) : null,
-        };
       } else {
         updateData.ssl = {
           autoProvision: ssl?.autoProvision !== false,
@@ -180,10 +229,12 @@ export async function PATCH(request, { params }) {
     // Fetch updated document
     const updatedDoc = await appRef.get();
 
-    return NextResponse.json({
+    const updatedApp = await hydrateAppActivation({
       id: updatedDoc.id,
       ...sanitizeAppForClient(updatedDoc.data()),
     });
+
+    return NextResponse.json(updatedApp);
   } catch (error) {
     console.error('Error updating application:', error);
     return NextResponse.json(
