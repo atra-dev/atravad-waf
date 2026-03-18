@@ -821,7 +821,6 @@ function generateRateLimitingRules(ruleIdBase, rateLimitingConfig) {
   rules += `SecAction \\
     "id:${ruleIdBase},phase:1,nolog,pass,t:none,\\
     initcol:ip=%{REMOTE_ADDR},\\
-    initcol:user=%{REMOTE_ADDR}_%{REQUEST_HEADERS.User-Agent},\\
     setvar:'tx.rate_limit_requests_per_minute=${requestsPerMinute}',\\
     setvar:'tx.rate_limit_requests_per_hour=${requestsPerHour}',\\
     setvar:'tx.rate_limit_burst_size=${burstSize}'"\n\n`;
