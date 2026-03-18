@@ -9,6 +9,72 @@ import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 import { hydrateAppActivation } from '@/lib/activation-utils';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 
+function normalizeLogSource(value) {
+  return normalizeDomainInput(typeof value === 'string' ? value : '');
+}
+
+function deriveLogDecision(log) {
+  const decision = String(log?.decision || '').trim().toLowerCase();
+  if (decision === 'blocked') return 'waf_blocked';
+  if (decision === 'denied') return 'origin_denied';
+  if (
+    decision === 'waf_blocked' ||
+    decision === 'origin_denied' ||
+    decision === 'allowed' ||
+    decision === 'websocket_blocked' ||
+    decision === 'websocket_denied' ||
+    decision === 'websocket_proxy_error' ||
+    decision === 'websocket_origin_response' ||
+    decision === 'websocket_allowed'
+  ) {
+    return decision;
+  }
+  if (Boolean(log?.blocked)) return 'waf_blocked';
+  const statusCode = Number(log?.statusCode);
+  if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
+  return 'allowed';
+}
+
+async function getTenantTrafficStats(tenantName) {
+  const logsSnapshot = await adminDb
+    .collection('logs')
+    .where('tenantName', '==', tenantName)
+    .get();
+
+  const statsBySource = new Map();
+
+  for (const doc of logsSnapshot.docs) {
+    const log = doc.data();
+    const source = normalizeLogSource(log?.source || log?.nodeId);
+    if (!source) continue;
+
+    const existing = statsBySource.get(source) || {
+      blocked: 0,
+      allowed: 0,
+      total: 0,
+      lastSeenAt: null,
+    };
+
+    const decision = deriveLogDecision(log);
+    if (decision === 'allowed' || decision === 'websocket_allowed') {
+      existing.allowed += 1;
+    } else {
+      existing.blocked += 1;
+    }
+
+    existing.total += 1;
+    if (log?.timestamp) {
+      if (!existing.lastSeenAt || new Date(log.timestamp).getTime() > new Date(existing.lastSeenAt).getTime()) {
+        existing.lastSeenAt = log.timestamp;
+      }
+    }
+
+    statsBySource.set(source, existing);
+  }
+
+  return statsBySource;
+}
+
 function sanitizeAppForClient(app) {
   const { tlsManaged, ssl, origins, ...safeApp } = app || {};
   const sanitizedSsl = ssl
@@ -206,17 +272,27 @@ export async function GET(request) {
       return NextResponse.json([]);
     }
 
-    const appsSnapshot = await adminDb
-      .collection('applications')
-      .where('tenantName', '==', tenantName)
-      .get();
+    const [appsSnapshot, statsBySource] = await Promise.all([
+      adminDb
+        .collection('applications')
+        .where('tenantName', '==', tenantName)
+        .get(),
+      getTenantTrafficStats(tenantName),
+    ]);
 
     const apps = await Promise.all(appsSnapshot.docs.map(async (doc) => {
       const app = await hydrateAppActivation({
         id: doc.id,
         ...doc.data(),
       });
-      return sanitizeAppForClient(app);
+      const stats = statsBySource.get(normalizeDomainInput(app.domain)) || null;
+      return sanitizeAppForClient({
+        ...app,
+        statsBlocked: stats?.blocked ?? 0,
+        statsAllowed: stats?.allowed ?? 0,
+        statsTotal: stats?.total ?? 0,
+        statsLastSeenAt: stats?.lastSeenAt ?? null,
+      });
     }));
 
     return NextResponse.json(apps);
