@@ -245,8 +245,9 @@ export class ModSecurityProxy {
       const policyDoc = await adminDb.collection('policies').doc(policyId).get();
       if (!policyDoc.exists) return null;
       const policy = policyDoc.data();
-      // Generate ModSecurity config from policy flags if not stored (e.g. legacy policies)
-      if (!policy.modSecurityConfig && (policy.policy || policy.sqlInjection !== undefined)) {
+      // Regenerate config from structured policy data when available so GUI-created
+      // policies keep working even if an older stored config string is stale/broken.
+      if (policy.policy || policy.sqlInjection !== undefined) {
         policy.modSecurityConfig = generateModSecurityConfig(policy.policy || policy, {
           includeOWASPCRS: policy.includeOWASPCRS !== false,
           mode: policy.mode || 'detection',

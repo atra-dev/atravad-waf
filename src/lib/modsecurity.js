@@ -622,7 +622,7 @@ function generateAuthBypassRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
   // Weak authentication patterns
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES "@rx (?i)(?:password\\s*=\\s*['\"]?admin['\"]?|password\\s*=\\s*['\"]?12345|password\\s*=\\s*['\"]?password)" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES "@rx (?i)(?:password\\s*=\\s*['\\\"]?admin['\\\"]?|password\\s*=\\s*['\\\"]?12345|password\\s*=\\s*['\\\"]?password)" \\
     "id:${ruleIdBase + 2},phase:2,block,msg:'Authentication Bypass: Weak Password Pattern Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'WARNING',\\
@@ -725,7 +725,7 @@ function generateSensitiveDataExposureRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
   // API keys and tokens in responses
-  rules += `SecRule RESPONSE_BODY "@rx (?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer[_-]?token|private[_-]?key|public[_-]?key)\\s*[:=]\\s*['\"]?[a-zA-Z0-9]{20,}['\"]?" \\
+  rules += `SecRule RESPONSE_BODY "@rx (?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token|bearer[_-]?token|private[_-]?key|public[_-]?key)\\s*[:=]\\s*['\\\"]?[a-zA-Z0-9]{20,}['\\\"]?" \\
     "id:${ruleIdBase + 2},phase:4,block,msg:'Sensitive Data Exposure: API Key/Token Detected in Response',\\
     logdata:'Matched Data: %{MATCHED_VAR}',\\
     severity:'CRITICAL',\\
@@ -734,7 +734,7 @@ function generateSensitiveDataExposureRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
   // Database connection strings
-  rules += `SecRule RESPONSE_BODY "@rx (?i)(?:mysql://|postgresql://|mongodb://|sqlserver://|oracle://|jdbc:)[^\\s'\"]+" \\
+  rules += `SecRule RESPONSE_BODY "@rx (?i)(?:mysql://|postgresql://|mongodb://|sqlserver://|oracle://|jdbc:)[^\\s'\\\"]+" \\
     "id:${ruleIdBase + 3},phase:4,block,msg:'Sensitive Data Exposure: Database Connection String Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR}',\\
     severity:'CRITICAL',\\
@@ -770,7 +770,7 @@ function generateBrokenAccessControlRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
 
   // Privilege escalation attempts
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES "@rx (?i)(?:role\\s*=\\s*['\"]?admin|permission\\s*=\\s*['\"]?all|level\\s*=\\s*['\"]?999|is_admin\\s*=\\s*['\"]?true|is_superuser\\s*=\\s*['\"]?true)" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES "@rx (?i)(?:role\\s*=\\s*['\\\"]?admin|permission\\s*=\\s*['\\\"]?all|level\\s*=\\s*['\\\"]?999|is_admin\\s*=\\s*['\\\"]?true|is_superuser\\s*=\\s*['\\\"]?true)" \\
     "id:${ruleIdBase + 2},phase:2,block,msg:'Access Control: Privilege Escalation Attempt Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
@@ -787,26 +787,17 @@ function generateBrokenAccessControlRules(ruleIdBase) {
  */
 function generateSecurityHeadersRules(ruleIdBase) {
   let rules = '# Security Headers Rules\n';
-  
-  // Add security headers via response actions
-  rules += `SecAction \\
-    "id:${ruleIdBase},phase:3,nolog,pass,t:none,\\
-    setenv:'security_header_x_frame_options=SAMEORIGIN',\\
-    setenv:'security_header_x_content_type_options=nosniff',\\
-    setenv:'security_header_x_xss_protection=1; mode=block',\\
-    setenv:'security_header_strict_transport_security=max-age=31536000; includeSubDomains',\\
-    setenv:'security_header_content_security_policy=default-src \\'self\\''"\n\n`;
 
-  // Note: Headers are typically set at the web server level
-  // These rules serve as documentation and can trigger alerts
+  // The proxy/native Rules.add() path cannot apply Apache-specific setenv actions.
+  // Keep only passive detection rules so generated policies stay loadable.
   rules += `SecRule RESPONSE_HEADERS:X-Frame-Options "@eq 0" \\
-    "id:${ruleIdBase + 1},phase:4,pass,msg:'Security Headers: Missing X-Frame-Options Header',\\
+    "id:${ruleIdBase},phase:4,pass,msg:'Security Headers: Missing X-Frame-Options Header',\\
     severity:'INFO',\\
     tag:'security-headers',\\
     t:none"\n\n`;
 
   rules += `SecRule RESPONSE_HEADERS:X-Content-Type-Options "@eq 0" \\
-    "id:${ruleIdBase + 2},phase:4,pass,msg:'Security Headers: Missing X-Content-Type-Options Header',\\
+    "id:${ruleIdBase + 1},phase:4,pass,msg:'Security Headers: Missing X-Content-Type-Options Header',\\
     severity:'INFO',\\
     tag:'security-headers',\\
     t:none"\n\n`;
@@ -1553,6 +1544,7 @@ export function getStandaloneConfigForProxy(fullConfig) {
     .filter((line) => {
       const trimmed = line.trim();
       if (/^\s*Include\s+/i.test(trimmed)) return false;
+      if (/\bsetenv:/i.test(trimmed)) return false;
       // Strip file-system audit directives that are unsupported in Rules.add() context.
       if (/^\s*SecAuditLogFileReopenLimit\b/i.test(trimmed)) return false;
       if (/^\s*SecAuditLogStorageDir\b/i.test(trimmed)) return false;
