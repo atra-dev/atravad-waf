@@ -1910,11 +1910,25 @@ const getTrafficBarHeight = (value, maxValue) => {
 
               {/* Content */}
               <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
+                {(() => {
+                  const setupActivated = isActivated(selectedAppForSetup);
+                  return (
+                    <>
                 <div className="text-center">
-                  <WarningIcon className="mx-auto h-12 w-12 text-yellow-500" />
-                  <h2 className="mt-4 text-xl font-bold text-gray-900">DNS Not Configured</h2>
+                  {setupActivated ? (
+                    <CheckCircleIcon className="mx-auto h-12 w-12 text-emerald-500" />
+                  ) : (
+                    <WarningIcon className="mx-auto h-12 w-12 text-yellow-500" />
+                  )}
+                  <h2 className="mt-4 text-xl font-bold text-gray-900">
+                    {setupActivated ? 'DNS Configured' : 'DNS Not Configured'}
+                  </h2>
                   <p className="mt-2 text-gray-600">
-                    Point your domain&apos;s DNS to activate WAF protection for <strong>{selectedAppForSetup.domain}</strong>
+                    {setupActivated ? (
+                      <>Your domain is pointing to ATRAVAD WAF and protection is active for <strong>{selectedAppForSetup.domain}</strong></>
+                    ) : (
+                      <>Point your domain&apos;s DNS to activate WAF protection for <strong>{selectedAppForSetup.domain}</strong></>
+                    )}
                   </p>
                 </div>
 
@@ -1937,24 +1951,38 @@ const getTrafficBarHeight = (value, maxValue) => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-teal-50 rounded-lg border-2 border-teal-200">
+                    <div className={`flex items-center justify-between rounded-lg border-2 p-3 ${
+                      setupActivated ? 'border-emerald-200 bg-emerald-50' : 'border-teal-200 bg-teal-50'
+                    }`}>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-teal-700 uppercase font-medium">Point A Record To</span>
+                          <span className={`text-xs uppercase font-medium ${
+                            setupActivated ? 'text-emerald-700' : 'text-teal-700'
+                          }`}>
+                            {setupActivated ? 'Active A Record' : 'Point A Record To'}
+                          </span>
                           {selectedAppForSetup.wafRegionName && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
                               {selectedAppForSetup.wafRegionName}
                             </span>
                           )}
                         </div>
-                        <p className="font-mono text-lg font-bold text-teal-700">{selectedAppForSetup.firewallIp || 'Not configured'}</p>
+                        <p className={`font-mono text-lg font-bold ${
+                          setupActivated ? 'text-emerald-700' : 'text-teal-700'
+                        }`}>
+                          {selectedAppForSetup.firewallIp || 'Not configured'}
+                        </p>
                       </div>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(selectedAppForSetup.firewallIp || '');
                           alert('IP copied to clipboard!');
                         }}
-                        className="px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-100 rounded-lg hover:bg-teal-200"
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                          setupActivated
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                            : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+                        }`}
                       >
                         Copy
                       </button>
@@ -1981,19 +2009,40 @@ const getTrafficBarHeight = (value, maxValue) => {
                 </div>
 
                 {/* Instructions */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-2">How to update your DNS:</h4>
-                  <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                <div className={`rounded-lg border p-4 ${
+                  setupActivated ? 'border-emerald-200 bg-emerald-50' : 'border-blue-200 bg-blue-50'
+                }`}>
+                  <h4 className={`mb-2 font-medium ${
+                    setupActivated ? 'text-emerald-900' : 'text-blue-900'
+                  }`}>
+                    {setupActivated ? 'DNS Status' : 'How to update your DNS:'}
+                  </h4>
+                  <ol className={`list-decimal list-inside space-y-1 text-sm ${
+                    setupActivated ? 'text-emerald-800' : 'text-blue-800'
+                  }`}>
                     <li>Log into your domain registrar (GoDaddy, Cloudflare, Namecheap, etc.)</li>
                     <li>Find DNS settings for <strong>{selectedAppForSetup.domain}</strong></li>
-                    <li>Update the A record to point to <strong>{selectedAppForSetup.firewallIp || 'your WAF IP'}</strong></li>
-                    <li>Save changes and wait for DNS propagation (up to 48 hours)</li>
+                    <li>
+                      {setupActivated
+                        ? <>Your A record is already resolving to <strong>{selectedAppForSetup.firewallIp || 'your WAF IP'}</strong></>
+                        : <>Update the A record to point to <strong>{selectedAppForSetup.firewallIp || 'your WAF IP'}</strong></>}
+                    </li>
+                    <li>
+                      {setupActivated
+                        ? 'Protection is active. You can still verify propagation from multiple global resolvers if needed.'
+                        : 'Save changes and wait for DNS propagation (up to 48 hours)'}
+                    </li>
                   </ol>
                 </div>
 
                 <p className="text-xs text-gray-500 text-center">
-                  Once DNS propagates, your site will be protected by ATRAVAD WAF. The status will update automatically.
+                  {setupActivated
+                    ? 'ATRAVAD WAF is active for this site. Global DNS propagation may still vary briefly across some resolvers.'
+                    : 'Once DNS propagates, your site will be protected by ATRAVAD WAF. The status will update automatically.'}
                 </p>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Footer */}
@@ -2010,7 +2059,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                   rel="noopener noreferrer"
                   className="px-6 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-lg hover:bg-teal-600"
                 >
-                  Check DNS Propagation
+                  Verify DNS Propagation
                 </a>
               </div>
             </div>
