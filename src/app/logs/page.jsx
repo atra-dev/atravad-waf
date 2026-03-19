@@ -398,6 +398,50 @@ export default function LogsPage() {
 
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
 
+  const simplifyRuleMessage = (log) => {
+    const rawMessage = String(log?.ruleMessage || log?.message || '').trim();
+    if (!rawMessage) return '-';
+
+    const lowerMessage = rawMessage.toLowerCase();
+    const matchedMsg =
+      rawMessage.match(/\[msg\s+"([^"]+)"\]/i)?.[1] ||
+      rawMessage.match(/msg:'([^']+)'/i)?.[1] ||
+      rawMessage;
+    const normalizedMsg = matchedMsg.replace(/\s+/g, ' ').trim();
+    const lowerNormalizedMsg = normalizedMsg.toLowerCase();
+
+    if (lowerMessage.includes('csrf') || lowerNormalizedMsg.includes('csrf')) {
+      if (lowerMessage.includes('missing or invalid csrf token') || lowerNormalizedMsg.includes('missing or invalid csrf token')) {
+        return 'This request is missing a valid security token, so it was blocked for protection.';
+      }
+      if (lowerMessage.includes('origin header validation failed') || lowerNormalizedMsg.includes('origin header validation failed')) {
+        return 'This request came from an untrusted source and was blocked for protection.';
+      }
+      if (lowerMessage.includes('referer header validation failed') || lowerNormalizedMsg.includes('referer header validation failed')) {
+        return 'This request came from an untrusted page and was blocked for protection.';
+      }
+      return 'This request was blocked because the security check for the form or session did not pass.';
+    }
+
+    if (lowerMessage.includes('sql injection') || lowerNormalizedMsg.includes('sql injection')) {
+      return 'This request looked like a database attack, so it was blocked.';
+    }
+
+    if (lowerMessage.includes('cross-site scripting') || lowerMessage.includes('xss') || lowerNormalizedMsg.includes('cross-site scripting') || lowerNormalizedMsg.includes('xss')) {
+      return 'This request looked unsafe because it may contain harmful script content.';
+    }
+
+    if (lowerMessage.includes('path traversal') || lowerNormalizedMsg.includes('path traversal')) {
+      return 'This request tried to access a restricted file path and was blocked.';
+    }
+
+    if (lowerMessage.includes('access denied') || lowerMessage.includes('blocked') || lowerNormalizedMsg.includes('access denied')) {
+      return `${normalizedMsg.replace(/^modsecurity:\s*/i, '')}.`.replace(/\.\./g, '.');
+    }
+
+    return normalizedMsg.replace(/^modsecurity:\s*/i, '');
+  };
+
   const renderDetailRow = (label, value, options = {}) => {
     const { mono = false, breakAll = false, breakWords = false } = options;
     const valueClassName = [
@@ -861,7 +905,7 @@ export default function LogsPage() {
                       <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Event Summary</h3>
                       <dl className="mt-3">
                         {renderDetailRow('Rule ID', deriveRuleId(selectedLog), { mono: true })}
-                        {renderDetailRow('Rule Message', selectedLog.ruleMessage || selectedLog.message || '-', { breakWords: true })}
+                        {renderDetailRow('Rule Message', simplifyRuleMessage(selectedLog), { breakWords: true })}
                         {renderDetailRow('Status Code', selectedLog.statusCode ?? '-')}
                         {renderDetailRow('Decision', selectedLog.decision || '-', { mono: true })}
                         {renderDetailRow('Message', selectedLog.message || '-', { breakWords: true })}
