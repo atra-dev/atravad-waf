@@ -421,6 +421,26 @@ export default function LogsPage() {
 
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
 
+  const renderDetailRow = (label, value, options = {}) => {
+    const { mono = false, breakAll = false, breakWords = false, badge = false, badgeClassName = '' } = options;
+    const valueClassName = [
+      'min-w-0 text-sm text-slate-900',
+      mono ? 'font-mono' : '',
+      breakAll ? 'break-all' : '',
+      breakWords ? 'break-words' : '',
+      badge ? `inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClassName}` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-4 border-b border-slate-100 py-3 last:border-b-0">
+        <dt className="text-sm font-medium text-slate-500">{label}</dt>
+        <dd className={valueClassName}>{value}</dd>
+      </div>
+    );
+  };
+
   // If user doesn't have a tenant, show onboarding
   if (!hasTenant && !loading && !authLoading) {
     return (
@@ -841,16 +861,16 @@ export default function LogsPage() {
                 onClick={() => setSelectedLog(null)}
               />
               <div className="relative w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-                <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
+                <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Log Details</h2>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <h2 className="text-2xl font-semibold text-slate-900">Log Details</h2>
+                    <p className="mt-1 text-sm text-slate-500">
                       {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
                     </p>
                   </div>
                   <button
                     onClick={() => setSelectedLog(null)}
-                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -858,77 +878,34 @@ export default function LogsPage() {
                   </button>
                 </div>
 
-                <div className="max-h-[80vh] overflow-y-auto px-6 py-5">
-                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <div className="rounded-xl border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Event Summary</h3>
-                      <dl className="mt-4 space-y-3 text-sm">
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Severity</dt>
-                          <dd>
-                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getSeverityColor(selectedLog.severity)}`}>
-                              {selectedLog.severity || 'info'}
-                            </span>
-                          </dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Action</dt>
-                          <dd>{getActionDisplay(selectedLog).label}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Rule ID</dt>
-                          <dd className="font-mono text-gray-900">{deriveRuleId(selectedLog)}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Rule Message</dt>
-                          <dd className="break-words text-gray-900">{selectedLog.ruleMessage || selectedLog.message || '-'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Status Code</dt>
-                          <dd>{selectedLog.statusCode ?? '-'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Decision</dt>
-                          <dd className="font-mono text-gray-900">{selectedLog.decision || '-'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Message</dt>
-                          <dd className="break-words text-gray-900">{selectedLog.message || '-'}</dd>
-                        </div>
+                <div className="max-h-[80vh] overflow-y-auto bg-slate-50 px-6 py-6">
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Event Summary</h3>
+                      <dl className="mt-4">
+                        {renderDetailRow('Severity', selectedLog.severity || 'info', {
+                          badge: true,
+                          badgeClassName: getSeverityColor(selectedLog.severity),
+                        })}
+                        {renderDetailRow('Action', getActionDisplay(selectedLog).label)}
+                        {renderDetailRow('Rule ID', deriveRuleId(selectedLog), { mono: true })}
+                        {renderDetailRow('Rule Message', selectedLog.ruleMessage || selectedLog.message || '-', { breakWords: true })}
+                        {renderDetailRow('Status Code', selectedLog.statusCode ?? '-')}
+                        {renderDetailRow('Decision', selectedLog.decision || '-', { mono: true })}
+                        {renderDetailRow('Message', selectedLog.message || '-', { breakWords: true })}
                       </dl>
                     </div>
 
-                    <div className="rounded-xl border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Request Context</h3>
-                      <dl className="mt-4 space-y-3 text-sm">
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Site</dt>
-                          <dd className="break-all text-gray-900">{getLogSource(selectedLog)}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Client IP</dt>
-                          <dd className="font-mono text-gray-900">{normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Method</dt>
-                          <dd className="font-mono text-gray-900">{getLogMethod(selectedLog)}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">URI</dt>
-                          <dd className="break-all font-mono text-gray-900">{getLogUri(selectedLog)}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">User Agent</dt>
-                          <dd className="break-words text-gray-900">{selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Country</dt>
-                          <dd>{selectedLog.geoCountry || '-'}</dd>
-                        </div>
-                        <div className="grid grid-cols-[140px_1fr] gap-3">
-                          <dt className="font-medium text-gray-500">Continent</dt>
-                          <dd>{selectedLog.geoContinent || '-'}</dd>
-                        </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Request Context</h3>
+                      <dl className="mt-4">
+                        {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}
+                        {renderDetailRow('Client IP', normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-', { mono: true })}
+                        {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
+                        {renderDetailRow('URI', getLogUri(selectedLog), { mono: true, breakAll: true })}
+                        {renderDetailRow('User Agent', selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-', { breakWords: true })}
+                        {renderDetailRow('Country', selectedLog.geoCountry || '-')}
+                        {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
                       </dl>
                     </div>
                   </div>
