@@ -1,7 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
-import { normalizeDomainInput } from '@/lib/domain-utils';
-import { normalizeIpAddress } from '@/lib/ip-utils';
-import { classifyAttack, getDecisionKey } from '@/lib/log-analytics';
+import { normalizeDomainInput } from './domain-utils.js';
+import { normalizeIpAddress } from './ip-utils.js';
+import { classifyAttack, getDecisionKey } from './log-analytics.js';
 
 const RAW_LOG_TTL_HOURS = 24;
 const HOURLY_ROLLUP_TTL_DAYS = 30;
