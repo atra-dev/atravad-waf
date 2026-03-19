@@ -172,6 +172,7 @@ export default function AppsPage() {
   const [editFormData, setEditFormData] = useState(() => createDefaultAppFormData());
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [clearingCacheAppId, setClearingCacheAppId] = useState(null);
   const [createSslUiError, setCreateSslUiError] = useState('');
   const [editSslUiError, setEditSslUiError] = useState('');
   
@@ -611,6 +612,43 @@ const getTrafficBarHeight = (value, maxValue) => {
     return app?.activated === true;
   };
 
+  const handleClearCache = async (app) => {
+    if (!app?.id) return;
+
+    setClearingCacheAppId(app.id);
+    try {
+      const response = await fetch(`/api/apps/${app.id}/clear-cache`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        setApps((currentApps) =>
+          currentApps.map((currentApp) =>
+            currentApp.id === app.id
+              ? {
+                  ...currentApp,
+                  cacheClearedAt: payload.cacheClearedAt,
+                  cacheClearedBy: payload.cacheClearedBy,
+                  cachePurgeVersion: payload.cachePurgeVersion,
+                  updatedAt: payload.updatedAt ?? currentApp.updatedAt,
+                }
+              : currentApp
+          )
+        );
+        alert(`Cache cleared for ${app.domain}`);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to clear cache');
+      }
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      alert('Failed to clear cache');
+    } finally {
+      setClearingCacheAppId(null);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -873,7 +911,14 @@ const getTrafficBarHeight = (value, maxValue) => {
                         <span className="text-slate-300">|</span>
                         <Link href="/logs" className="hover:text-cyan-700">Audit Trails</Link>
                         <span className="text-slate-300">|</span>
-                        <button className="hover:text-cyan-700">Clear Cache</button>
+                        <button
+                          type="button"
+                          onClick={() => handleClearCache(app)}
+                          disabled={clearingCacheAppId === app.id}
+                          className="hover:text-cyan-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                        >
+                          {clearingCacheAppId === app.id ? 'Clearing...' : 'Clear Cache'}
+                        </button>
                         <span className="text-slate-300">|</span>
                         <Link href="/policies" className="hover:text-cyan-700">IP Access Control</Link>
                       </div>
