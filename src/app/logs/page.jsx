@@ -28,6 +28,7 @@ export default function LogsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   
   const [logs, setLogs] = useState([]);
+  const [analyticsLogs, setAnalyticsLogs] = useState([]);
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -114,6 +115,12 @@ export default function LogsPage() {
       fetchLogs(false, pagination.page);
     }
   }, [isAuthenticated, hasTenant, pagination.page]);
+
+  useEffect(() => {
+    if (isAuthenticated && hasTenant) {
+      fetchAnalyticsLogs();
+    }
+  }, [isAuthenticated, hasTenant, filters]);
 
   const checkTenantAndFetchData = async () => {
     try {
@@ -267,10 +274,68 @@ export default function LogsPage() {
     }
   };
 
+  const fetchAnalyticsLogs = async (forceRefresh = false) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('all', 'true');
+      if (filters.action) params.append('decision', filters.action);
+      if (forceRefresh) params.append('_ts', String(Date.now()));
+
+      const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (data.logs) {
+        let filteredLogs = data.logs;
+
+        if (filters.severity) {
+          const selectedSeverity = normalizeSeverity(filters.severity);
+          filteredLogs = filteredLogs.filter(
+            (log) => normalizeSeverity(log.severity) === selectedSeverity
+          );
+        }
+        if (filters.site) {
+          const selectedSite = normalizeDomainInput(filters.site);
+          filteredLogs = filteredLogs.filter((log) => {
+            const sourceSite = normalizeDomainInput(String(log.source || ''));
+            const hostSite = normalizeDomainInput(String(log.request?.host || ''));
+            const nodeSite = normalizeDomainInput(String(log.nodeId || ''));
+            return sourceSite === selectedSite || hostSite === selectedSite || nodeSite === selectedSite;
+          });
+        }
+        if (filters.action) {
+          filteredLogs = filteredLogs.filter((log) => {
+            return getDecisionKey(log) === filters.action;
+          });
+        }
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          const normalizedSearchDomain = normalizeDomainInput(filters.search);
+          filteredLogs = filteredLogs.filter(log =>
+            (log.message && log.message.toLowerCase().includes(searchLower)) ||
+            (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
+            (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
+            (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
+            (normalizedSearchDomain && (
+              normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
+              normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
+              normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
+            ))
+          );
+        }
+
+        setAnalyticsLogs(filteredLogs);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics logs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchLogs(true, pagination.page), fetchSites()]);
+      await Promise.all([fetchLogs(true, pagination.page), fetchAnalyticsLogs(true), fetchSites()]);
     } finally {
       setRefreshing(false);
     }
@@ -515,7 +580,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Geographic
+                Geographic ({analyticsLogs.length})
               </button>
               <button
                 onClick={() => setActiveTab('traffic')}
@@ -528,7 +593,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                Traffic Analytics
+                Traffic Analytics ({analyticsLogs.length})
               </button>
             </nav>
           </div>
@@ -736,7 +801,7 @@ export default function LogsPage() {
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
-              <GeographicAnalytics logs={logs} />
+              <GeographicAnalytics logs={analyticsLogs} />
             )}
           </div>
         )}
@@ -748,7 +813,7 @@ export default function LogsPage() {
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
-              <TrafficAnalytics logs={logs} />
+              <TrafficAnalytics logs={analyticsLogs} />
             )}
           </div>
         )}

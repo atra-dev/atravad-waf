@@ -192,6 +192,7 @@ export async function GET(request) {
     const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
     const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
+    const fetchAll = String(searchParams.get('all') || '').trim().toLowerCase() === 'true';
     const startAfter = searchParams.get('startAfter');
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
@@ -238,11 +239,11 @@ export async function GET(request) {
     }
 
     const totalCount = logs.length;
-    const totalPages = Math.max(Math.ceil(totalCount / pageSize), 1);
-    const pageClamped = Math.min(page, totalPages);
-    const startIndex = (pageClamped - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const hasMore = endIndex < totalCount;
+    const totalPages = fetchAll ? 1 : Math.max(Math.ceil(totalCount / pageSize), 1);
+    const pageClamped = fetchAll ? 1 : Math.min(page, totalPages);
+    const startIndex = fetchAll ? 0 : (pageClamped - 1) * pageSize;
+    const endIndex = fetchAll ? totalCount : startIndex + pageSize;
+    const hasMore = fetchAll ? false : endIndex < totalCount;
     logs = logs.slice(startIndex, endIndex);
 
     return NextResponse.json({
