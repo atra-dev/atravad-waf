@@ -25,7 +25,7 @@ import {
 } from "./letsencrypt.js";
 import { normalizeDomainInput } from "./domain-utils.js";
 import { geolocateIpCached } from "./geolocation.js";
-import { normalizeIpAddress, resolveClientIp } from "./ip-utils.js";
+import { buildForwardedForHeader, normalizeIpAddress, resolveClientIp } from "./ip-utils.js";
 import { deriveRuleId } from "./log-rule-utils.js";
 import { persistSecurityLog } from "./log-storage.js";
 import { getDefaultOriginServername } from "./origin-utils.js";
@@ -257,6 +257,8 @@ function renderBlockedHtml({
   host,
   path,
   clientIp,
+  proxyIp,
+  forwardedFor,
   reason,
   browser,
   blockId,
@@ -266,6 +268,10 @@ function renderBlockedHtml({
   const safeHost = escapeHtml(host || "unknown-host");
   const safePath = escapeHtml(path || "/");
   const safeIp = escapeHtml(clientIp || "unknown-ip");
+  const safeProxyIp = escapeHtml(proxyIp || "unknown-proxy-ip");
+  const safeForwardedFor = escapeHtml(
+    Array.isArray(forwardedFor) ? forwardedFor.join(", ") : String(forwardedFor || "") || "not-provided",
+  );
   const safeReason = escapeHtml(reason || "Security policy violation");
   const safeBrowser = escapeHtml(browser || "unknown");
   const safeBlockId = escapeHtml(blockId || "WAF-403");
@@ -404,7 +410,9 @@ function renderBlockedHtml({
       </div>
       <div class="details-title">Block details:</div>
       <table>
-        <tr><td>Your IP:</td><td>${safeIp}</td></tr>
+        <tr><td>Client IP:</td><td>${safeIp}</td></tr>
+        <tr><td>Proxy IP:</td><td>${safeProxyIp}</td></tr>
+        <tr><td>Forwarded For:</td><td>${safeForwardedFor}</td></tr>
         <tr><td>URL:</td><td>${safeHost}${safePath}</td></tr>
         <tr><td>Your Browser:</td><td>${safeBrowser}</td></tr>
         <tr><td>Block ID:</td><td>${safeBlockId}</td></tr>
@@ -418,10 +426,12 @@ function renderBlockedHtml({
 </html>`;
 }
 
-function sendBlockedResponse(res, req, { host, path, clientIp, reason, matchedRules } = {}) {
+function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwardedFor, reason, matchedRules } = {}) {
   const headers = withWafFingerprintHeaders({
     "X-ATRAVAD-Blocked": "true",
     "X-ATRAVAD-Reason": reason || "Security rule violation",
+    "X-ATRAVAD-Client-IP": clientIp || "unknown",
+    "X-ATRAVAD-Proxy-IP": proxyIp || "unknown",
     "Cache-Control": "no-store",
   });
 
@@ -449,6 +459,8 @@ function sendBlockedResponse(res, req, { host, path, clientIp, reason, matchedRu
     host,
     path,
     clientIp,
+    proxyIp,
+    forwardedFor,
     reason: normalizedReason,
     browser: req?.headers?.["user-agent"] || "unknown",
     blockId: blockIdFromRule,
@@ -501,6 +513,13 @@ function getOriginTargetPath(originUrlObj, clientPath) {
   return clientPath + (originUrlObj.search || "");
 }
 
+function getClientIpInfo(req) {
+  return resolveClientIp({
+    headers: req?.headers || {},
+    remoteAddress: req?.socket?.remoteAddress,
+  });
+}
+
 function buildOriginRequestOptions(clientReq, origin) {
   const originUrl = origin?.url;
   const originUrlObj = new URL(originUrl);
@@ -511,6 +530,7 @@ function buildOriginRequestOptions(clientReq, origin) {
     origin?.tlsServername ||
     getDefaultOriginServername(originUrlObj.toString(), upstreamHostHeader);
   const headers = { ...clientReq.headers };
+  const clientIpInfo = getClientIpInfo(clientReq);
 
   delete headers["connection"];
   delete headers["host"];
@@ -518,11 +538,18 @@ function buildOriginRequestOptions(clientReq, origin) {
   delete headers["upgrade"];
 
   headers["host"] = upstreamHostHeader;
-  headers["x-forwarded-for"] =
-    (clientReq.headers["x-forwarded-for"] || "") +
-    (clientReq.headers["x-forwarded-for"] ? ", " : "") +
-    (clientReq.socket.remoteAddress || "unknown");
+  headers["x-forwarded-for"] = buildForwardedForHeader({
+    headers: clientReq.headers,
+    remoteAddress: clientReq.socket?.remoteAddress,
+  });
   headers["x-forwarded-proto"] = clientReq.secure ? "https" : "http";
+  if (clientIpInfo.clientIp) {
+    headers["x-real-ip"] = clientIpInfo.clientIp;
+    headers["x-atravad-client-ip"] = clientIpInfo.clientIp;
+  }
+  if (clientIpInfo.proxyIp) {
+    headers["x-atravad-proxy-ip"] = clientIpInfo.proxyIp;
+  }
   if (incomingHostHeader) {
     headers["x-forwarded-host"] = incomingHostHeader;
   }
@@ -636,10 +663,7 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
 }
 
 function extractClientIp(req) {
-  return resolveClientIp({
-    headers: req?.headers || {},
-    remoteAddress: req?.socket?.remoteAddress,
-  }).clientIp;
+  return getClientIpInfo(req).clientIp;
 }
 
 function isHealthPath(pathname) {
@@ -850,10 +874,7 @@ export class ProxyWAFServer {
     if (!this.shouldLogRequest(uriPath, blocked, statusCode)) return;
     if (this.shouldSkipLowValueRequest(uriPath, userAgent)) return;
     if (!this.shouldSampleAllowedLog(blocked)) return;
-    const clientIpInfo = resolveClientIp({
-      headers: req?.headers || {},
-      remoteAddress: req?.socket?.remoteAddress,
-    });
+    const clientIpInfo = getClientIpInfo(req);
     const clientIp = clientIpInfo.clientIp;
     const host = req.headers?.host || null;
     const derivedRuleId = deriveRuleId({
@@ -1450,11 +1471,14 @@ export class ProxyWAFServer {
           bodyBuffer,
         );
         if (!inspection.allowed || inspection.blocked) {
+          const clientIpInfo = getClientIpInfo(req);
           const topRule = inspection.matchedRules?.[0] || null;
           sendBlockedResponse(res, req, {
             host,
             path: req.url,
-            clientIp: extractClientIp(req),
+            clientIp: clientIpInfo.clientIp,
+            proxyIp: clientIpInfo.proxyIp,
+            forwardedFor: clientIpInfo.forwardedFor,
             reason: topRule?.message || "Security rule violation",
             matchedRules: inspection.matchedRules,
           });

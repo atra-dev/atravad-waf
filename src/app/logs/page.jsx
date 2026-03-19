@@ -398,6 +398,15 @@ export default function LogsPage() {
 
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
 
+  const getForwardedForDisplay = (log) => {
+    const forwardedFor = log?.forwardedFor;
+    if (Array.isArray(forwardedFor)) {
+      const values = forwardedFor.filter(Boolean);
+      return values.length > 0 ? values.join(', ') : '-';
+    }
+    return String(forwardedFor || '').trim() || '-';
+  };
+
   const simplifyRuleMessage = (log) => {
     const rawMessage = String(log?.ruleMessage || log?.message || '').trim();
     if (!rawMessage) return '-';
@@ -917,6 +926,8 @@ export default function LogsPage() {
                       <dl className="mt-3">
                         {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}
                         {renderDetailRow('Client IP', normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-', { mono: true })}
+                        {renderDetailRow('Proxy IP', normalizeIpAddress(selectedLog.proxyIp || '') || '-', { mono: true })}
+                        {renderDetailRow('Forwarded Chain', getForwardedForDisplay(selectedLog), { mono: true, breakAll: true })}
                         {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
                         {renderDetailRow('URI', getLogUri(selectedLog), { mono: true, breakAll: true })}
                         {renderDetailRow('User Agent', selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-', { breakWords: true })}

@@ -93,6 +93,10 @@ export async function POST(request) {
 
     for (const log of logs) {
       const clientIp = normalizeIpAddress(log.clientIp || log.ipAddress || '') || null;
+      const proxyIp = normalizeIpAddress(log.proxyIp || '') || null;
+      const forwardedFor = Array.isArray(log.forwardedFor)
+        ? log.forwardedFor.map((value) => normalizeIpAddress(String(value || ''))).filter(Boolean)
+        : [];
       const geo = clientIp ? await geolocateIpCached(clientIp) : null;
       const normalizedLevel = normalizeLevel(log.level || 'info') || 'info';
       const normalizedSeverity = normalizeSeverity(log.severity || null) || null;
@@ -119,6 +123,9 @@ export async function POST(request) {
         request: log.request || null,
         response: log.response || null,
         clientIp,
+        proxyIp,
+        forwardedFor,
+        trustedProxy: Boolean(log.trustedProxy),
         userAgent: log.userAgent || null,
         uri: log.uri || null,
         method: log.method || null,

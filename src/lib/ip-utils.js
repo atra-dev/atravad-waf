@@ -178,3 +178,25 @@ export function resolveClientIp({
     trustedProxy,
   };
 }
+
+export function buildForwardedForHeader({
+  headers = {},
+  remoteAddress = '',
+} = {}) {
+  const { clientIp, proxyIp, forwardedFor } = resolveClientIp({
+    headers,
+    remoteAddress,
+  });
+
+  const chain = Array.isArray(forwardedFor) ? [...forwardedFor] : [];
+
+  if (clientIp && !chain.includes(clientIp)) {
+    chain.unshift(clientIp);
+  }
+
+  if (proxyIp && proxyIp !== clientIp && !chain.includes(proxyIp)) {
+    chain.push(proxyIp);
+  }
+
+  return chain.join(', ');
+}
