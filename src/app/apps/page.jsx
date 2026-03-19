@@ -557,8 +557,22 @@ const getTrafficBarHeight = (value, maxValue) => {
       
       if (response.ok) {
         const updatedApp = await response.json();
-        setApps(apps.map(a => a.id === updatedApp.id ? updatedApp : a));
+        setApps((currentApps) =>
+          currentApps.map((app) => {
+            if (app.id !== updatedApp.id) return app;
+            return {
+              ...app,
+              ...updatedApp,
+              statsBlocked: updatedApp.statsBlocked ?? app.statsBlocked,
+              statsAllowed: updatedApp.statsAllowed ?? app.statsAllowed,
+              blocked: updatedApp.blocked ?? app.blocked,
+              allowed: updatedApp.allowed ?? app.allowed,
+              lastSeenAt: updatedApp.lastSeenAt ?? app.lastSeenAt,
+            };
+          })
+        );
         setSelectedAppForEdit(null);
+        await fetchApps();
       } else {
         const error = await response.json();
         alert(error.error || 'Failed to update site');
