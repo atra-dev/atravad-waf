@@ -421,15 +421,6 @@ export default function LogsPage() {
 
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
 
-  const formatJson = (value) => {
-    if (value === null || value === undefined) return '';
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  };
-
   // If user doesn't have a tenant, show onboarding
   if (!hasTenant && !loading && !authLoading) {
     return (
@@ -942,20 +933,6 @@ export default function LogsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <div className="rounded-xl border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Request Payload</h3>
-                      <pre className="mt-4 max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
-                        {formatJson(selectedLog.request) || 'No request payload'}
-                      </pre>
-                    </div>
-                    <div className="rounded-xl border border-gray-200 p-4">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Raw Log</h3>
-                      <pre className="mt-4 max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
-                        {formatJson(selectedLog) || 'No raw log payload'}
-                      </pre>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
