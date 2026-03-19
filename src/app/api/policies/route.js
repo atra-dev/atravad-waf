@@ -71,7 +71,7 @@ export async function POST(request) {
       customRules,
       applicationId,
       includeOWASPCRS = true,
-      mode = 'detection'
+      mode = 'prevention'
     } = body;
 
     if (!name) {

@@ -8,9 +8,9 @@
  */
 
 import { createRequire } from 'module';
-import { getStandaloneConfigForProxy, generateModSecurityConfig } from './modsecurity.js';
+import { getNativeConfigCandidates, generateModSecurityConfig } from './modsecurity.js';
 import { adminDb } from './firebase-admin.js';
-import { normalizeIpAddress } from './ip-utils.js';
+import { normalizeIpAddress, resolveClientIp } from './ip-utils.js';
 
 const requireMod = createRequire(import.meta.url);
 let ModSecurityNapi = null;
@@ -31,23 +31,17 @@ try {
 
 const useNativeModSecurity = Boolean(ModSecurityNapi && RulesNapi && TransactionNapi);
 
-function extractClientIp(req) {
-  const headers = req?.headers || {};
-  const candidates = [
-    headers['cf-connecting-ip'],
-    headers['x-real-ip'],
-    (headers['x-forwarded-for'] || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)[0],
-    req?.socket?.remoteAddress,
-  ];
+function compileNativeRules(configText) {
+  const rules = new RulesNapi();
+  const ok = rules.add(configText);
+  return ok ? rules : null;
+}
 
-  for (const candidate of candidates) {
-    const normalized = normalizeIpAddress(String(candidate || ''));
-    if (normalized) return normalized;
-  }
-  return '127.0.0.1';
+function extractClientIp(req) {
+  return resolveClientIp({
+    headers: req?.headers || {},
+    remoteAddress: req?.socket?.remoteAddress,
+  }).clientIp || '127.0.0.1';
 }
 
 function ipv4ToInt(ip) {
@@ -161,20 +155,105 @@ function interventionToMatchedRules(intervention) {
   return matchedRules;
 }
 
-function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
-  const url = req.url || '';
-  const headers = req.headers || {};
+function normalizePolicyConfig(policy) {
+  return policy?.policy && typeof policy.policy === 'object'
+    ? policy.policy
+    : (policy || {});
+}
+
+function decodeVariants(value, maxDepth = 3) {
+  const variants = new Set();
+  let current = String(value ?? '');
+  variants.add(current);
+
+  for (let i = 0; i < maxDepth; i += 1) {
+    try {
+      const next = decodeURIComponent(current.replace(/\+/g, '%20'));
+      if (!next || variants.has(next)) break;
+      variants.add(next);
+      current = next;
+    } catch {
+      break;
+    }
+  }
+
+  return Array.from(variants);
+}
+
+function pushInspectionValue(target, source, value) {
+  if (value === undefined || value === null) return;
+  const raw = String(value);
+  if (!raw) return;
+
+  for (const variant of decodeVariants(raw)) {
+    const normalized = variant.replace(/\0/g, '');
+    if (!normalized) continue;
+    target.push({
+      source,
+      value: normalized,
+      normalized: normalized.toLowerCase(),
+    });
+  }
+}
+
+function collectInspectionInputs(req, bodyBuffer = null) {
+  const values = [];
+  const url = String(req?.url || '');
+  const headers = req?.headers || {};
   const body = (bodyBuffer && Buffer.isBuffer(bodyBuffer))
     ? bodyBuffer.toString('utf8', 0, 65536)
-    : ((req.body && Buffer.isBuffer(req.body)) ? req.body.toString('utf8', 0, 65536) : '');
+    : ((req?.body && Buffer.isBuffer(req.body)) ? req.body.toString('utf8', 0, 65536) : '');
 
-  const sqlPatterns = [
-    /\b(SELECT|UNION|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b/i,
-    /'|(\\)|;|(\|)|(\*)|(%)/,
-    /\bOR\s*=\s*/i,
-  ];
+  pushInspectionValue(values, 'REQUEST_URI', url);
+  pushInspectionValue(values, 'REQUEST_METHOD', req?.method || '');
+  pushInspectionValue(values, 'REQUEST_BODY', body);
+
+  try {
+    const parsed = new URL(url, 'https://atravad-waf.local');
+    pushInspectionValue(values, 'REQUEST_FILENAME', parsed.pathname || '/');
+    pushInspectionValue(values, 'QUERY_STRING', parsed.search || '');
+    for (const [key, value] of parsed.searchParams.entries()) {
+      pushInspectionValue(values, `ARGS_NAME:${key}`, key);
+      pushInspectionValue(values, `ARGS:${key}`, value);
+    }
+  } catch {
+    // Best-effort only. Raw URL is already included above.
+  }
+
+  for (const [headerName, headerValue] of Object.entries(headers)) {
+    if (Array.isArray(headerValue)) {
+      for (const item of headerValue) {
+        pushInspectionValue(values, `REQUEST_HEADERS:${headerName}`, item);
+      }
+    } else {
+      pushInspectionValue(values, `REQUEST_HEADERS:${headerName}`, headerValue);
+    }
+  }
+
+  return values;
+}
+
+function matchInspectionRule(inputs, regexes) {
+  for (const input of inputs) {
+    for (const regex of regexes) {
+      const matched = input.value.match(regex) || input.normalized.match(regex);
+      if (matched) {
+        return {
+          matchedData: matched[0],
+          matchedVar: input.source,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
+  const headers = req.headers || {};
+  const normalizedPolicy = normalizePolicyConfig(policy);
+  const strictMode = policy?.includeOWASPCRS !== false;
+  const inputs = collectInspectionInputs(req, bodyBuffer);
   const matchedRules = [];
-  let blocked = false;
 
   const ipCheck = fallbackIpAccessCheck(req, policy);
   if (ipCheck.blocked) {
@@ -187,19 +266,103 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
     };
   }
 
-  for (const pattern of sqlPatterns) {
-    if (pattern.test(url) || pattern.test(body)) {
-      matchedRules.push({
-        id: 100000,
-        message: 'SQL Injection pattern detected (fallback)',
-        severity: 'CRITICAL',
-        matchedData: (url.match(pattern) || body.match(pattern))?.[0],
-        matchedVar: 'REQUEST_URI/REQUEST_BODY',
-      });
-      blocked = true;
-      break;
-    }
+  const ruleChecks = [
+    {
+      enabled: strictMode || normalizedPolicy.sqlInjection,
+      id: 100000,
+      message: 'SQL Injection pattern detected',
+      regexes: [
+        /\b(?:union(?:\s+all)?\s+select|select\b.{0,80}\bfrom|insert\b.{0,40}\binto|update\b.{0,40}\bset|delete\b.{0,40}\bfrom|drop\b.{0,40}\btable|sleep\s*\(|benchmark\s*\(|waitfor\s+delay)\b/i,
+        /(?:^|[\s"'`(])(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|false|1=1)\b/i,
+        /(?:--|#|\/\*|\*\/|;\s*(?:select|union|drop|delete|insert|update|exec))/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.xss,
+      id: 100100,
+      message: 'Cross-site scripting payload detected',
+      regexes: [
+        /<script\b[^>]*>|<\/script>|javascript:|vbscript:|data:text\/html/i,
+        /on(?:error|load|click|mouseover|focus|blur|mouseenter|mouseleave|animationstart|submit)\s*=/i,
+        /<\s*(?:img|svg|iframe|object|embed|math)\b/i,
+        /\b(?:alert|prompt|confirm|document\.cookie|document\.domain|window\.location)\s*\(/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.pathTraversal,
+      id: 100200,
+      message: 'Path traversal payload detected',
+      regexes: [
+        /(?:\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e%5c|\/etc\/passwd|\\windows\\win\.ini|boot\.ini|system32|\/proc\/self\/environ)/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.rce,
+      id: 100300,
+      message: 'Remote code execution payload detected',
+      regexes: [
+        /\b(?:cmd(?:\.exe)?|powershell(?:\.exe)?|bash|sh|zsh|ksh|nc|netcat|curl|wget|perl|python|php|ruby|node)\b/i,
+        /(?:\$\(|`[^`]+`|\|\||&&|;\s*(?:cat|ls|id|whoami|uname|curl|wget|powershell|bash|sh))/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.ssrf,
+      id: 100400,
+      message: 'Server-side request forgery payload detected',
+      regexes: [
+        /\b(?:file|gopher|dict|ftp):\/\/|@(?:127\.0\.0\.1|localhost)\b/i,
+        /\b(?:127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|metadata\.google\.internal|localhost)(?::\d+)?\b/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.xxe,
+      id: 100500,
+      message: 'XXE payload detected',
+      regexes: [
+        /<!DOCTYPE|<!ENTITY|SYSTEM\s+["'][^"']+["']/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.authBypass || normalizedPolicy.brokenAccessControl,
+      id: 100600,
+      message: 'Authentication bypass payload detected',
+      regexes: [
+        /\b(?:username|user|login|email|password|pass|auth|token)\b.{0,80}(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|1=1)\b/i,
+        /\b(?:admin|administrator|root|guest|test)\b.{0,32}(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|1=1)\b/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.securityMisconfig,
+      id: 100700,
+      message: 'Security misconfiguration probe detected',
+      regexes: [
+        /(?:^|\/)(?:\.env|\.git\/config|web\.config|wp-config\.php|config\.php|composer\.json|package\.json|id_rsa)(?:$|[/?#])/i,
+      ],
+    },
+    {
+      enabled: strictMode || normalizedPolicy.fileUpload,
+      id: 100800,
+      message: 'Dangerous file upload detected',
+      regexes: [
+        /filename\s*=\s*["'][^"']+\.(?:php\d*|phtml|phar|cgi|pl|exe|sh|bat|cmd|com|js|jar|war|py|rb|ps1)["']/i,
+      ],
+    },
+  ];
+
+  for (const rule of ruleChecks) {
+    if (!rule.enabled) continue;
+    const match = matchInspectionRule(inputs, rule.regexes);
+    if (!match) continue;
+
+    matchedRules.push({
+      id: rule.id,
+      message: `${rule.message} (fallback)`,
+      severity: 'CRITICAL',
+      matchedData: match.matchedData,
+      matchedVar: match.matchedVar,
+    });
   }
+
   const ua = (headers['user-agent'] || '').toLowerCase();
   if (ua.includes('sqlmap') || ua.includes('nikto') || ua.includes('nmap')) {
     matchedRules.push({
@@ -210,11 +373,23 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
       matchedVar: 'REQUEST_HEADERS:User-Agent',
     });
   }
+
+  const method = String(req.method || '').toUpperCase();
+  if (['TRACE', 'TRACK', 'CONNECT'].includes(method)) {
+    matchedRules.push({
+      id: 100003,
+      message: `Disallowed HTTP method detected (${method})`,
+      severity: 'CRITICAL',
+      matchedData: method,
+      matchedVar: 'REQUEST_METHOD',
+    });
+  }
+
   return {
-    allowed: !blocked,
-    blocked,
+    allowed: matchedRules.length === 0,
+    blocked: matchedRules.length > 0,
     matchedRules,
-    severity: blocked ? 'CRITICAL' : (matchedRules.length ? 'WARNING' : 'INFO'),
+    severity: matchedRules.length ? 'CRITICAL' : 'INFO',
     engine: 'fallback',
   };
 }
@@ -227,7 +402,7 @@ export class ModSecurityProxy {
     this.bodyLimit = options.bodyLimit ?? 13107200;
     this.responseBodyLimit = options.responseBodyLimit ?? 524288;
     this.inspectionTimeout = options.inspectionTimeout ?? 5000;
-    this.failOpen = options.failOpen !== false;
+    this.failOpen = options.failOpen === true;
     this.responseInspectionEnabled = options.responseInspectionEnabled !== false;
     if (useNativeModSecurity) {
       try {
@@ -250,23 +425,31 @@ export class ModSecurityProxy {
       if (policy.policy || policy.sqlInjection !== undefined) {
         policy.modSecurityConfig = generateModSecurityConfig(policy.policy || policy, {
           includeOWASPCRS: policy.includeOWASPCRS !== false,
-          mode: policy.mode || 'detection',
+          mode: policy.mode || 'prevention',
         });
       }
       this.policies.set(policyId, policy);
 
       if (useNativeModSecurity && this.modsec && policy.modSecurityConfig) {
-        const standalone = getStandaloneConfigForProxy(policy.modSecurityConfig);
-        if (standalone) {
+        const candidates = getNativeConfigCandidates(policy.modSecurityConfig);
+        for (const candidate of candidates) {
           try {
-            const rules = new RulesNapi();
-            const ok = rules.add(standalone);
-            if (ok) {
-              this.rulesCache.set(policyId, { modsec: this.modsec, rules });
+            const rules = compileNativeRules(candidate.config);
+            if (rules) {
+              this.rulesCache.set(policyId, {
+                modsec: this.modsec,
+                rules,
+                engineVariant: candidate.name,
+              });
+              break;
             }
+            console.warn(`ModSecurity rules add returned false for policy ${policyId} using ${candidate.name}`);
           } catch (err) {
-            console.warn('ModSecurity rules load failed for policy', policyId, err.message);
+            console.warn(`ModSecurity rules load failed for policy ${policyId} using ${candidate.name}:`, err.message);
           }
+        }
+        if (!this.rulesCache.has(policyId)) {
+          console.warn(`ModSecurity native rules unavailable for policy ${policyId}; fallback engine will be used`);
         }
       }
       return policy;
@@ -290,8 +473,11 @@ export class ModSecurityProxy {
     if (useNativeModSecurity && this.modsec) {
       const cached = this._getRules(policyId);
       if (!cached) await this.loadPolicy(policyId);
-      const { rules } = this._getRules(policyId) || {};
-      if (!rules) return runFallbackInspectRequest(req, policy, bodyBuffer);
+      const { rules, engineVariant } = this._getRules(policyId) || {};
+      if (!rules) {
+        console.warn(`ModSecurity native rules unavailable for policy ${policyId}; using fallback inspection`);
+        return runFallbackInspectRequest(req, policy, bodyBuffer);
+      }
 
       const run = () => {
         const tx = new TransactionNapi(this.modsec, rules);
@@ -302,12 +488,12 @@ export class ModSecurityProxy {
 
         let res = tx.processConnection(remoteAddr, remotePort, localAddr, localPort);
         if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
         }
 
         res = tx.processURI(req.url || '/', req.method || 'GET', req.httpVersion || '1.1');
         if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
         }
 
         const raw = req.rawHeaders || [];
@@ -316,22 +502,22 @@ export class ModSecurityProxy {
         }
         res = tx.processRequestHeaders();
         if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
         }
 
         if (bodyBuffer && bodyBuffer.length > 0) {
           res = tx.appendRequestBody(bodyBuffer);
           if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
           }
           res = tx.processRequestBody();
           if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
           }
         }
 
         tx.processLogging && tx.processLogging();
-        return { allowed: true, blocked: false, matchedRules: [], engine: 'libmodsecurity' };
+        return { allowed: true, blocked: false, matchedRules: [], engine: `libmodsecurity:${engineVariant || 'native'}` };
       };
 
       try {
@@ -371,65 +557,70 @@ export class ModSecurityProxy {
     }
 
     if (useNativeModSecurity && this.modsec) {
-      const standalone = getStandaloneConfigForProxy(modSecurityConfig);
-      if (!standalone) return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
-      try {
-        const rules = new RulesNapi();
-        const ok = rules.add(standalone);
-        if (!ok) return runFallbackInspectRequest(req, null, bodyBuffer);
+      const candidates = getNativeConfigCandidates(modSecurityConfig);
+      if (candidates.length === 0) return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
+      for (const candidate of candidates) {
+        try {
+          const rules = compileNativeRules(candidate.config);
+          if (!rules) {
+            console.warn(`ModSecurity rules add returned false for ad-hoc config using ${candidate.name}; trying next candidate`);
+            continue;
+          }
 
-        const run = () => {
-          const tx = new TransactionNapi(this.modsec, rules);
-          const remoteAddr = extractClientIp(req);
-          const remotePort = req.socket?.remotePort || 0;
-          const localAddr = req.socket?.localAddress || '127.0.0.1';
-          const localPort = req.socket?.localPort || 0;
+          const run = () => {
+            const tx = new TransactionNapi(this.modsec, rules);
+            const remoteAddr = extractClientIp(req);
+            const remotePort = req.socket?.remotePort || 0;
+            const localAddr = req.socket?.localAddress || '127.0.0.1';
+            const localPort = req.socket?.localPort || 0;
 
-          let res = tx.processConnection(remoteAddr, remotePort, localAddr, localPort);
-          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
-          }
-          res = tx.processURI(req.url || '/', req.method || 'GET', req.httpVersion || '1.1');
-          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
-          }
-          const raw = req.rawHeaders || [];
-          for (let i = 0; i < raw.length; i += 2) {
-            tx.addRequestHeader(raw[i], raw[i + 1] ?? '');
-          }
-          res = tx.processRequestHeaders();
-          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
-          }
-          if (bodyBuffer && bodyBuffer.length > 0) {
-            res = tx.appendRequestBody(bodyBuffer);
+            let res = tx.processConnection(remoteAddr, remotePort, localAddr, localPort);
             if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
             }
-            res = tx.processRequestBody();
+            res = tx.processURI(req.url || '/', req.method || 'GET', req.httpVersion || '1.1');
             if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: 'libmodsecurity' };
+              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
             }
-          }
-          tx.processLogging && tx.processLogging();
-          return { allowed: true, blocked: false, matchedRules: [], engine: 'libmodsecurity' };
-        };
+            const raw = req.rawHeaders || [];
+            for (let i = 0; i < raw.length; i += 2) {
+              tx.addRequestHeader(raw[i], raw[i + 1] ?? '');
+            }
+            res = tx.processRequestHeaders();
+            if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
+            }
+            if (bodyBuffer && bodyBuffer.length > 0) {
+              res = tx.appendRequestBody(bodyBuffer);
+              if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+                return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
+              }
+              res = tx.processRequestBody();
+              if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+                return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
+              }
+            }
+            tx.processLogging && tx.processLogging();
+            return { allowed: true, blocked: false, matchedRules: [], engine: `libmodsecurity:${candidate.name}` };
+          };
 
-        return await Promise.race([
-          Promise.resolve(run()),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('inspection timeout')), this.inspectionTimeout)),
-        ]);
-      } catch (err) {
-        if (this.failOpen) {
-          return { allowed: true, blocked: false, matchedRules: [], engine: 'fail-open' };
+          return await Promise.race([
+            Promise.resolve(run()),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('inspection timeout')), this.inspectionTimeout)),
+          ]);
+        } catch (err) {
+          console.warn(`ModSecurity ad-hoc inspect failed using ${candidate.name}:`, err.message);
         }
-        return {
-          allowed: false,
-          blocked: true,
-          matchedRules: [{ id: 0, message: err.message, severity: 'WARNING', matchedData: null, matchedVar: null }],
-          engine: 'fail-closed',
-        };
       }
+      if (this.failOpen) {
+        return { allowed: true, blocked: false, matchedRules: [], engine: 'fail-open' };
+      }
+      return {
+        allowed: false,
+        blocked: true,
+        matchedRules: [{ id: 0, message: 'Native ModSecurity config compilation failed', severity: 'WARNING', matchedData: null, matchedVar: null }],
+        engine: 'fail-closed',
+      };
     }
 
     return runFallbackInspectRequest(req, null, bodyBuffer);

@@ -82,7 +82,7 @@ function TagListInput({ value = [], onChange, placeholder, normalize = (s) => s.
 function getDefaultPolicyFormData() {
   return {
     name: '',
-    mode: 'detection',
+    mode: 'prevention',
     includeOWASPCRS: true,
     // OWASP Top 10 Protections
     sqlInjection: false,
@@ -1286,7 +1286,7 @@ export default function PoliciesPage() {
                             <span className="ml-2 text-xs text-gray-700">Adaptive Rate Limiting</span>
                           </label>
                           <div className="mt-2">
-                            <label className="block text-xs text-gray-600 mb-1">Per-Endpoint Rules (JSON format: {"{"}"endpoint": "requests_per_minute"{"}"})</label>
+                            <label className="block text-xs text-gray-600 mb-1">Per-Endpoint Rules (JSON format: {`{"endpoint": "requests_per_minute"}`})</label>
                             <textarea
                               placeholder='{"\/api\/users": 100, "\/api\/admin": 50}'
                               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border font-mono text-xs"

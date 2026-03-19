@@ -25,7 +25,7 @@ import {
 } from "./letsencrypt.js";
 import { normalizeDomainInput } from "./domain-utils.js";
 import { geolocateIpCached } from "./geolocation.js";
-import { normalizeIpAddress } from "./ip-utils.js";
+import { normalizeIpAddress, resolveClientIp } from "./ip-utils.js";
 import { deriveRuleId } from "./log-rule-utils.js";
 import { getDefaultOriginServername } from "./origin-utils.js";
 
@@ -635,24 +635,10 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
 }
 
 function extractClientIp(req) {
-  const headers = req?.headers || {};
-  const candidates = [
-    headers["cf-connecting-ip"],
-    headers["x-real-ip"],
-    headers["true-client-ip"],
-    headers["x-client-ip"],
-    String(headers["x-forwarded-for"] || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)[0],
-    req?.socket?.remoteAddress,
-  ];
-
-  for (const candidate of candidates) {
-    const normalized = normalizeIpAddress(String(candidate || ""));
-    if (normalized) return normalized;
-  }
-  return null;
+  return resolveClientIp({
+    headers: req?.headers || {},
+    remoteAddress: req?.socket?.remoteAddress,
+  }).clientIp;
 }
 
 function isHealthPath(pathname) {
@@ -863,7 +849,11 @@ export class ProxyWAFServer {
     if (!this.shouldLogRequest(uriPath, blocked, statusCode)) return;
     if (this.shouldSkipLowValueRequest(uriPath, userAgent)) return;
     if (!this.shouldSampleAllowedLog(blocked)) return;
-    const clientIp = extractClientIp(req);
+    const clientIpInfo = resolveClientIp({
+      headers: req?.headers || {},
+      remoteAddress: req?.socket?.remoteAddress,
+    });
+    const clientIp = clientIpInfo.clientIp;
     const host = req.headers?.host || null;
     const derivedRuleId = deriveRuleId({
       ruleId,
@@ -902,6 +892,9 @@ export class ProxyWAFServer {
       response,
       clientIp,
       ipAddress: clientIp,
+      proxyIp: clientIpInfo.proxyIp,
+      forwardedFor: clientIpInfo.forwardedFor,
+      trustedProxy: clientIpInfo.trustedProxy,
       userAgent: userAgent || null,
       uri,
       method: req.method || "GET",

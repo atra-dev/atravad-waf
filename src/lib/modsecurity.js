@@ -1,3 +1,5 @@
+import { existsSync } from 'fs';
+
 /**
  * ModSecurity Engine Integration
  * 
@@ -16,7 +18,8 @@ export function generateModSecurityConfig(policy, options = {}) {
   const {
     includeOWASPCRS = true,
     ruleIdBase: initialRuleIdBase = 100000,
-    mode = 'detection', // 'detection' or 'prevention'
+    mode = 'prevention', // 'detection' or 'prevention'
+    paranoiaLevel = 4,
   } = options;
 
   // Use a mutable variable for ruleIdBase since we need to increment it
@@ -48,8 +51,10 @@ export function generateModSecurityConfig(policy, options = {}) {
   if (includeOWASPCRS) {
     config += '# OWASP Core Rule Set (CRS) Integration\n';
     config += '# OWASP CRS Setup Configuration\n';
-    config += '# Paranoia Level: 1 (default, balanced security/performance)\n';
-    config += '# Set to 2-4 for higher security (may increase false positives)\n';
+    config += `# Paranoia Level: ${paranoiaLevel}\n`;
+    config += '# Higher paranoia increases attack coverage and false-positive risk\n';
+    config += `SecAction "id:900000,phase:1,pass,nolog,setvar:tx.paranoia_level=${paranoiaLevel},setvar:tx.executing_paranoia_level=${paranoiaLevel}"\n`;
+    config += 'SecAction "id:900001,phase:1,pass,nolog,setvar:tx.inbound_anomaly_score_threshold=5,setvar:tx.outbound_anomaly_score_threshold=4"\n';
     config += 'Include /etc/modsecurity/crs-setup.conf\n';
     config += '\n# OWASP CRS Rule Sets\n';
     config += 'Include /etc/modsecurity/rules/REQUEST-901-INITIALIZATION.conf\n';
@@ -1530,6 +1535,84 @@ export function getOWASPCRSInfo() {
   };
 }
 
+function sanitizeConfigForProxy(fullConfig, { stripIncludes = true } = {}) {
+  if (!fullConfig || typeof fullConfig !== 'string') return '';
+
+  const unsupportedDirectivePatterns = [
+    /^\s*SecTmpDir\b/i,
+    /^\s*SecDataDir\b/i,
+    /^\s*SecUploadDir\b/i,
+    /^\s*SecUploadFileMode\b/i,
+    /^\s*SecTmpSaveUploadedFiles\b/i,
+    /^\s*SecAuditEngine\b/i,
+    /^\s*SecAuditLog\b/i,
+    /^\s*SecAuditLogType\b/i,
+    /^\s*SecAuditLogParts\b/i,
+    /^\s*SecAuditLogRelevantStatus\b/i,
+    /^\s*SecAuditLogFileReopenLimit\b/i,
+    /^\s*SecAuditLogStorageDir\b/i,
+    /^\s*SecAuditLogFileMode\b/i,
+    /^\s*SecAuditLogDirMode\b/i,
+    /^\s*SecAuditLogDirPermissions\b/i,
+  ];
+
+  return fullConfig
+    .split('\n')
+    .map((line) => line.replace(/\bauditlog\b,?/gi, '').replace(/,,+/g, ',').replace(/,\s*"/g, '"'))
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (stripIncludes && /^\s*Include\s+/i.test(trimmed)) return false;
+      if (unsupportedDirectivePatterns.some((pattern) => pattern.test(trimmed))) return false;
+      if (/\bsetenv:/i.test(trimmed)) return false;
+      // The embedded Rules.add() path is not stable with custom user/resource collections.
+      if (/\b(?:setvar|expirevar|deprecatevar):'user\./i.test(trimmed)) return false;
+      if (/^\s*SecRule\s+USER:/i.test(trimmed)) return false;
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function extractIncludePaths(fullConfig) {
+  return String(fullConfig || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^\s*Include\s+/i.test(line))
+    .map((line) => line.replace(/^\s*Include\s+/i, '').trim())
+    .filter(Boolean);
+}
+
+export function getNativeConfigCandidates(fullConfig) {
+  if (!fullConfig || typeof fullConfig !== 'string') return [];
+
+  const includePaths = extractIncludePaths(fullConfig);
+  const includePathsAvailable =
+    includePaths.length > 0 && includePaths.every((includePath) => existsSync(includePath));
+
+  const candidates = [];
+
+  if (includePathsAvailable) {
+    const fullNativeConfig = sanitizeConfigForProxy(fullConfig, { stripIncludes: false });
+    if (fullNativeConfig) {
+      candidates.push({
+        name: 'libmodsecurity-crs',
+        config: fullNativeConfig,
+      });
+    }
+  }
+
+  const strippedConfig = sanitizeConfigForProxy(fullConfig, { stripIncludes: true });
+  if (strippedConfig) {
+    candidates.push({
+      name: 'standalone-no-crs',
+      config: strippedConfig,
+    });
+  }
+
+  return candidates;
+}
+
 /**
  * Produce a proxy-safe ModSecurity config usable by libmodsecurity Rules.add()
  * Strips Include directives so rules work without CRS on disk.
@@ -1537,22 +1620,5 @@ export function getOWASPCRSInfo() {
  * @returns {string} Config with Include lines removed, suitable for rules.add()
  */
 export function getStandaloneConfigForProxy(fullConfig) {
-  if (!fullConfig || typeof fullConfig !== 'string') return '';
-  return fullConfig
-    .split('\n')
-    .filter((line) => {
-      const trimmed = line.trim();
-      if (/^\s*Include\s+/i.test(trimmed)) return false;
-      if (/\bsetenv:/i.test(trimmed)) return false;
-      // Strip file-system audit directives that are unsupported in Rules.add() context.
-      if (/^\s*SecAuditLogFileReopenLimit\b/i.test(trimmed)) return false;
-      if (/^\s*SecAuditLogStorageDir\b/i.test(trimmed)) return false;
-      if (/^\s*SecAuditLogFileMode\b/i.test(trimmed)) return false;
-      if (/^\s*SecAuditLogDirMode\b/i.test(trimmed)) return false;
-      if (/^\s*SecAuditLogDirPermissions\b/i.test(trimmed)) return false;
-      return true;
-    })
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return sanitizeConfigForProxy(fullConfig, { stripIncludes: true });
 }

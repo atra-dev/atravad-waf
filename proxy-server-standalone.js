@@ -84,7 +84,10 @@ console.log(`HTTP Port: ${HTTP_PORT}`);
 console.log(`HTTPS Port: ${HTTPS_PORT}`);
 console.log('');
 
-const modSecurity = createModSecurityProxy({ responseInspectionEnabled: true });
+const modSecurity = createModSecurityProxy({
+  responseInspectionEnabled: true,
+  failOpen: false,
+});
 const certStore = createCertStore({
   persistToDisk:
     process.env.CERT_STORE_PERSIST_TO_DISK === 'true' ||
