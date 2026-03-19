@@ -4,8 +4,10 @@ import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { rateLimit } from '@/lib/rate-limit';
 import { geolocateIpCached } from '@/lib/geolocation';
+import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
+import { persistSecurityLog } from '@/lib/log-storage';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 
@@ -87,16 +89,18 @@ export async function POST(request) {
     }
 
     const now = new Date().toISOString();
-    const batch = adminDb.batch();
+    const writtenLogs = [];
 
     for (const log of logs) {
       const clientIp = normalizeIpAddress(log.clientIp || log.ipAddress || '') || null;
       const geo = clientIp ? await geolocateIpCached(clientIp) : null;
       const normalizedLevel = normalizeLevel(log.level || 'info') || 'info';
       const normalizedSeverity = normalizeSeverity(log.severity || null) || null;
-      const logRef = adminDb.collection('logs').doc();
-      batch.set(logRef, {
-        source: tenantName,
+      const savedLog = await persistSecurityLog(adminDb, {
+        source:
+          normalizeDomainInput(log.source || log.request?.host || '') ||
+          normalizeDomainInput(log.nodeId || '') ||
+          tenantName,
         tenantName: tenantName.trim(),
         timestamp: log.timestamp || now,
         level: log.level || normalizedLevel,
@@ -129,13 +133,12 @@ export async function POST(request) {
         geoContinentCode: geo?.success ? geo.continentCode || null : null,
         geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
       });
+      writtenLogs.push(savedLog);
     }
-
-    await batch.commit();
 
     return NextResponse.json({
       success: true,
-      ingested: logs.length,
+      ingested: writtenLogs.length,
       timestamp: now,
     });
   } catch (error) {
@@ -189,71 +192,62 @@ export async function GET(request) {
         : decisionParamRaw === 'denied'
           ? 'origin_denied'
           : decisionParamRaw;
-    const page = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
     const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
-    const fetchAll = String(searchParams.get('all') || '').trim().toLowerCase() === 'true';
-    const startAfter = searchParams.get('startAfter');
+    const cursor = String(searchParams.get('cursor') || '').trim();
+    const hoursParam = Number.parseInt(searchParams.get('hours') || '24', 10);
+    const hours = Number.isFinite(hoursParam) ? Math.min(Math.max(hoursParam, 1), 24) : 24;
+    const site = normalizeDomainInput(searchParams.get('site') || '');
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
 
     let query = adminDb
       .collection('logs')
-      .where('tenantName', '==', tenantName);
-
-    // Mixed historical values (INFO/info, warning/warn, MEDIUM, etc.) make strict
-    // Firestore equality filters unreliable. Fetch tenant logs then apply normalized
-    // filters and pagination in-memory for stable, page-based navigation.
-    const logsSnapshot = await query.get();
-
-    let logs = logsSnapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        nodeId: doc.data().source ?? doc.data().nodeId,
-      }))
-      .sort((a, b) => {
-        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        return timeB - timeA;
-      });
+      .where('tenantName', '==', tenantName)
+      .where('timestamp', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString());
 
     if (level) {
-      logs = logs.filter((log) => normalizeLevel(log.levelNormalized || log.level) === level);
+      query = query.where('levelNormalized', '==', level);
     }
     if (severity) {
-      logs = logs.filter((log) => normalizeSeverity(log.severityNormalized || log.severity) === severity);
+      query = query.where('severityNormalized', '==', severity);
     }
     if (blockedFilter !== null) {
-      logs = logs.filter((log) => Boolean(log.blocked) === blockedFilter);
+      query = query.where('blocked', '==', blockedFilter);
     }
     if (decisionParam) {
-      logs = logs.filter((log) => deriveDecision(log) === decisionParam);
+      query = query.where('decision', '==', decisionParam);
+    }
+    if (site) {
+      query = query.where('siteNormalized', '==', site);
     }
 
-    if (startAfter) {
-      const startAfterIndex = logs.findIndex((log) => log.id === startAfter);
-      if (startAfterIndex !== -1) {
-        logs = logs.slice(startAfterIndex + 1);
+    query = query.orderBy('timestamp', 'desc').limit(pageSize + 1);
+
+    if (cursor) {
+      const cursorDoc = await adminDb.collection('logs').doc(cursor).get();
+      if (cursorDoc.exists) {
+        query = query.startAfter(cursorDoc);
       }
     }
 
-    const totalCount = logs.length;
-    const totalPages = fetchAll ? 1 : Math.max(Math.ceil(totalCount / pageSize), 1);
-    const pageClamped = fetchAll ? 1 : Math.min(page, totalPages);
-    const startIndex = fetchAll ? 0 : (pageClamped - 1) * pageSize;
-    const endIndex = fetchAll ? totalCount : startIndex + pageSize;
-    const hasMore = fetchAll ? false : endIndex < totalCount;
-    logs = logs.slice(startIndex, endIndex);
+    const logsSnapshot = await query.get();
+    const docs = logsSnapshot.docs;
+    const hasMore = docs.length > pageSize;
+    const visibleDocs = hasMore ? docs.slice(0, pageSize) : docs;
+    const logs = visibleDocs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      nodeId: doc.data().source ?? doc.data().nodeId,
+    }));
+    const nextCursor = hasMore ? visibleDocs[visibleDocs.length - 1]?.id || null : null;
 
     return NextResponse.json({
       logs,
       count: logs.length,
       hasMore,
-      page: pageClamped,
       pageSize,
-      totalCount,
-      totalPages,
+      nextCursor,
     });
   } catch (error) {
     console.error('Error fetching logs:', error);

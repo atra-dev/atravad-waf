@@ -28,9 +28,12 @@ function getDecisionKey(log) {
  * Traffic Analytics Component
  * Displays time-series charts and traffic patterns
  */
-export default function TrafficAnalytics({ logs = [] }) {
+export default function TrafficAnalytics({ logs = [], analytics = null }) {
   // Process logs for time-series data
   const timeSeriesData = useMemo(() => {
+    if (analytics?.timeSeries) {
+      return analytics.timeSeries;
+    }
     const hourlyMap = new Map();
     
     logs.forEach(log => {
@@ -77,6 +80,9 @@ export default function TrafficAnalytics({ logs = [] }) {
 
   // Request methods distribution
   const methodDistribution = useMemo(() => {
+    if (analytics?.methods) {
+      return analytics.methods;
+    }
     const methodMap = new Map();
     
     logs.forEach(log => {
@@ -91,6 +97,9 @@ export default function TrafficAnalytics({ logs = [] }) {
 
   // Status code distribution
   const statusCodeDistribution = useMemo(() => {
+    if (analytics?.statuses) {
+      return analytics.statuses;
+    }
     const statusMap = new Map();
     
     logs.forEach(log => {
@@ -111,6 +120,9 @@ export default function TrafficAnalytics({ logs = [] }) {
 
   // Top blocked IPs
   const topBlockedIPs = useMemo(() => {
+    if (analytics?.topBlockedIps) {
+      return analytics.topBlockedIps;
+    }
     const ipMap = new Map();
     
     logs
@@ -213,7 +225,7 @@ export default function TrafficAnalytics({ logs = [] }) {
                       <div
                         className="bg-blue-500 h-2 rounded-full"
                         style={{
-                          width: `${(item.count / logs.length) * 100}%`,
+                          width: `${(item.count / Math.max(analytics?.summary?.totalRequests || logs.length, 1)) * 100}%`,
                         }}
                       />
                     </div>
@@ -246,9 +258,9 @@ export default function TrafficAnalytics({ logs = [] }) {
                       <span className="text-sm font-medium text-gray-700 w-16">{item.label}</span>
                       <div className="flex-1 bg-gray-200 rounded-full h-2">
                         <div
-                          className={`${color} h-2 rounded-full`}
-                          style={{
-                            width: `${(item.count / logs.filter(l => l.statusCode).length) * 100}%`,
+                        className={`${color} h-2 rounded-full`}
+                        style={{
+                            width: `${(item.count / Math.max(statusCodeDistribution.reduce((sum, row) => sum + row.count, 0), 1)) * 100}%`,
                           }}
                         />
                       </div>

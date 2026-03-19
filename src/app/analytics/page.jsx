@@ -6,65 +6,6 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 
-function normalizeText(value) {
-  return String(value || '').toLowerCase();
-}
-
-function categoryFromRuleId(ruleId) {
-  const id = Number.parseInt(String(ruleId || ''), 10);
-  if (!Number.isFinite(id)) return null;
-
-  if (id >= 912000 && id < 913000) return 'DDoS/DoS';
-  if (id >= 913000 && id < 914000) return 'Scanner/Recon';
-  if (id >= 920000 && id < 921000) return 'Protocol Enforcement';
-  if (id >= 921000 && id < 922000) return 'HTTP Smuggling';
-  if (id >= 930000 && id < 940000) return 'LFI/RFI';
-  if (id >= 941000 && id < 942000) return 'XSS';
-  if (id >= 942000 && id < 943000) return 'SQL Injection';
-  if (id >= 932000 && id < 933000) return 'RCE';
-  if (id >= 933000 && id < 934000) return 'PHP Injection';
-  if (id >= 944000 && id < 945000) return 'Java Attacks';
-  if (id >= 949000 && id < 950000) return 'Anomaly Threshold';
-  return null;
-}
-
-function classifyAttack(log) {
-  const message = normalizeText(log.message);
-  const ruleMessage = normalizeText(log.ruleMessage);
-  const uri = normalizeText(log.uri || log.request?.uri);
-  const source = `${message} ${ruleMessage} ${uri}`;
-
-  const byRuleId = categoryFromRuleId(log.ruleId);
-  if (byRuleId) return byRuleId;
-
-  if (
-    source.includes('ddos') ||
-    source.includes('dos') ||
-    source.includes('denial of service') ||
-    source.includes('rate limit exceeded') ||
-    source.includes('too many requests') ||
-    source.includes('burst size exceeded') ||
-    source.includes('request flood')
-  ) {
-    return 'DDoS/DoS';
-  }
-
-  if (source.includes('sql') || source.includes('sqli') || source.includes('union select')) return 'SQL Injection';
-  if (source.includes('xss') || source.includes('cross-site') || source.includes('<script')) return 'XSS';
-  if (source.includes('csrf')) return 'CSRF';
-  if (source.includes('rce') || source.includes('code execution') || source.includes('command injection')) return 'RCE';
-  if (source.includes('path traversal') || source.includes('../') || source.includes('directory traversal')) return 'Path Traversal';
-  if (source.includes('ssrf') || source.includes('server-side request forgery')) return 'SSRF';
-  if (source.includes('lfi') || source.includes('rfi')) return 'LFI/RFI';
-  if (source.includes('auth') || source.includes('credential') || source.includes('login')) return 'Auth Attack';
-  if (source.includes('bot') || source.includes('crawler') || source.includes('scanner')) return 'Bot/Scanner';
-  if (source.includes('rate limit') || source.includes('too many requests')) return 'Rate Limit Abuse';
-  if (source.includes('method') || source.includes('protocol')) return 'Protocol Enforcement';
-  if (source.includes('file upload') || source.includes('multipart')) return 'Malicious Upload';
-
-  return 'Other';
-}
-
 export default function AnalyticsPage() {
   // Verify authentication
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -82,67 +23,24 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // Fetch logs for analytics
-      const response = await fetch('/api/logs?limit=1000&blocked=true');
+      const hours = {
+        '24h': 24,
+        '7d': 7 * 24,
+        '30d': 30 * 24,
+      }[timeRange] || 24;
+      const response = await fetch(`/api/logs/analytics?hours=${hours}`);
       const data = await response.json();
-      
-      if (data.logs) {
-        const now = new Date();
-        const timeFilter = {
-          '24h': 24 * 60 * 60 * 1000,
-          '7d': 7 * 24 * 60 * 60 * 1000,
-          '30d': 30 * 24 * 60 * 60 * 1000,
-        }[timeRange] || 24 * 60 * 60 * 1000;
 
-        const filteredLogs = data.logs.filter(log => {
-          const logTime = new Date(log.timestamp).getTime();
-          return (now.getTime() - logTime) <= timeFilter;
-        });
-        const attackLogs = filteredLogs.filter((log) => Boolean(log.blocked));
-
-        // Calculate analytics
-        const attackTypes = {};
-        const topIPs = {};
-        const uniqueIPSet = new Set();
-        const severityCounts = { critical: 0, high: 0, medium: 0, warning: 0, info: 0 };
-        const hourlyData = {};
-
-        attackLogs.forEach(log => {
-          // Attack types
-          const attackCategory = classifyAttack(log);
-          attackTypes[attackCategory] = (attackTypes[attackCategory] || 0) + 1;
-
-          // Top IPs
-          const normalizedIp = normalizeIpAddress(log.ipAddress || log.clientIp || '');
-          if (normalizedIp) {
-            topIPs[normalizedIp] = (topIPs[normalizedIp] || 0) + 1;
-            uniqueIPSet.add(normalizedIp);
-          }
-
-          // Severity counts
-          const severity = (log.severity || 'info').toLowerCase();
-          if (severityCounts[severity] !== undefined) {
-            severityCounts[severity]++;
-          }
-
-          // Hourly data
-          const hour = new Date(log.timestamp).getHours();
-          hourlyData[hour] = (hourlyData[hour] || 0) + 1;
-        });
-
-        setAnalytics({
-          totalAttacks: attackLogs.length,
-          attackTypes: Object.entries(attackTypes)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10),
-          topIPs: Object.entries(topIPs)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10),
-          uniqueIPs: uniqueIPSet.size,
-          severityCounts,
-          hourlyData,
-        });
-      }
+      setAnalytics({
+        totalAttacks: (data.summary?.wafBlocked || 0) + (data.summary?.originDenied || 0),
+        attackTypes: data.attackTypes || [],
+        topIPs: data.topIPs || [],
+        uniqueIPs: new Set((data.topIPs || []).map(([ip]) => normalizeIpAddress(ip))).size,
+        severityCounts: data.severityCounts || { critical: 0, high: 0, medium: 0, warning: 0, info: 0 },
+        hourlyData: Object.fromEntries(
+          (data.timeSeries || []).map((item) => [new Date(item.time).getHours(), (item.wafBlocked || 0) + (item.originDenied || 0)])
+        ),
+      });
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {

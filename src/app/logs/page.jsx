@@ -28,14 +28,15 @@ export default function LogsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   
   const [logs, setLogs] = useState([]);
-  const [analyticsLogs, setAnalyticsLogs] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState(null);
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 100,
-    totalCount: 0,
-    totalPages: 1,
+    nextCursor: null,
+    currentCursor: null,
+    cursorHistory: [],
   });
   const [filters, setFilters] = useState({
     site: '',
@@ -106,20 +107,26 @@ export default function LogsPage() {
   // Reset to first page when filters change
   useEffect(() => {
     if (isAuthenticated && hasTenant) {
-      setPagination((prev) => (prev.page === 1 ? prev : { ...prev, page: 1 }));
+      setPagination((prev) => ({
+        ...prev,
+        page: 1,
+        currentCursor: null,
+        nextCursor: null,
+        cursorHistory: [],
+      }));
     }
   }, [filters, hasTenant]);
 
   // Fetch logs when page changes
   useEffect(() => {
     if (isAuthenticated && hasTenant) {
-      fetchLogs(false, pagination.page);
+      fetchLogs(false, pagination.currentCursor, pagination.page);
     }
-  }, [isAuthenticated, hasTenant, pagination.page]);
+  }, [isAuthenticated, hasTenant, pagination.page, pagination.currentCursor]);
 
   useEffect(() => {
     if (isAuthenticated && hasTenant) {
-      fetchAnalyticsLogs();
+      fetchAnalyticsSummary();
     }
   }, [isAuthenticated, hasTenant, filters]);
 
@@ -206,12 +213,15 @@ export default function LogsPage() {
     }
   };
 
-  const fetchLogs = async (forceRefresh = false, pageToFetch = 1) => {
+  const fetchLogs = async (forceRefresh = false, cursorToFetch = null, pageToFetch = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('page', String(pageToFetch));
       params.append('pageSize', String(pagination.pageSize || 100));
+      params.append('hours', '24');
+      if (cursorToFetch) params.append('cursor', cursorToFetch);
+      if (filters.site) params.append('site', filters.site);
+      if (filters.severity) params.append('severity', filters.severity);
       if (filters.action) params.append('decision', filters.action);
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
@@ -258,14 +268,13 @@ export default function LogsPage() {
             ))
           );
         }
-        
+
         setLogs(filteredLogs);
         setPagination((prev) => ({
           ...prev,
-          page: Number(data.page || pageToFetch || 1),
+          page: pageToFetch,
           pageSize: Number(data.pageSize || prev.pageSize || 100),
-          totalCount: Number(data.totalCount || 0),
-          totalPages: Number(data.totalPages || 1),
+          nextCursor: data.nextCursor || null,
         }));
       }
     } catch (error) {
@@ -275,57 +284,18 @@ export default function LogsPage() {
     }
   };
 
-  const fetchAnalyticsLogs = async (forceRefresh = false) => {
+  const fetchAnalyticsSummary = async (forceRefresh = false) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('all', 'true');
+      params.append('hours', '24');
+      if (filters.site) params.append('site', filters.site);
       if (filters.action) params.append('decision', filters.action);
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
-      const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+      const response = await fetch(`/api/logs/analytics?${params.toString()}`, { cache: 'no-store' });
       const data = await response.json();
-      if (data.logs) {
-        let filteredLogs = data.logs;
-
-        if (filters.severity) {
-          const selectedSeverity = normalizeSeverity(filters.severity);
-          filteredLogs = filteredLogs.filter(
-            (log) => normalizeSeverity(log.severity) === selectedSeverity
-          );
-        }
-        if (filters.site) {
-          const selectedSite = normalizeDomainInput(filters.site);
-          filteredLogs = filteredLogs.filter((log) => {
-            const sourceSite = normalizeDomainInput(String(log.source || ''));
-            const hostSite = normalizeDomainInput(String(log.request?.host || ''));
-            const nodeSite = normalizeDomainInput(String(log.nodeId || ''));
-            return sourceSite === selectedSite || hostSite === selectedSite || nodeSite === selectedSite;
-          });
-        }
-        if (filters.action) {
-          filteredLogs = filteredLogs.filter((log) => {
-            return getDecisionKey(log) === filters.action;
-          });
-        }
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          const normalizedSearchDomain = normalizeDomainInput(filters.search);
-          filteredLogs = filteredLogs.filter(log =>
-            (log.message && log.message.toLowerCase().includes(searchLower)) ||
-            (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
-            (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
-            (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
-            (normalizedSearchDomain && (
-              normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
-              normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
-              normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
-            ))
-          );
-        }
-
-        setAnalyticsLogs(filteredLogs);
-      }
+      setAnalyticsData(data);
     } catch (error) {
       console.error('Error fetching analytics logs:', error);
     } finally {
@@ -336,28 +306,35 @@ export default function LogsPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchLogs(true, pagination.page), fetchAnalyticsLogs(true), fetchSites()]);
+      await Promise.all([fetchLogs(true, pagination.currentCursor, pagination.page), fetchAnalyticsSummary(true), fetchSites()]);
     } finally {
       setRefreshing(false);
     }
   };
 
-  const handlePageChange = (nextPage) => {
-    const page = Number(nextPage);
-    if (!Number.isFinite(page)) return;
-    if (page < 1 || page > (pagination.totalPages || 1)) return;
-    setPagination((prev) => ({ ...prev, page }));
-  };
-
-  const visiblePages = (() => {
-    const total = pagination.totalPages || 1;
-    const current = pagination.page || 1;
-    const pageSet = new Set([1, total]);
-    for (let p = current - 2; p <= current + 2; p += 1) {
-      if (p >= 1 && p <= total) pageSet.add(p);
+  const handlePageChange = (direction) => {
+    if (direction === 'next' && pagination.nextCursor) {
+      setPagination((prev) => ({
+        ...prev,
+        page: prev.page + 1,
+        cursorHistory: [...prev.cursorHistory, prev.currentCursor],
+        currentCursor: prev.nextCursor,
+      }));
+      return;
     }
-    return Array.from(pageSet).sort((a, b) => a - b);
-  })();
+    if (direction === 'previous' && pagination.page > 1) {
+      setPagination((prev) => {
+        const cursorHistory = [...prev.cursorHistory];
+        const previousCursor = cursorHistory.pop() || null;
+        return {
+          ...prev,
+          page: Math.max(prev.page - 1, 1),
+          cursorHistory,
+          currentCursor: previousCursor,
+        };
+      });
+    }
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -422,20 +399,19 @@ export default function LogsPage() {
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
 
   const renderDetailRow = (label, value, options = {}) => {
-    const { mono = false, breakAll = false, breakWords = false, badge = false, badgeClassName = '' } = options;
+    const { mono = false, breakAll = false, breakWords = false } = options;
     const valueClassName = [
-      'min-w-0 text-sm text-slate-900',
+      'min-w-0 text-sm leading-6 text-slate-900',
       mono ? 'font-mono' : '',
       breakAll ? 'break-all' : '',
       breakWords ? 'break-words' : '',
-      badge ? `inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${badgeClassName}` : '',
     ]
       .filter(Boolean)
       .join(' ');
 
     return (
-      <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-4 border-b border-slate-100 py-3 last:border-b-0">
-        <dt className="text-sm font-medium text-slate-500">{label}</dt>
+      <div className="border-b border-slate-100 py-3 last:border-b-0">
+        <dt className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{label}</dt>
         <dd className={valueClassName}>{value}</dd>
       </div>
     );
@@ -611,7 +587,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Geographic ({analyticsLogs.length})
+                Geographic ({analyticsData?.summary?.totalRequests || 0})
               </button>
               <button
                 onClick={() => setActiveTab('traffic')}
@@ -624,7 +600,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                Traffic Analytics ({analyticsLogs.length})
+                Traffic Analytics ({analyticsData?.summary?.totalRequests || 0})
               </button>
             </nav>
           </div>
@@ -696,7 +672,7 @@ export default function LogsPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Logs ({pagination.totalCount.toLocaleString()})
+              Logs (Page {pagination.page})
             </h2>
           </div>
 
@@ -786,37 +762,22 @@ export default function LogsPage() {
               </div>
               <div className="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <p className="text-sm text-gray-600">
-                  Page {pagination.page} of {pagination.totalPages}
+                  Showing up to {logs.length} recent events from the last 24 hours
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
+                    onClick={() => handlePageChange('previous')}
                     disabled={pagination.page <= 1}
                     className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
-                  {visiblePages
-                    .map((p, i, arr) => (
-                      <span key={`page-wrap-${p}`} className="inline-flex items-center">
-                        {i > 0 && arr[i - 1] !== p - 1 ? (
-                          <span className="px-1 text-gray-400">...</span>
-                        ) : null}
-                        <button
-                          onClick={() => handlePageChange(p)}
-                          className={`px-3 py-1.5 text-sm border rounded-lg ${
-                            p === pagination.page
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      </span>
-                    ))}
+                  <span className="px-3 py-1.5 text-sm border rounded-lg bg-blue-600 text-white border-blue-600">
+                    {pagination.page}
+                  </span>
                   <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => handlePageChange('next')}
+                    disabled={!pagination.nextCursor}
                     className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
@@ -836,7 +797,7 @@ export default function LogsPage() {
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
-              <GeographicAnalytics logs={analyticsLogs} />
+              <GeographicAnalytics analytics={analyticsData} />
             )}
           </div>
         )}
@@ -848,7 +809,7 @@ export default function LogsPage() {
                 <LoadingSpinner size="lg" />
               </div>
             ) : (
-              <TrafficAnalytics logs={analyticsLogs} />
+              <TrafficAnalytics analytics={analyticsData} />
             )}
           </div>
         )}
@@ -861,16 +822,17 @@ export default function LogsPage() {
                 onClick={() => setSelectedLog(null)}
               />
               <div className="relative w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-                <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-slate-900">Log Details</h2>
+                <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef5ff_100%)] px-6 py-6">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Security Event</p>
+                    <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Log Details</h2>
                     <p className="mt-1 text-sm text-slate-500">
                       {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
                     </p>
                   </div>
                   <button
                     onClick={() => setSelectedLog(null)}
-                    className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    className="rounded-xl p-2 text-slate-400 transition hover:bg-white/80 hover:text-slate-700"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -879,15 +841,25 @@ export default function LogsPage() {
                 </div>
 
                 <div className="max-h-[80vh] overflow-y-auto bg-slate-50 px-6 py-6">
-                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getSeverityColor(selectedLog.severity)}`}>
+                      {String(selectedLog.severity || 'info').toUpperCase()}
+                    </span>
+                    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${getActionDisplay(selectedLog).className}`}>
+                      {getActionDisplay(selectedLog).label}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                      Rule {deriveRuleId(selectedLog)}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+                      {getLogMethod(selectedLog)} {selectedLog.statusCode ?? '-'}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                       <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Event Summary</h3>
                       <dl className="mt-4">
-                        {renderDetailRow('Severity', selectedLog.severity || 'info', {
-                          badge: true,
-                          badgeClassName: getSeverityColor(selectedLog.severity),
-                        })}
-                        {renderDetailRow('Action', getActionDisplay(selectedLog).label)}
                         {renderDetailRow('Rule ID', deriveRuleId(selectedLog), { mono: true })}
                         {renderDetailRow('Rule Message', selectedLog.ruleMessage || selectedLog.message || '-', { breakWords: true })}
                         {renderDetailRow('Status Code', selectedLog.statusCode ?? '-')}
@@ -896,7 +868,7 @@ export default function LogsPage() {
                       </dl>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                       <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">Request Context</h3>
                       <dl className="mt-4">
                         {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}

@@ -27,6 +27,7 @@ import { normalizeDomainInput } from "./domain-utils.js";
 import { geolocateIpCached } from "./geolocation.js";
 import { normalizeIpAddress, resolveClientIp } from "./ip-utils.js";
 import { deriveRuleId } from "./log-rule-utils.js";
+import { persistSecurityLog } from "./log-storage.js";
 import { getDefaultOriginServername } from "./origin-utils.js";
 
 const requireMod = createRequire(import.meta.url);
@@ -922,7 +923,7 @@ export class ProxyWAFServer {
             entry.geoIsPrivate = Boolean(geo.isPrivate);
           }
         }
-        await adminDb.collection("logs").add(entry);
+        await persistSecurityLog(adminDb, entry);
       } catch (err) {
         console.warn("Failed to write security log:", err.message);
       }

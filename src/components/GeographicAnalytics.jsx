@@ -30,8 +30,11 @@ try {
  * Geographic Analytics Component
  * Displays world map with traffic by country and geographic insights
  */
-export default function GeographicAnalytics({ logs = [] }) {
+export default function GeographicAnalytics({ logs = [], analytics = null }) {
   const countryData = useMemo(() => {
+    if (analytics?.countries) {
+      return analytics.countries;
+    }
     const countryMap = new Map();
 
     logs.forEach((log) => {
@@ -86,9 +89,9 @@ export default function GeographicAnalytics({ logs = [] }) {
   const uniqueCountries = countryData.length;
 
   // Total requests
-  const totalRequests = logs.length;
-  const blockedByWafRequests = logs.filter((log) => getDecisionKey(log) === 'waf_blocked').length;
-  const blockedByOriginRequests = logs.filter((log) => getDecisionKey(log) === 'origin_denied').length;
+  const totalRequests = analytics?.summary?.totalRequests ?? logs.length;
+  const blockedByWafRequests = analytics?.summary?.wafBlocked ?? logs.filter((log) => getDecisionKey(log) === 'waf_blocked').length;
+  const blockedByOriginRequests = analytics?.summary?.originDenied ?? logs.filter((log) => getDecisionKey(log) === 'origin_denied').length;
   const blockedRequests = blockedByWafRequests + blockedByOriginRequests;
   const allowedRequests = totalRequests - blockedRequests;
 
