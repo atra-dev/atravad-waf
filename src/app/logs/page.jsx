@@ -46,6 +46,7 @@ export default function LogsPage() {
   const [exporting, setExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('logs'); // 'logs', 'geographic', 'traffic'
+  const [selectedLog, setSelectedLog] = useState(null);
   
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
@@ -410,6 +411,25 @@ export default function LogsPage() {
     }
   };
 
+  const getLogSource = (log) =>
+    normalizeDomainInput(String(log?.source || '')) ||
+    normalizeDomainInput(String(log?.request?.host || '')) ||
+    String(log?.nodeId || '').trim() ||
+    '-';
+
+  const getLogMethod = (log) => String(log?.method || log?.request?.method || '').trim() || '-';
+
+  const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
+
+  const formatJson = (value) => {
+    if (value === null || value === undefined) return '';
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  };
+
   // If user doesn't have a tenant, show onboarding
   if (!hasTenant && !loading && !authLoading) {
     return (
@@ -711,7 +731,11 @@ export default function LogsPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {logs.map((log) => (
-                      <tr key={log.id} className="hover:bg-gray-50">
+                      <tr
+                        key={log.id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => setSelectedLog(log)}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {new Date(log.timestamp).toLocaleString()}
                         </td>
@@ -733,7 +757,7 @@ export default function LogsPage() {
                           })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {log.nodeId || '-'}
+                          {getLogSource(log)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {deriveRuleId(log)}
@@ -815,6 +839,126 @@ export default function LogsPage() {
             ) : (
               <TrafficAnalytics logs={analyticsLogs} />
             )}
+          </div>
+        )}
+
+        {selectedLog && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div
+                className="fixed inset-0 bg-black/50"
+                onClick={() => setSelectedLog(null)}
+              />
+              <div className="relative w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Log Details</h2>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedLog(null)}
+                    className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="max-h-[80vh] overflow-y-auto px-6 py-5">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="rounded-xl border border-gray-200 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Event Summary</h3>
+                      <dl className="mt-4 space-y-3 text-sm">
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Severity</dt>
+                          <dd>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${getSeverityColor(selectedLog.severity)}`}>
+                              {selectedLog.severity || 'info'}
+                            </span>
+                          </dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Action</dt>
+                          <dd>{getActionDisplay(selectedLog).label}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Rule ID</dt>
+                          <dd className="font-mono text-gray-900">{deriveRuleId(selectedLog)}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Rule Message</dt>
+                          <dd className="break-words text-gray-900">{selectedLog.ruleMessage || selectedLog.message || '-'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Status Code</dt>
+                          <dd>{selectedLog.statusCode ?? '-'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Decision</dt>
+                          <dd className="font-mono text-gray-900">{selectedLog.decision || '-'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Message</dt>
+                          <dd className="break-words text-gray-900">{selectedLog.message || '-'}</dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    <div className="rounded-xl border border-gray-200 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Request Context</h3>
+                      <dl className="mt-4 space-y-3 text-sm">
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Site</dt>
+                          <dd className="break-all text-gray-900">{getLogSource(selectedLog)}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Client IP</dt>
+                          <dd className="font-mono text-gray-900">{normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Method</dt>
+                          <dd className="font-mono text-gray-900">{getLogMethod(selectedLog)}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">URI</dt>
+                          <dd className="break-all font-mono text-gray-900">{getLogUri(selectedLog)}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">User Agent</dt>
+                          <dd className="break-words text-gray-900">{selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Country</dt>
+                          <dd>{selectedLog.geoCountry || '-'}</dd>
+                        </div>
+                        <div className="grid grid-cols-[140px_1fr] gap-3">
+                          <dt className="font-medium text-gray-500">Continent</dt>
+                          <dd>{selectedLog.geoContinent || '-'}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="rounded-xl border border-gray-200 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Request Payload</h3>
+                      <pre className="mt-4 max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
+                        {formatJson(selectedLog.request) || 'No request payload'}
+                      </pre>
+                    </div>
+                    <div className="rounded-xl border border-gray-200 p-4">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Raw Log</h3>
+                      <pre className="mt-4 max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
+                        {formatJson(selectedLog) || 'No raw log payload'}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
