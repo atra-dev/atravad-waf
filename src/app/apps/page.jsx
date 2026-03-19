@@ -862,28 +862,28 @@ const getTrafficBarHeight = (value, maxValue) => {
                     activated ? 'border-slate-200/90' : 'border-red-200'
                   }`}
                 >
-                  <div className="px-6 pb-0 pt-6">
-                    <div className="flex items-start justify-between gap-4">
+                  <div className="px-5 pb-0 pt-5 sm:px-6 sm:pt-6">
+                    <div className="flex items-start justify-between gap-3">
                       <a
                         href={`https://${app.domain}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="max-w-[calc(100%-3rem)] break-all text-[1.7rem] font-semibold leading-tight text-cyan-700 underline decoration-cyan-300/70 underline-offset-3 hover:text-cyan-800"
+                        className="max-w-[calc(100%-2.5rem)] break-all text-[1.15rem] font-semibold leading-[1.22] text-cyan-700 underline decoration-cyan-300/70 underline-offset-2 hover:text-cyan-800 sm:text-[1.3rem]"
                       >
                         {app.domain}
                       </a>
                       <div className="relative">
                         <button 
                           onClick={(e) => openSettingsWithPosition(e, app.id)}
-                          className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 sm:p-1.5"
                           aria-label="Site settings"
                         >
-                          <SettingsIcon className="h-5 w-5" />
+                          <SettingsIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                       </div>
                     </div>
                     
-                    <div className="mt-5 space-y-3 text-[15px] leading-6">
+                    <div className="mt-4 space-y-2.5 text-[14px] leading-5.5 sm:text-[15px] sm:leading-6">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="text-slate-500">Hosting IP:</span>
                         <span className="font-mono text-slate-800">{hostingIp}</span>
@@ -906,21 +906,21 @@ const getTrafficBarHeight = (value, maxValue) => {
                     </div>
 
                     {activated && (
-                      <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-[15px] text-slate-600">
-                        <Link href="/logs" className="hover:text-cyan-700">Reports</Link>
-                        <span className="text-slate-300">|</span>
-                        <Link href="/logs" className="hover:text-cyan-700">Audit Trails</Link>
-                        <span className="text-slate-300">|</span>
+                      <div className="mt-5 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[13px] font-medium text-slate-600 sm:text-[14px]">
+                        <Link href="/logs" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700">Reports</Link>
+                        <span className="text-slate-300">•</span>
+                        <Link href="/logs" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700">Audit Trails</Link>
+                        <span className="text-slate-300">•</span>
                         <button
                           type="button"
                           onClick={() => handleClearCache(app)}
                           disabled={clearingCacheAppId === app.id}
-                          className="hover:text-cyan-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                          className="rounded-md px-1 py-0.5 transition hover:text-cyan-700 disabled:cursor-not-allowed disabled:text-slate-400"
                         >
                           {clearingCacheAppId === app.id ? 'Clearing...' : 'Clear Cache'}
                         </button>
-                        <span className="text-slate-300">|</span>
-                        <Link href="/policies" className="hover:text-cyan-700">IP Access Control</Link>
+                        <span className="text-slate-300">•</span>
+                        <Link href="/policies" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700">IP Access Control</Link>
                       </div>
                     )}
                   </div>
