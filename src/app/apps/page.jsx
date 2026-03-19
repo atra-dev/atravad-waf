@@ -594,12 +594,7 @@ const getTrafficBarHeight = (value, maxValue) => {
 
   // Check if site is activated (DNS pointing to WAF)
   const isActivated = (app) => {
-    // In production, this would check actual DNS
-    // For now, simulate based on createdAt date (older = activated)
-    if (app.activated !== undefined) return app.activated;
-    const createdDate = new Date(app.createdAt);
-    const hoursSinceCreation = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60);
-    return hoursSinceCreation > 24;
+    return app?.activated === true;
   };
 
   if (loading) {
