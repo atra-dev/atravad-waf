@@ -397,6 +397,241 @@ function TagListInput({
   );
 }
 
+function ApplicationAssignmentInput({
+  apps = [],
+  value = [],
+  onChange,
+}) {
+  const [showManager, setShowManager] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const selectedIds = Array.isArray(value) ? value : [];
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const filteredApps = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return apps;
+    return apps.filter((app) => {
+      const name = String(app.name || '').toLowerCase();
+      const domain = String(app.domain || '').toLowerCase();
+      return name.includes(normalizedQuery) || domain.includes(normalizedQuery);
+    });
+  }, [apps, query]);
+
+  const selectedApps = useMemo(
+    () => apps.filter((app) => selectedIdSet.has(app.id)),
+    [apps, selectedIdSet]
+  );
+
+  const visibleSelectedApps = selectedApps.slice(0, 4);
+  const remainingSelectedCount = Math.max(selectedApps.length - visibleSelectedApps.length, 0);
+
+  const toggleApp = (appId, checked) => {
+    const nextIds = checked
+      ? [...new Set([...selectedIds, appId])]
+      : selectedIds.filter((id) => id !== appId);
+    onChange(nextIds);
+  };
+
+  const selectFiltered = () => {
+    onChange([...new Set([...selectedIds, ...filteredApps.map((app) => app.id)])]);
+  };
+
+  const clearFiltered = () => {
+    const filteredIds = new Set(filteredApps.map((app) => app.id));
+    onChange(selectedIds.filter((id) => !filteredIds.has(id)));
+  };
+
+  const clearAll = () => {
+    onChange([]);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-slate-900">Assign this policy version to one or more sites</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {selectedApps.length.toLocaleString()} selected out of {apps.length.toLocaleString()} available sites
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setShowManager(true)}
+              className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              Manage Sites
+            </button>
+            <button
+              type="button"
+              onClick={clearAll}
+              disabled={selectedApps.length === 0}
+              className="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-3">
+          {selectedApps.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+              No sites selected. Use `Manage Sites` to search and assign applications at scale.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {visibleSelectedApps.map((app) => (
+                <span
+                  key={app.id}
+                  className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-800"
+                >
+                  <span className="font-medium">{app.name}</span>
+                  <span className="text-blue-600">{app.domain}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleApp(app.id, false)}
+                    className="rounded-full p-0.5 text-blue-600 hover:bg-blue-100 hover:text-blue-800"
+                    aria-label={`Remove ${app.domain}`}
+                  >
+                    <XIcon className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
+              {remainingSelectedCount > 0 ? (
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                  +{remainingSelectedCount.toLocaleString()} more
+                </span>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showManager ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-sm">
+          <div className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">Manage Site Assignments</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Search, filter, and assign this policy version across large numbers of sites.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManager(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-5 lg:border-b-0 lg:border-r">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                      <div className="text-xs font-medium uppercase tracking-wide text-blue-700">Selected</div>
+                      <div className="mt-1 text-2xl font-semibold text-blue-900">{selectedApps.length.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Available</div>
+                      <div className="mt-1 text-2xl font-semibold text-slate-900">{apps.length.toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Search Sites
+                    </label>
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search by site name or domain"
+                      className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    />
+                    <p className="mt-2 text-xs text-slate-500">
+                      Matching {filteredApps.length.toLocaleString()} site{filteredApps.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={selectFiltered}
+                        disabled={filteredApps.length === 0}
+                        className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Select Filtered Sites
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearFiltered}
+                        disabled={filteredApps.length === 0}
+                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Clear Filtered Sites
+                      </button>
+                      <button
+                        type="button"
+                        onClick={clearAll}
+                        disabled={selectedApps.length === 0}
+                        className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Clear All Selections
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 overflow-y-auto p-5">
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <div className="grid grid-cols-[72px_minmax(0,1fr)] bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <span>Select</span>
+                    <span>Site</span>
+                  </div>
+                  <div className="max-h-[58vh] overflow-y-auto bg-white">
+                    {filteredApps.length > 0 ? (
+                      <ul className="divide-y divide-slate-200">
+                        {filteredApps.map((app) => {
+                          const checked = selectedIdSet.has(app.id);
+                          return (
+                            <li key={app.id} className="grid grid-cols-[72px_minmax(0,1fr)] items-start gap-3 px-4 py-3 text-sm">
+                              <div className="pt-0.5">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => toggleApp(app.id, e.target.checked)}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate font-medium text-slate-900">{app.name}</div>
+                                <div className="truncate text-xs text-slate-500">{app.domain}</div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <div className="px-4 py-10 text-center text-sm text-slate-500">No matching sites.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function PolicyEditor({
   editorOnly,
   showForm,
@@ -512,45 +747,11 @@ export default function PolicyEditor({
                 <label className="mb-2 block text-sm font-medium text-gray-700">
                   Applications (Optional)
                 </label>
-                <div className="rounded-lg border border-gray-300 bg-white shadow-sm">
-                  <div className="border-b border-gray-200 px-4 py-3">
-                    <p className="text-sm font-medium text-gray-900">
-                      Assign this policy version to one or more sites
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {Array.isArray(formData.applicationIds) ? formData.applicationIds.length : 0} selected
-                    </p>
-                  </div>
-                  <div className="max-h-48 space-y-2 overflow-y-auto px-4 py-3">
-                    {apps.length === 0 ? (
-                      <p className="text-sm text-gray-500">No applications available.</p>
-                    ) : (
-                      apps.map((app) => {
-                        const selected = Array.isArray(formData.applicationIds) && formData.applicationIds.includes(app.id);
-                        return (
-                          <label key={app.id} className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50">
-                            <input
-                              type="checkbox"
-                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              checked={selected}
-                              onChange={(e) => {
-                                const currentIds = Array.isArray(formData.applicationIds) ? formData.applicationIds : [];
-                                const nextIds = e.target.checked
-                                  ? [...new Set([...currentIds, app.id])]
-                                  : currentIds.filter((id) => id !== app.id);
-                                setFormData({ ...formData, applicationIds: nextIds });
-                              }}
-                            />
-                            <span className="min-w-0">
-                              <span className="block text-sm font-medium text-gray-900">{app.name}</span>
-                              <span className="block text-xs text-gray-500">{app.domain}</span>
-                            </span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
+                <ApplicationAssignmentInput
+                  apps={apps}
+                  value={formData.applicationIds}
+                  onChange={(applicationIds) => setFormData({ ...formData, applicationIds })}
+                />
               </div>
             </div>
           </div>
