@@ -329,7 +329,13 @@ export default function PoliciesList({
             const latestVersion = versions[0];
             const assignedApplications = [...new Set(
               versions
-                .map((version) => version.applicationName)
+                .flatMap((version) =>
+                  Array.isArray(version.applicationNames) && version.applicationNames.length > 0
+                    ? version.applicationNames
+                    : version.applicationName
+                      ? [version.applicationName]
+                      : []
+                )
                 .filter(Boolean)
             )];
             return (

@@ -17,6 +17,10 @@ async function getTenantApplicationsById(tenantName) {
   return appsById;
 }
 
+function getApplicationLabel(app) {
+  return app?.domain || app?.name || app?.id || null;
+}
+
 export async function POST(request) {
   try {
     if (!adminDb) {
@@ -268,20 +272,41 @@ export async function GET(request) {
     const policiesSnapshot = await query.get();
 
     const appsById = await getTenantApplicationsById(tenantName);
+    const appsByPolicyId = new Map();
+
+    for (const app of appsById.values()) {
+      if (!app?.policyId) continue;
+      const existingApps = appsByPolicyId.get(app.policyId) || [];
+      existingApps.push(app);
+      appsByPolicyId.set(app.policyId, existingApps);
+    }
 
     const policies = policiesSnapshot.docs
       .map((doc) => {
         const data = doc.data();
-        const assignedApp =
-          appsById.get(data.applicationId) ||
-          Array.from(appsById.values()).find((app) => app.policyId === doc.id) ||
-          null;
+        const explicitApp = data.applicationId ? appsById.get(data.applicationId) : null;
+        const reverseMatchedApps = appsByPolicyId.get(doc.id) || [];
+        const assignedApps = [
+          ...(explicitApp ? [explicitApp] : []),
+          ...reverseMatchedApps,
+        ].filter(Boolean);
+        const uniqueAssignedApps = Array.from(
+          new Map(assignedApps.map((app) => [app.id, app])).values()
+        );
+        const applicationNames = uniqueAssignedApps
+          .map((app) => getApplicationLabel(app))
+          .filter(Boolean);
+        const applicationIds = uniqueAssignedApps
+          .map((app) => app.id)
+          .filter(Boolean);
 
         return {
           id: doc.id,
           ...data,
-          applicationId: data.applicationId || assignedApp?.id || null,
-          applicationName: assignedApp?.domain || assignedApp?.name || null,
+          applicationId: data.applicationId || applicationIds[0] || null,
+          applicationIds,
+          applicationName: applicationNames[0] || null,
+          applicationNames,
         };
       })
       .sort((a, b) => {
