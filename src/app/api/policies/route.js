@@ -4,6 +4,19 @@ import { generateModSecurityConfig, validateModSecurityConfig } from '@/lib/mods
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 
+async function getTenantApplicationsById(tenantName) {
+  const snapshot = await adminDb
+    .collection('applications')
+    .where('tenantName', '==', tenantName)
+    .get();
+
+  const appsById = new Map();
+  for (const doc of snapshot.docs) {
+    appsById.set(doc.id, { id: doc.id, ...doc.data() });
+  }
+  return appsById;
+}
+
 export async function POST(request) {
   try {
     if (!adminDb) {
@@ -165,6 +178,21 @@ export async function POST(request) {
       version = versions[0] + 1;
     }
 
+    let assignedApplication = null;
+    if (applicationId) {
+      const appDoc = await adminDb.collection('applications').doc(applicationId).get();
+      if (!appDoc.exists) {
+        return NextResponse.json({ error: 'Selected application not found' }, { status: 400 });
+      }
+
+      const appData = appDoc.data();
+      if (appData.tenantName !== tenantName) {
+        return NextResponse.json({ error: 'Selected application is outside your tenant' }, { status: 403 });
+      }
+
+      assignedApplication = { id: appDoc.id, ...appData };
+    }
+
     const policyRef = await adminDb.collection('policies').add({
       name,
       policy,
@@ -179,6 +207,14 @@ export async function POST(request) {
       createdBy: user.uid,
     });
 
+    if (assignedApplication) {
+      await adminDb.collection('applications').doc(assignedApplication.id).update({
+        policyId: policyRef.id,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.uid,
+      });
+    }
+
     return NextResponse.json({
       id: policyRef.id,
       name,
@@ -186,6 +222,8 @@ export async function POST(request) {
       policy,
       modSecurityConfig,
       validationWarnings: validation.warnings,
+      applicationId: assignedApplication?.id || null,
+      applicationName: assignedApplication?.domain || assignedApplication?.name || null,
     });
   } catch (error) {
     console.error('Error creating policy:', error);
@@ -229,11 +267,23 @@ export async function GET(request) {
     // Fetch without orderBy to avoid index requirement, then sort in memory
     const policiesSnapshot = await query.get();
 
+    const appsById = await getTenantApplicationsById(tenantName);
+
     const policies = policiesSnapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
+      .map((doc) => {
+        const data = doc.data();
+        const assignedApp =
+          appsById.get(data.applicationId) ||
+          Array.from(appsById.values()).find((app) => app.policyId === doc.id) ||
+          null;
+
+        return {
+          id: doc.id,
+          ...data,
+          applicationId: data.applicationId || assignedApp?.id || null,
+          applicationName: assignedApp?.domain || assignedApp?.name || null,
+        };
+      })
       .sort((a, b) => {
         // Sort by createdAt descending (newest first)
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
