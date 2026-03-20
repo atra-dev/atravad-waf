@@ -94,45 +94,61 @@ const deploymentSteps = [
 
 const pricingPlans = [
   {
-    name: 'Starter',
-    price: '$99',
-    cadence: '/month',
-    description: 'For smaller sites that need managed WAF protection and core visibility.',
+    name: 'Basic Platform',
+    price: '$189',
+    cadence: '/yr',
+    description: 'For smaller websites that need essential WAF coverage with controlled platform usage.',
     highlight: false,
     features: [
       '1 protected website or application',
       'ModSecurity + OWASP CRS protection',
+      'Up to 250,000 inspected requests per month',
       'Managed SSL or custom certificate support',
-      'Basic policy controls and traffic analytics',
+      'Basic policy controls and 7-day analytics history',
       'Email support',
     ],
   },
   {
-    name: 'Growth',
-    price: '$299',
-    cadence: '/month',
-    description: 'For growing businesses that need broader control, monitoring, and abuse protection.',
+    name: 'Pro Platform',
+    price: '$289',
+    cadence: '/yr',
+    description: 'For growing businesses that need stronger protection, better visibility, and more traffic allowance.',
     highlight: true,
     features: [
-      'Up to 5 protected websites or applications',
+      '1 protected website or application',
+      'Up to 1,000,000 inspected requests per month',
       'Bot mitigation, geo controls, and rate limiting',
       'Advanced policy management and virtual patching',
-      'Analytics dashboard with threat visibility',
+      'Analytics dashboard with 30-day threat visibility',
       'Priority support',
     ],
   },
   {
-    name: 'Enterprise',
-    price: 'Custom',
-    cadence: '',
-    description: 'For teams with larger environments, custom onboarding, and operational requirements.',
+    name: 'Business Platform',
+    price: '$469',
+    cadence: '/yr',
+    description: 'For higher-traffic environments that need broader resource allocation and deeper operational coverage.',
     highlight: false,
     features: [
-      'Unlimited or custom-provisioned protected assets',
+      '1 protected website or application',
+      'Up to 3,000,000 inspected requests per month',
+      'Full bot, geo, rate-limit, and virtual patching controls',
+      'Analytics dashboard with 90-day threat visibility',
+      'Priority support with faster response handling',
+    ],
+  },
+  {
+    name: 'Multi-Site & Custom',
+    price: 'Custom',
+    cadence: '',
+    description: 'For agencies, teams with multiple protected assets, or customers needing tailored resource allocation.',
+    highlight: false,
+    features: [
+      '2 or more protected websites and custom traffic allocations',
+      'Tailored analytics, logging, and onboarding coverage',
       'Multi-tenant operations and tailored policy workflows',
-      'Custom rollout, onboarding, and support coverage',
-      'Advanced security review and configuration guidance',
-      'Dedicated account coordination',
+      'Custom support and rollout planning',
+      'Dedicated commercial discussion',
     ],
   },
 ];
@@ -439,15 +455,15 @@ export default function Home() {
           <div className="max-w-3xl">
             <SectionEyebrow>Pricing</SectionEyebrow>
             <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
-              Straightforward plans for managed WAF protection.
+              Annual pricing built for real protection and sustainable resource usage.
             </h2>
             <p className="mt-5 text-lg leading-8 text-slate-600">
-              Choose a plan based on how many sites you need to protect and how much security control your team needs
-              from day one.
+              These plans are positioned below premium competitors while still accounting for inspected traffic,
+              analytics retention, SSL management, and platform resources consumed by each protected site.
             </p>
           </div>
 
-          <div className="mt-14 grid gap-6 lg:grid-cols-3">
+          <div className="mt-14 grid gap-6 xl:grid-cols-4">
             {pricingPlans.map((plan) => (
               <article
                 key={plan.name}
@@ -502,7 +518,7 @@ export default function Home() {
                         : 'bg-slate-950 text-white hover:bg-slate-800'
                     }`}
                   >
-                    {plan.name === 'Enterprise' ? 'Talk to sales' : 'Get started'}
+                    {plan.name === 'Multi-Site & Custom' ? 'Talk to sales' : 'Get started'}
                   </Link>
                 </div>
               </article>
