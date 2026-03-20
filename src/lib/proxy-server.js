@@ -427,11 +427,17 @@ function renderBlockedHtml({
 }
 
 function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwardedFor, reason, matchedRules } = {}) {
+  const rawReason = String(reason || "");
+  const isIpBlocked = /ip.*block|blacklist|not\s+whitelist|ip access control/i.test(rawReason);
+  const isGeoBlocked = /geographic blocking|blocked country|non-allowed country|geo-blocking/i.test(rawReason);
+  const topRuleId = matchedRules?.[0]?.id ? String(matchedRules[0].id) : null;
+  const blockPrefix = isGeoBlocked ? "GEO" : "IPB";
   const headers = withWafFingerprintHeaders({
     "X-ATRAVAD-Blocked": "true",
     "X-ATRAVAD-Reason": reason || "Security rule violation",
     "X-ATRAVAD-Client-IP": clientIp || "unknown",
     "X-ATRAVAD-Proxy-IP": proxyIp || "unknown",
+    ...(isGeoBlocked ? { "X-ATRAVAD-Geo-Blocked": "true" } : {}),
     "Cache-Control": "no-store",
   });
 
@@ -450,10 +456,12 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
     return;
   }
 
-  const blockIdFromRule = matchedRules?.[0]?.id ? `IPB-${matchedRules[0].id}` : "IPB-403";
-  const normalizedReason = /ip.*block|blacklist|not\s+whitelist|ip access control/i.test(String(reason || ""))
+  const blockIdFromRule = topRuleId ? `${blockPrefix}-${topRuleId}` : `${blockPrefix}-403`;
+  const normalizedReason = isIpBlocked
     ? "Your request was not allowed due to IP blocking (not white listed)."
-    : "Your request was blocked by the website firewall policy.";
+    : isGeoBlocked
+      ? "Access from your country or region is not allowed by this site's security policy."
+      : "Your request was blocked by the website firewall policy.";
   const serverId = `${os.hostname()}:${process.pid}`;
   const body = renderBlockedHtml({
     host,
@@ -664,6 +672,37 @@ function collectRequestBody(req, maxBytes, timeoutMs = BODY_BUFFER_TIMEOUT_MS) {
 
 function extractClientIp(req) {
   return getClientIpInfo(req).clientIp;
+}
+
+async function buildInspectionRequest(req) {
+  const headers = { ...(req?.headers || {}) };
+  const hasGeoCountryHeader = Boolean(
+    headers["cf-ipcountry"] ||
+      headers["x-vercel-ip-country"] ||
+      headers["x-geo-country"] ||
+      headers["x-atravad-geo-country"],
+  );
+
+  if (!hasGeoCountryHeader) {
+    const clientIp = extractClientIp(req);
+    if (clientIp) {
+      try {
+        const geo = await geolocateIpCached(clientIp);
+        const countryCode = String(geo?.countryCode || "").trim().toUpperCase();
+        if (geo?.success && countryCode) {
+          headers["x-geo-country"] = countryCode;
+          headers["x-atravad-geo-country"] = countryCode;
+        }
+      } catch (error) {
+        console.warn("Failed to enrich request with geo country:", error.message);
+      }
+    }
+  }
+
+  return {
+    ...req,
+    headers,
+  };
 }
 
 function isHealthPath(pathname) {
@@ -1465,8 +1504,9 @@ export class ProxyWAFServer {
       }
 
       if (app.policyId && this.modSecurity) {
+        const inspectionReq = await buildInspectionRequest(req);
         const inspection = await this.modSecurity.inspectRequest(
-          req,
+          inspectionReq,
           app.policyId,
           bodyBuffer,
         );
@@ -1561,8 +1601,9 @@ export class ProxyWAFServer {
       }
 
       if (app.policyId && this.modSecurity) {
+        const inspectionReq = await buildInspectionRequest(clientReq);
         const inspection = await this.modSecurity.inspectRequest(
-          clientReq,
+          inspectionReq,
           app.policyId,
           null,
         );

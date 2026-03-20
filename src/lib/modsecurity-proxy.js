@@ -131,6 +131,70 @@ function fallbackIpAccessCheck(req, policy) {
   return { blocked: false, matchedRules: [] };
 }
 
+function getGeoCountryFromRequest(req) {
+  const headers = req?.headers || {};
+  const candidates = [
+    headers['cf-ipcountry'],
+    headers['x-vercel-ip-country'],
+    headers['x-geo-country'],
+    headers['x-atravad-geo-country'],
+  ];
+
+  for (const value of candidates) {
+    const normalized = String(value || '').trim().toUpperCase();
+    if (normalized) return normalized;
+  }
+
+  return '';
+}
+
+function fallbackGeoBlockingCheck(req, policy) {
+  const geoBlocking = policy?.policy?.geoBlocking || policy?.geoBlocking;
+  if (!geoBlocking) {
+    return { blocked: false, matchedRules: [] };
+  }
+
+  const blockedCountries = Array.isArray(geoBlocking.blockedCountries)
+    ? geoBlocking.blockedCountries.map((value) => String(value || '').trim().toUpperCase()).filter(Boolean)
+    : [];
+  const allowedCountries = Array.isArray(geoBlocking.allowedCountries)
+    ? geoBlocking.allowedCountries.map((value) => String(value || '').trim().toUpperCase()).filter(Boolean)
+    : [];
+  const geoCountry = getGeoCountryFromRequest(req);
+
+  if (!geoCountry) {
+    return { blocked: false, matchedRules: [] };
+  }
+
+  if (blockedCountries.includes(geoCountry)) {
+    return {
+      blocked: true,
+      matchedRules: [{
+        id: 100900,
+        message: `Geographic Blocking: Request from Blocked Country (${geoCountry})`,
+        severity: 'CRITICAL',
+        matchedData: geoCountry,
+        matchedVar: 'REQUEST_HEADERS:X-Geo-Country',
+      }],
+    };
+  }
+
+  if (allowedCountries.length > 0 && !allowedCountries.includes(geoCountry)) {
+    return {
+      blocked: true,
+      matchedRules: [{
+        id: 100901,
+        message: `Geographic Blocking: Request from Non-Allowed Country (${geoCountry})`,
+        severity: 'CRITICAL',
+        matchedData: geoCountry,
+        matchedVar: 'REQUEST_HEADERS:X-Geo-Country',
+      }],
+    };
+  }
+
+  return { blocked: false, matchedRules: [] };
+}
+
 function interventionToMatchedRules(intervention) {
   const matchedRules = [];
   if (!intervention || typeof intervention !== 'object') return matchedRules;
@@ -261,6 +325,17 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
       allowed: false,
       blocked: true,
       matchedRules: ipCheck.matchedRules,
+      severity: 'CRITICAL',
+      engine: 'fallback',
+    };
+  }
+
+  const geoCheck = fallbackGeoBlockingCheck(req, policy);
+  if (geoCheck.blocked) {
+    return {
+      allowed: false,
+      blocked: true,
+      matchedRules: geoCheck.matchedRules,
       severity: 'CRITICAL',
       engine: 'fallback',
     };
