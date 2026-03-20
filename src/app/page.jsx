@@ -34,7 +34,7 @@ const capabilityHighlights = [
   {
     title: 'Secure SSL Delivery',
     description:
-      'Support Let&apos;s Encrypt auto-provisioning, custom certificates, and SNI-based domain handling.',
+      "Support Let's Encrypt auto-provisioning, custom certificates, and SNI-based domain handling.",
   },
   {
     title: 'Operational Visibility',
