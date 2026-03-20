@@ -363,10 +363,6 @@ function renderBlockedHtml({
   const safeHost = escapeHtml(host || "unknown-host");
   const safePath = escapeHtml(path || "/");
   const safeIp = escapeHtml(clientIp || "unknown-ip");
-  const safeProxyIp = escapeHtml(proxyIp || "unknown-proxy-ip");
-  const safeForwardedFor = escapeHtml(
-    Array.isArray(forwardedFor) ? forwardedFor.join(", ") : String(forwardedFor || "") || "not-provided",
-  );
   const safeReason = escapeHtml(reason || "Security policy violation");
   const safeBrowser = escapeHtml(browser || "unknown");
   const safeBlockId = escapeHtml(blockId || "WAF-403");
@@ -520,8 +516,6 @@ function renderBlockedHtml({
       <div class="details-title">Block details:</div>
       <table>
         <tr><td>Client IP:</td><td>${safeIp}</td></tr>
-        <tr><td>Proxy IP:</td><td>${safeProxyIp}</td></tr>
-        <tr><td>Forwarded For:</td><td>${safeForwardedFor}</td></tr>
         <tr><td>URL:</td><td>${safeHost}${safePath}</td></tr>
         <tr><td>Your Browser:</td><td>${safeBrowser}</td></tr>
         <tr><td>Block ID:</td><td>${safeBlockId}</td></tr>
