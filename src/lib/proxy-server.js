@@ -1629,6 +1629,52 @@ export class ProxyWAFServer {
 
       if (app.policyId && this.modSecurity) {
         const inspectionReq = await buildInspectionRequest(req);
+        const accessInspection = await this.modSecurity.inspectAccessControls(
+          inspectionReq,
+          app.policyId,
+        );
+        if (!accessInspection.allowed || accessInspection.blocked) {
+          const clientIpInfo = getClientIpInfo(req);
+          const topRule = accessInspection.matchedRules?.[0] || null;
+          const topReason = topRule?.message || "Access control policy violation";
+          if (shouldBypassStaticAssetBlocking(req, accessInspection.matchedRules, topReason)) {
+            console.info(`Allowing protected static asset request for ${host}:`, {
+              url: req.url,
+              method: req.method,
+              matchedRules: accessInspection.matchedRules,
+              engine: accessInspection.engine,
+            });
+          } else {
+            sendBlockedResponse(res, req, {
+              host,
+              path: req.url,
+              clientIp: clientIpInfo.clientIp,
+              proxyIp: clientIpInfo.proxyIp,
+              forwardedFor: clientIpInfo.forwardedFor,
+              reason: topReason,
+              matchedRules: accessInspection.matchedRules,
+            });
+            console.warn(`Access control blocked request for ${host}:`, {
+              url: req.url,
+              method: req.method,
+              matchedRules: accessInspection.matchedRules,
+              engine: accessInspection.engine,
+            });
+            this.queueSecurityLog({
+              app,
+              req,
+              level: "warn",
+              severity: "CRITICAL",
+              message: `Request blocked by WAF for ${host}`,
+              blocked: true,
+              statusCode: 403,
+              ruleId: topRule?.id || null,
+              ruleMessage: topReason || null,
+              response: { statusCode: 403, engine: accessInspection.engine || null },
+            });
+            return;
+          }
+        }
         const inspection = await this.modSecurity.inspectRequest(
           inspectionReq,
           app.policyId,
@@ -1736,6 +1782,28 @@ export class ProxyWAFServer {
 
       if (app.policyId && this.modSecurity) {
         const inspectionReq = await buildInspectionRequest(clientReq);
+        const accessInspection = await this.modSecurity.inspectAccessControls(
+          inspectionReq,
+          app.policyId,
+        );
+        if (!accessInspection.allowed || accessInspection.blocked) {
+          const topRule = accessInspection.matchedRules?.[0] || null;
+          this.queueSecurityLog({
+            app,
+            req: clientReq,
+            level: "warn",
+            severity: "CRITICAL",
+            message: `WebSocket handshake blocked by WAF for ${host}`,
+            blocked: true,
+            statusCode: 403,
+            ruleId: topRule?.id || null,
+            ruleMessage: topRule?.message || null,
+            response: { statusCode: 403, origin: origin.url, protocol: "websocket" },
+            decision: "websocket_blocked",
+          });
+          sendUpgradeError(clientSocket, 403, "WebSocket blocked by WAF");
+          return;
+        }
         const inspection = await this.modSecurity.inspectRequest(
           inspectionReq,
           app.policyId,

@@ -540,6 +540,42 @@ export class ModSecurityProxy {
     return this.rulesCache.get(policyId) || null;
   }
 
+  async inspectAccessControls(req, policyId) {
+    if (!policyId) {
+      return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
+    }
+
+    if (!this.policies.has(policyId)) await this.loadPolicy(policyId);
+    const policy = this.policies.get(policyId);
+    if (!policy) {
+      return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
+    }
+
+    const ipCheck = fallbackIpAccessCheck(req, policy);
+    if (ipCheck.blocked) {
+      return {
+        allowed: false,
+        blocked: true,
+        matchedRules: ipCheck.matchedRules,
+        severity: 'CRITICAL',
+        engine: 'access-control',
+      };
+    }
+
+    const geoCheck = fallbackGeoBlockingCheck(req, policy);
+    if (geoCheck.blocked) {
+      return {
+        allowed: false,
+        blocked: true,
+        matchedRules: geoCheck.matchedRules,
+        severity: 'CRITICAL',
+        engine: 'access-control',
+      };
+    }
+
+    return { allowed: true, blocked: false, matchedRules: [], engine: 'access-control' };
+  }
+
   async inspectRequest(req, policyId, bodyBuffer = null) {
     if (!this.policies.has(policyId)) await this.loadPolicy(policyId);
     const policy = this.policies.get(policyId);
