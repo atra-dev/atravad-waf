@@ -7,6 +7,7 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import PoliciesList from './PoliciesList';
 import PolicyEditor from './PolicyEditor';
+import ConfirmationModal from './ConfirmationModal';
 import { getDefaultPolicyFormData } from './policy-form-utils';
 
 const BuildingIcon = ({ className }) => (
@@ -36,6 +37,15 @@ export function PoliciesPageContent({
   const [editingPolicyName, setEditingPolicyName] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
   const [editorInitialized, setEditorInitialized] = useState(false);
+  const [confirmationState, setConfirmationState] = useState({
+    open: false,
+    title: '',
+    description: '',
+    confirmLabel: 'Confirm',
+    tone: 'blue',
+    action: null,
+  });
+  const [confirmingAction, setConfirmingAction] = useState(false);
 
   useEffect(() => {
     checkTenantAndFetchData();
@@ -244,8 +254,46 @@ export function PoliciesPageContent({
     setShowForm(true);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const openConfirmation = ({ title, description, confirmLabel, tone = 'blue', action }) => {
+    setConfirmationState({
+      open: true,
+      title,
+      description,
+      confirmLabel,
+      tone,
+      action,
+    });
+  };
+
+  const resetConfirmation = () => {
+    setConfirmationState({
+      open: false,
+      title: '',
+      description: '',
+      confirmLabel: 'Confirm',
+      tone: 'blue',
+      action: null,
+    });
+  };
+
+  const closeConfirmation = () => {
+    if (confirmingAction) return;
+    resetConfirmation();
+  };
+
+  const runConfirmedAction = async () => {
+    if (!confirmationState.action) return;
+
+    setConfirmingAction(true);
+    try {
+      await confirmationState.action();
+    } finally {
+      setConfirmingAction(false);
+      resetConfirmation();
+    }
+  };
+
+  const submitPolicy = async () => {
     setSubmitting(true);
 
     try {
@@ -335,11 +383,22 @@ export function PoliciesPageContent({
     }
   };
 
-  const handleDeletePolicy = async (name) => {
-    if (!name || deletingPolicyName) return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-    const confirmed = window.confirm(`Delete policy "${name}" and all its versions? This cannot be undone.`);
-    if (!confirmed) return;
+    openConfirmation({
+      title: editingPolicyName ? 'Save policy version?' : 'Create this policy?',
+      description: editingPolicyName
+        ? `This will save a new version for "${editingPolicyName}" using the current policy configuration.`
+        : `This will create the policy "${formData.name || 'Untitled Policy'}" and make it available for site assignment.`,
+      confirmLabel: editingPolicyName ? 'Save Version' : 'Create Policy',
+      tone: 'blue',
+      action: submitPolicy,
+    });
+  };
+
+  const deletePolicy = async (name) => {
+    if (!name || deletingPolicyName) return;
 
     setDeletingPolicyName(name);
     try {
@@ -365,6 +424,18 @@ export function PoliciesPageContent({
     } finally {
       setDeletingPolicyName('');
     }
+  };
+
+  const handleDeletePolicy = async (name) => {
+    if (!name || deletingPolicyName) return;
+
+    openConfirmation({
+      title: 'Delete this policy?',
+      description: `This will permanently remove "${name}" and all of its saved versions. This action cannot be undone.`,
+      confirmLabel: 'Delete Policy',
+      tone: 'red',
+      action: () => deletePolicy(name),
+    });
   };
 
   const groupedPolicies = policies.reduce((acc, policy) => {
@@ -494,6 +565,17 @@ export function PoliciesPageContent({
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           submitting={submitting}
+        />
+
+        <ConfirmationModal
+          open={confirmationState.open}
+          title={confirmationState.title}
+          description={confirmationState.description}
+          confirmLabel={confirmationState.confirmLabel}
+          tone={confirmationState.tone}
+          busy={confirmingAction || submitting || !!deletingPolicyName}
+          onCancel={closeConfirmation}
+          onConfirm={runConfirmedAction}
         />
       </div>
     </Layout>

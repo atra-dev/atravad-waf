@@ -327,6 +327,11 @@ export default function PoliciesList({
         ) : (
           Object.entries(groupedPolicies).map(([name, versions]) => {
             const latestVersion = versions[0];
+            const assignedApplications = [...new Set(
+              versions
+                .map((version) => version.applicationName)
+                .filter(Boolean)
+            )];
             return (
               <div key={name} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -379,7 +384,9 @@ export default function PoliciesList({
                   </div>
                   <div>
                     <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Application</span>
-                    <p className="mt-1 text-sm text-gray-900">{latestVersion.applicationName || 'None assigned'}</p>
+                    <p className="mt-1 text-sm text-gray-900">
+                      {assignedApplications.length > 0 ? assignedApplications.join(', ') : 'None assigned'}
+                    </p>
                   </div>
                   <div>
                     <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Updated</span>
