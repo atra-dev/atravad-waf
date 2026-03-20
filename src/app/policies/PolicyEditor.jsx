@@ -22,6 +22,41 @@ const XIcon = ({ className }) => (
   </svg>
 );
 
+const ShieldIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l7 4v5c0 5-3.5 8.5-7 9-3.5-.5-7-4-7-9V7l7-4z" />
+  </svg>
+);
+
+const SparkIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l1.6 4.9L18 9.5l-4.4 1.6L12 16l-1.6-4.9L6 9.5l4.4-1.6L12 3z" />
+  </svg>
+);
+
+const CogIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.3 4.3l.5-1.8h2.4l.5 1.8a7.8 7.8 0 012 .8l1.6-.8 1.7 1.7-.8 1.6c.3.6.6 1.3.8 2l1.8.5v2.4l-1.8.5a7.8 7.8 0 01-.8 2l.8 1.6-1.7 1.7-1.6-.8a7.8 7.8 0 01-2 .8l-.5 1.8h-2.4l-.5-1.8a7.8 7.8 0 01-2-.8l-1.6.8-1.7-1.7.8-1.6a7.8 7.8 0 01-.8-2l-1.8-.5v-2.4l1.8-.5a7.8 7.8 0 01.8-2l-.8-1.6 1.7-1.7 1.6.8a7.8 7.8 0 012-.8z" />
+    <circle cx="12" cy="12" r="3" strokeWidth={2} />
+  </svg>
+);
+
+function SectionBadge({ icon: Icon, tone = 'slate' }) {
+  const tones = {
+    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    violet: 'border-violet-200 bg-violet-50 text-violet-700',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    slate: 'border-slate-200 bg-slate-50 text-slate-700',
+  };
+
+  return (
+    <span className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border ${tones[tone] || tones.slate}`}>
+      <Icon className="h-5 w-5" />
+    </span>
+  );
+}
+
 function TagListInput({
   value = [],
   onChange,
@@ -378,9 +413,9 @@ export default function PolicyEditor({
   if (!(editorOnly || showForm)) return null;
 
   const tabs = [
-    { id: 'basic', name: 'Basic Protections' },
-    { id: 'owasp', name: 'OWASP Top 10' },
-    { id: 'advanced', name: 'Advanced Features' },
+    { id: 'basic', name: 'Basic Protections', icon: ShieldIcon },
+    { id: 'owasp', name: 'OWASP Top 10', icon: SparkIcon },
+    { id: 'advanced', name: 'Advanced Features', icon: CogIcon },
   ];
 
   return (
@@ -507,7 +542,10 @@ export default function PolicyEditor({
                       : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }`}
                 >
-                  {tab.name}
+                  <span className="inline-flex items-center gap-2">
+                    <tab.icon className="h-4 w-4" />
+                    <span>{tab.name}</span>
+                  </span>
                 </button>
               ))}
             </nav>
@@ -516,7 +554,13 @@ export default function PolicyEditor({
           <div className="py-6">
             {activeTab === 'basic' ? (
               <div className="space-y-4">
-                <h3 className="mb-3 text-sm font-semibold text-gray-900">Essential Protections</h3>
+                <div className="mb-3 flex items-center gap-3">
+                  <SectionBadge icon={ShieldIcon} tone="blue" />
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Essential Protections</h3>
+                    <p className="text-xs text-gray-500">Core request inspection and exploit blocking.</p>
+                  </div>
+                </div>
                 <div className="space-y-3">
                   {[
                     { key: 'sqlInjection', label: 'Enhanced SQL Injection Protection', desc: 'Multiple detection layers for SQL injection attacks' },
@@ -545,7 +589,13 @@ export default function PolicyEditor({
             {activeTab === 'owasp' ? (
               <div className="space-y-4">
                 <div>
-                  <h3 className="mb-3 text-sm font-semibold text-gray-900">OWASP Top 10 Protections</h3>
+                  <div className="mb-3 flex items-center gap-3">
+                    <SectionBadge icon={SparkIcon} tone="amber" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">OWASP Top 10 Protections</h3>
+                      <p className="text-xs text-gray-500">Focused protections for the most common web attack classes.</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {[
                       { key: 'csrf', label: 'CSRF Protection', desc: 'Token validation and origin checks' },
@@ -643,8 +693,13 @@ export default function PolicyEditor({
             {activeTab === 'advanced' ? (
               <div className="space-y-6">
                 <div>
-                  <h3 className="mb-1 text-sm font-semibold text-gray-900">Advanced Security Features</h3>
-                  <p className="mb-4 text-xs text-gray-600">Enterprise-grade advanced security capabilities</p>
+                  <div className="flex items-center gap-3">
+                    <SectionBadge icon={CogIcon} tone="violet" />
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Advanced Security Features</h3>
+                      <p className="text-xs text-gray-600">Enterprise-grade access control, bot handling, exceptions, and patching.</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
