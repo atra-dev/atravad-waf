@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import ConfirmationModal from '../ConfirmationModal';
+import FeedbackModal from '../FeedbackModal';
 
 export default function PolicyVersionsPage() {
   const params = useParams();
@@ -13,6 +14,12 @@ export default function PolicyVersionsPage() {
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [pendingRollbackVersionId, setPendingRollbackVersionId] = useState(null);
   const [rollingBack, setRollingBack] = useState(false);
+  const [feedbackState, setFeedbackState] = useState({
+    open: false,
+    title: '',
+    description: '',
+    tone: 'blue',
+  });
 
   useEffect(() => {
     fetchVersions();
@@ -63,15 +70,30 @@ export default function PolicyVersionsPage() {
       });
 
       if (response.ok) {
-        alert('Policy rolled back successfully!');
+        setFeedbackState({
+          open: true,
+          title: 'Policy rolled back',
+          description: 'A new latest version was created successfully from the selected version.',
+          tone: 'green',
+        });
         fetchVersions();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to rollback policy');
+        setFeedbackState({
+          open: true,
+          title: 'Unable to rollback policy',
+          description: error.error || 'Failed to rollback policy',
+          tone: 'red',
+        });
       }
     } catch (error) {
       console.error('Error rolling back policy:', error);
-      alert('Failed to rollback policy');
+      setFeedbackState({
+        open: true,
+        title: 'Unable to rollback policy',
+        description: 'Failed to rollback policy',
+        tone: 'red',
+      });
     } finally {
       setRollingBack(false);
       setPendingRollbackVersionId(null);
@@ -196,6 +218,21 @@ export default function PolicyVersionsPage() {
         busy={rollingBack}
         onCancel={() => setPendingRollbackVersionId(null)}
         onConfirm={() => handleRollback(pendingRollbackVersionId)}
+      />
+
+      <FeedbackModal
+        open={feedbackState.open}
+        title={feedbackState.title}
+        description={feedbackState.description}
+        tone={feedbackState.tone}
+        onClose={() =>
+          setFeedbackState({
+            open: false,
+            title: '',
+            description: '',
+            tone: 'blue',
+          })
+        }
       />
     </Layout>
   );

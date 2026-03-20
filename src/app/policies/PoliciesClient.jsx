@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import PoliciesList from './PoliciesList';
 import PolicyEditor from './PolicyEditor';
 import ConfirmationModal from './ConfirmationModal';
+import FeedbackModal from './FeedbackModal';
 import { getDefaultPolicyFormData } from './policy-form-utils';
 
 const BuildingIcon = ({ className }) => (
@@ -46,6 +47,12 @@ export function PoliciesPageContent({
     action: null,
   });
   const [confirmingAction, setConfirmingAction] = useState(false);
+  const [feedbackState, setFeedbackState] = useState({
+    open: false,
+    title: '',
+    description: '',
+    tone: 'blue',
+  });
 
   useEffect(() => {
     checkTenantAndFetchData();
@@ -118,7 +125,11 @@ export function PoliciesPageContent({
 
       if (!response.ok) {
         const error = await response.json();
-        alert(error.error || 'Failed to create organization');
+        openFeedback({
+          title: 'Organization creation failed',
+          description: error.error || 'Failed to create organization',
+          tone: 'red',
+        });
         return;
       }
 
@@ -130,7 +141,11 @@ export function PoliciesPageContent({
       await Promise.all([fetchPolicies(), fetchApps()]);
     } catch (error) {
       console.error('Error creating tenant:', error);
-      alert('Failed to create organization');
+      openFeedback({
+        title: 'Organization creation failed',
+        description: 'Failed to create organization',
+        tone: 'red',
+      });
     } finally {
       setSubmittingTenant(false);
     }
@@ -293,6 +308,24 @@ export function PoliciesPageContent({
     }
   };
 
+  const openFeedback = ({ title, description, tone = 'blue' }) => {
+    setFeedbackState({
+      open: true,
+      title,
+      description,
+      tone,
+    });
+  };
+
+  const closeFeedback = () => {
+    setFeedbackState({
+      open: false,
+      title: '',
+      description: '',
+      tone: 'blue',
+    });
+  };
+
   const submitPolicy = async () => {
     setSubmitting(true);
 
@@ -364,11 +397,21 @@ export function PoliciesPageContent({
 
       if (!response.ok) {
         const error = await response.json();
-        alert(error.error || 'Failed to create policy');
+        openFeedback({
+          title: editingPolicyName ? 'Unable to save version' : 'Unable to create policy',
+          description: error.error || 'Failed to create policy',
+          tone: 'red',
+        });
         return;
       }
 
-      alert(editingPolicyName ? 'Policy version saved successfully!' : 'Policy created successfully! Assign it to an application in the Applications page to use it with the proxy WAF.');
+      openFeedback({
+        title: editingPolicyName ? 'Policy version saved' : 'Policy created',
+        description: editingPolicyName
+          ? 'A new policy version was saved successfully.'
+          : 'The policy was created successfully. Assign it to an application in the Applications page to use it with the proxy WAF.',
+        tone: 'green',
+      });
       if (editorOnly) {
         router.push('/policies');
       } else {
@@ -377,7 +420,11 @@ export function PoliciesPageContent({
       }
     } catch (error) {
       console.error('Error creating policy:', error);
-      alert('Failed to create policy');
+      openFeedback({
+        title: editingPolicyName ? 'Unable to save version' : 'Unable to create policy',
+        description: 'Failed to create policy',
+        tone: 'red',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -412,15 +459,27 @@ export function PoliciesPageContent({
           Array.isArray(result?.details) && result.details.length > 0
             ? `\nAssigned to: ${result.details.join(', ')}`
             : '';
-        alert((result?.error || 'Failed to delete policy') + details);
+        openFeedback({
+          title: 'Unable to delete policy',
+          description: (result?.error || 'Failed to delete policy') + details,
+          tone: 'red',
+        });
         return;
       }
 
       await fetchPolicies();
-      alert(`Deleted policy "${name}" successfully.`);
+      openFeedback({
+        title: 'Policy deleted',
+        description: `Deleted policy "${name}" successfully.`,
+        tone: 'green',
+      });
     } catch (error) {
       console.error('Error deleting policy:', error);
-      alert('Failed to delete policy');
+      openFeedback({
+        title: 'Unable to delete policy',
+        description: 'Failed to delete policy',
+        tone: 'red',
+      });
     } finally {
       setDeletingPolicyName('');
     }
@@ -576,6 +635,14 @@ export function PoliciesPageContent({
           busy={confirmingAction || submitting || !!deletingPolicyName}
           onCancel={closeConfirmation}
           onConfirm={runConfirmedAction}
+        />
+
+        <FeedbackModal
+          open={feedbackState.open}
+          title={feedbackState.title}
+          description={feedbackState.description}
+          tone={feedbackState.tone}
+          onClose={closeFeedback}
         />
       </div>
     </Layout>
