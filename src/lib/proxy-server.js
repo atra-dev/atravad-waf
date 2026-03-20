@@ -264,6 +264,7 @@ function renderBlockedHtml({
   blockId,
   timestamp,
   serverId,
+  blockType,
 } = {}) {
   const safeHost = escapeHtml(host || "unknown-host");
   const safePath = escapeHtml(path || "/");
@@ -277,12 +278,28 @@ function renderBlockedHtml({
   const safeBlockId = escapeHtml(blockId || "WAF-403");
   const safeTime = escapeHtml(timestamp || new Date().toISOString());
   const safeServerId = escapeHtml(serverId || "atravad-waf");
+  const normalizedBlockType = String(blockType || "waf").toLowerCase();
+  const isGeoBlocked = normalizedBlockType === "geo";
+  const pageTitle = isGeoBlocked ? "403 Geographic Access Restricted | ATRAVAD-WAF" : "403 Access Blocked | ATRAVAD-WAF";
+  const heroTitle = isGeoBlocked
+    ? "Geographic Access Restricted - ATRAVAD-WAF"
+    : `Access Denied - ${ATRAVAD_WAF_NAME}`;
+  const introMessage = isGeoBlocked
+    ? `Access from your country or region is not allowed by this site's security policy. If you believe this is a mistake, contact the site owner or
+        <a href="mailto:support@atravad.com?subject=Geo%20Access%20Blocked%20Support%20Request">open a support ticket</a>
+        and include the block details below.`
+    : `If you are the site owner (or you manage this site), please whitelist your IP or if you think this block is an error please
+        <a href="mailto:support@atravad.com?subject=Access%20Denied%20Support%20Request">open a support ticket</a>
+        and include the block details below so we can assist in troubleshooting.`;
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>403 Access Blocked | ATRAVAD-WAF</title>
+  <title>${pageTitle}</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <style>
     :root {
       color-scheme: light;
@@ -402,11 +419,9 @@ function renderBlockedHtml({
 <body>
   <main class="shell">
     <section class="card">
-      <h1 class="block-title"><span class="dot"></span>Access Denied - ${ATRAVAD_WAF_NAME}</h1>
+      <h1 class="block-title"><span class="dot"></span>${heroTitle}</h1>
       <div class="intro">
-        If you are the site owner (or you manage this site), please whitelist your IP or if you think this block is an error please
-        <a href="mailto:support@atravad.com?subject=Access%20Denied%20Support%20Request">open a support ticket</a>
-        and include the block details below so we can assist in troubleshooting.
+        ${introMessage}
       </div>
       <div class="details-title">Block details:</div>
       <table>
@@ -432,13 +447,24 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
   const isGeoBlocked = /geographic blocking|blocked country|non-allowed country|geo-blocking/i.test(rawReason);
   const topRuleId = matchedRules?.[0]?.id ? String(matchedRules[0].id) : null;
   const blockPrefix = isGeoBlocked ? "GEO" : "IPB";
+  const cacheHeaders = {
+    "Cache-Control": isGeoBlocked
+      ? "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, private"
+      : "no-store",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store",
+    "CDN-Cache-Control": "no-store",
+    Vary: "Accept, Accept-Encoding, X-Geo-Country, X-ATRAVAD-Geo-Country, CF-IPCountry, X-Vercel-IP-Country",
+  };
   const headers = withWafFingerprintHeaders({
     "X-ATRAVAD-Blocked": "true",
     "X-ATRAVAD-Reason": reason || "Security rule violation",
     "X-ATRAVAD-Client-IP": clientIp || "unknown",
     "X-ATRAVAD-Proxy-IP": proxyIp || "unknown",
     ...(isGeoBlocked ? { "X-ATRAVAD-Geo-Blocked": "true" } : {}),
-    "Cache-Control": "no-store",
+    ...(isGeoBlocked ? { "Clear-Site-Data": "\"cache\"" } : {}),
+    ...cacheHeaders,
   });
 
   if (shouldReturnJsonBlockedResponse(req)) {
@@ -474,6 +500,7 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
     blockId: blockIdFromRule,
     timestamp: new Date().toISOString(),
     serverId,
+    blockType: isGeoBlocked ? "geo" : isIpBlocked ? "ip" : "waf",
   });
   res.writeHead(403, {
     ...headers,
