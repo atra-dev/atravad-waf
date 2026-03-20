@@ -56,6 +56,20 @@ export default function LogsPage() {
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
 
+  const updateFilters = (updater) => {
+    setFilters((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      return next;
+    });
+    setPagination((prev) => ({
+      ...prev,
+      page: 1,
+      currentCursor: null,
+      nextCursor: null,
+      cursorHistory: [],
+    }));
+  };
+
   const normalizeSeverity = (severity) => {
     const value = String(severity || '').trim().toLowerCase();
     if (value === 'critical') return 'critical';
@@ -104,25 +118,12 @@ export default function LogsPage() {
     }
   }, [isAuthenticated]);
 
-  // Reset to first page when filters change
-  useEffect(() => {
-    if (isAuthenticated && hasTenant) {
-      setPagination((prev) => ({
-        ...prev,
-        page: 1,
-        currentCursor: null,
-        nextCursor: null,
-        cursorHistory: [],
-      }));
-    }
-  }, [filters, hasTenant]);
-
   // Fetch logs when page changes
   useEffect(() => {
     if (isAuthenticated && hasTenant) {
       fetchLogs(false, pagination.currentCursor, pagination.page);
     }
-  }, [isAuthenticated, hasTenant, pagination.page, pagination.currentCursor]);
+  }, [isAuthenticated, hasTenant, pagination.page, pagination.currentCursor, filters]);
 
   useEffect(() => {
     if (isAuthenticated && hasTenant) {
@@ -606,7 +607,7 @@ export default function LogsPage() {
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
                     placeholder="Search logs..."
                     value={filters.search}
-                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                    onChange={(e) => updateFilters({ search: e.target.value })}
                   />
                 </div>
                 <div>
@@ -614,7 +615,7 @@ export default function LogsPage() {
                   <select
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
                     value={filters.severity}
-                    onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
+                    onChange={(e) => updateFilters({ severity: e.target.value })}
                   >
                     <option value="">All Severities</option>
                     <option value="critical">Critical</option>
@@ -630,7 +631,7 @@ export default function LogsPage() {
                   <select
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
                     value={filters.action}
-                    onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+                    onChange={(e) => updateFilters({ action: e.target.value })}
                   >
                     <option value="">All Actions</option>
                     <option value="waf_blocked">Blocked by WAF</option>
@@ -643,7 +644,7 @@ export default function LogsPage() {
                   <select
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
                     value={filters.site}
-                    onChange={(e) => setFilters({ ...filters, site: e.target.value })}
+                    onChange={(e) => updateFilters({ site: e.target.value })}
                   >
                     <option value="">All Sites</option>
                     {sites.map((site) => (
