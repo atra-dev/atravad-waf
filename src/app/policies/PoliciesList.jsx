@@ -70,6 +70,31 @@ function WrenchIcon({ className }) {
   );
 }
 
+function DatabaseIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <ellipse cx="12" cy="6" rx="7" ry="3" strokeWidth={2} />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3" />
+    </svg>
+  );
+}
+
+function CodeIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l-3 3 3 3M16 9l3 3-3 3M13 6l-2 12" />
+    </svg>
+  );
+}
+
+function SparkIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l1.6 4.9L18 9.5l-4.4 1.6L12 16l-1.6-4.9L6 9.5l4.4-1.6L12 3z" />
+    </svg>
+  );
+}
+
 const advancedIcons = {
   shield: ShieldIcon,
   globe: GlobeIcon,
@@ -79,6 +104,9 @@ const advancedIcons = {
   key: KeyIcon,
   cog: CogIcon,
   wrench: WrenchIcon,
+  database: DatabaseIcon,
+  code: CodeIcon,
+  spark: SparkIcon,
 };
 
 const top10Colors = {
@@ -95,31 +123,31 @@ const allSecurityRules = {
     title: 'OWASP Core Rule Set (CRS) 3.3.0',
     description: 'Comprehensive protection enabled by default in all policies',
     rules: [
-      { name: 'REQUEST-901-INITIALIZATION', description: 'CRS setup and initialization' },
-      { name: 'REQUEST-905-COMMON-EXCEPTIONS', description: 'Common exception rules' },
-      { name: 'REQUEST-910-IP-REPUTATION', description: 'IP reputation checking' },
-      { name: 'REQUEST-911-METHOD-ENFORCEMENT', description: 'HTTP method validation' },
-      { name: 'REQUEST-912-DOS-PROTECTION', description: 'Denial of Service protection' },
-      { name: 'REQUEST-913-SCANNER-DETECTION', description: 'Security scanner detection' },
-      { name: 'REQUEST-920-PROTOCOL-ENFORCEMENT', description: 'HTTP protocol validation' },
-      { name: 'REQUEST-921-PROTOCOL-ATTACK', description: 'Protocol-level attack detection' },
-      { name: 'REQUEST-930-APPLICATION-ATTACK-LFI', description: 'Local File Inclusion protection' },
-      { name: 'REQUEST-931-APPLICATION-ATTACK-RFI', description: 'Remote File Inclusion protection' },
-      { name: 'REQUEST-932-APPLICATION-ATTACK-RCE', description: 'Remote Code Execution protection' },
-      { name: 'REQUEST-933-APPLICATION-ATTACK-PHP', description: 'PHP-specific attack detection' },
-      { name: 'REQUEST-934-APPLICATION-ATTACK-NODEJS', description: 'Node.js-specific attack detection' },
-      { name: 'REQUEST-941-APPLICATION-ATTACK-XSS', description: 'XSS attack detection' },
-      { name: 'REQUEST-942-APPLICATION-ATTACK-SQLI', description: 'SQL injection detection' },
-      { name: 'REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION', description: 'Session fixation protection' },
-      { name: 'REQUEST-944-APPLICATION-ATTACK-JAVA', description: 'Java-specific attack detection' },
-      { name: 'REQUEST-949-BLOCKING-EVALUATION', description: 'Blocking decision evaluation' },
-      { name: 'RESPONSE-950-DATA-LEAKAGES', description: 'Data leakage prevention' },
-      { name: 'RESPONSE-951-DATA-LEAKAGES-SQL', description: 'SQL error message detection' },
-      { name: 'RESPONSE-952-DATA-LEAKAGES-JAVA', description: 'Java error message detection' },
-      { name: 'RESPONSE-953-DATA-LEAKAGES-PHP', description: 'PHP error message detection' },
-      { name: 'RESPONSE-954-DATA-LEAKAGES-IIS', description: 'IIS error message detection' },
-      { name: 'RESPONSE-959-BLOCKING-EVALUATION', description: 'Response blocking evaluation' },
-      { name: 'RESPONSE-980-CORRELATION', description: 'Attack correlation and scoring' },
+      { name: 'REQUEST-901-INITIALIZATION', description: 'CRS setup and initialization', iconType: 'cog' },
+      { name: 'REQUEST-905-COMMON-EXCEPTIONS', description: 'Common exception rules', iconType: 'cog' },
+      { name: 'REQUEST-910-IP-REPUTATION', description: 'IP reputation checking', iconType: 'shield' },
+      { name: 'REQUEST-911-METHOD-ENFORCEMENT', description: 'HTTP method validation', iconType: 'shield' },
+      { name: 'REQUEST-912-DOS-PROTECTION', description: 'Denial of Service protection', iconType: 'bolt' },
+      { name: 'REQUEST-913-SCANNER-DETECTION', description: 'Security scanner detection', iconType: 'robot' },
+      { name: 'REQUEST-920-PROTOCOL-ENFORCEMENT', description: 'HTTP protocol validation', iconType: 'globe' },
+      { name: 'REQUEST-921-PROTOCOL-ATTACK', description: 'Protocol-level attack detection', iconType: 'globe' },
+      { name: 'REQUEST-930-APPLICATION-ATTACK-LFI', description: 'Local File Inclusion protection', iconType: 'folder' },
+      { name: 'REQUEST-931-APPLICATION-ATTACK-RFI', description: 'Remote File Inclusion protection', iconType: 'globe' },
+      { name: 'REQUEST-932-APPLICATION-ATTACK-RCE', description: 'Remote Code Execution protection', iconType: 'bolt' },
+      { name: 'REQUEST-933-APPLICATION-ATTACK-PHP', description: 'PHP-specific attack detection', iconType: 'code' },
+      { name: 'REQUEST-934-APPLICATION-ATTACK-NODEJS', description: 'Node.js-specific attack detection', iconType: 'code' },
+      { name: 'REQUEST-941-APPLICATION-ATTACK-XSS', description: 'XSS attack detection', iconType: 'spark' },
+      { name: 'REQUEST-942-APPLICATION-ATTACK-SQLI', description: 'SQL injection detection', iconType: 'database' },
+      { name: 'REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION', description: 'Session fixation protection', iconType: 'key' },
+      { name: 'REQUEST-944-APPLICATION-ATTACK-JAVA', description: 'Java-specific attack detection', iconType: 'code' },
+      { name: 'REQUEST-949-BLOCKING-EVALUATION', description: 'Blocking decision evaluation', iconType: 'shield' },
+      { name: 'RESPONSE-950-DATA-LEAKAGES', description: 'Data leakage prevention', iconType: 'shield' },
+      { name: 'RESPONSE-951-DATA-LEAKAGES-SQL', description: 'SQL error message detection', iconType: 'database' },
+      { name: 'RESPONSE-952-DATA-LEAKAGES-JAVA', description: 'Java error message detection', iconType: 'code' },
+      { name: 'RESPONSE-953-DATA-LEAKAGES-PHP', description: 'PHP error message detection', iconType: 'code' },
+      { name: 'RESPONSE-954-DATA-LEAKAGES-IIS', description: 'IIS error message detection', iconType: 'globe' },
+      { name: 'RESPONSE-959-BLOCKING-EVALUATION', description: 'Response blocking evaluation', iconType: 'shield' },
+      { name: 'RESPONSE-980-CORRELATION', description: 'Attack correlation and scoring', iconType: 'spark' },
     ],
   },
   owaspTop10: {
