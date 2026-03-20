@@ -637,6 +637,101 @@ export default function PolicyEditor({
                     </div>
                   ) : null}
                 </div>
+              </div>
+            ) : null}
+
+            {activeTab === 'advanced' ? (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="mb-1 text-sm font-semibold text-gray-900">Advanced Security Features</h3>
+                  <p className="mb-4 text-xs text-gray-600">Enterprise-grade advanced security capabilities</p>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <label className="mb-3 flex items-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={formData.ipAccessControl.enabled}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          ipAccessControl: { ...formData.ipAccessControl, enabled: e.target.checked },
+                        })
+                      }
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-900">IP Access Control</span>
+                  </label>
+                  <p className="mb-3 ml-8 text-xs text-gray-600">IP whitelisting/blacklisting with CIDR block support</p>
+                  {formData.ipAccessControl.enabled ? (
+                    <div className="ml-8 mt-3 space-y-4">
+                      <TagListInput
+                        label="Whitelist IPs"
+                        value={formData.ipAccessControl.whitelist}
+                        onChange={(whitelist) =>
+                          setFormData({
+                            ...formData,
+                            ipAccessControl: { ...formData.ipAccessControl, whitelist },
+                          })
+                        }
+                        placeholder="e.g. 192.168.1.100"
+                        helperText="Use for individual IPv4/IPv6 addresses."
+                        bulkPlaceholder={'Paste IPs, one per line or comma-separated\n192.168.1.10\n203.0.113.4'}
+                        dialogTitle="Manage Whitelist IPs"
+                        validate={validateIPv4orIPv6}
+                        normalize={(s) => s.trim()}
+                      />
+                      <TagListInput
+                        label="Blacklist IPs"
+                        value={formData.ipAccessControl.blacklist}
+                        onChange={(blacklist) =>
+                          setFormData({
+                            ...formData,
+                            ipAccessControl: { ...formData.ipAccessControl, blacklist },
+                          })
+                        }
+                        placeholder="e.g. 203.0.113.0"
+                        helperText="Large deny-lists are supported through bulk paste."
+                        bulkPlaceholder={'Paste IPs, one per line or comma-separated\n203.0.113.44\n198.51.100.80'}
+                        dialogTitle="Manage Blacklist IPs"
+                        validate={validateIPv4orIPv6}
+                        normalize={(s) => s.trim()}
+                      />
+                      <TagListInput
+                        label="Whitelist CIDR Blocks"
+                        value={formData.ipAccessControl.whitelistCIDR}
+                        onChange={(whitelistCIDR) =>
+                          setFormData({
+                            ...formData,
+                            ipAccessControl: { ...formData.ipAccessControl, whitelistCIDR },
+                          })
+                        }
+                        placeholder="e.g. 192.168.1.0/24"
+                        helperText="Prefer CIDR blocks when managing large trusted ranges."
+                        bulkPlaceholder={'Paste CIDRs, one per line\n10.0.0.0/8\n172.16.0.0/12'}
+                        dialogTitle="Manage Whitelist CIDR Blocks"
+                        validate={validateCIDR}
+                        normalize={(s) => s.trim()}
+                      />
+                      <TagListInput
+                        label="Blacklist CIDR Blocks"
+                        value={formData.ipAccessControl.blacklistCIDR}
+                        onChange={(blacklistCIDR) =>
+                          setFormData({
+                            ...formData,
+                            ipAccessControl: { ...formData.ipAccessControl, blacklistCIDR },
+                          })
+                        }
+                        placeholder="e.g. 203.0.113.0/24"
+                        helperText="Use CIDR blocks for large hostile ranges."
+                        bulkPlaceholder={'Paste CIDRs, one per line\n203.0.113.0/24\n198.51.100.0/24'}
+                        dialogTitle="Manage Blacklist CIDR Blocks"
+                        validate={validateCIDR}
+                        normalize={(s) => s.trim()}
+                      />
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                   <label className="mb-3 flex items-center">
