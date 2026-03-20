@@ -501,7 +501,11 @@ export default function Home() {
                 <div className="mt-8 space-y-4">
                   {plan.features.map((feature) => (
                     <div key={feature} className="flex items-start gap-3">
-                      <span className={`mt-1 h-2.5 w-2.5 rounded-full ${plan.highlight ? 'bg-cyan-300' : 'bg-cyan-700'}`} />
+                      <span
+                        className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                          plan.highlight ? 'bg-cyan-300' : 'bg-cyan-700'
+                        }`}
+                      />
                       <span className={`text-sm leading-7 ${plan.highlight ? 'text-slate-200' : 'text-slate-700'}`}>
                         {feature}
                       </span>
