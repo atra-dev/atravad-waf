@@ -343,7 +343,7 @@ export async function GET(request) {
         query = query.where('decision', '==', decision);
       }
 
-      const snapshot = await query.orderBy('timestamp', 'asc').get();
+      const snapshot = await query.orderBy('timestamp', 'desc').get();
       const logs = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
