@@ -538,53 +538,14 @@ export function PoliciesPageContent({
                 <BuildingIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Create your organization</h1>
-                <p className="mt-1 text-sm text-gray-600">Policies, apps, and security logs are scoped to an organization.</p>
+                <h1 className="text-2xl font-bold text-gray-900">Tenant assignment required</h1>
+                <p className="mt-1 text-sm text-gray-600">Policies are available only after the super admin team provisions your managed tenant access.</p>
               </div>
             </div>
 
-            {!showTenantForm ? (
-              <button
-                type="button"
-                onClick={() => setShowTenantForm(true)}
-                className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Create Organization
-              </button>
-            ) : (
-              <form onSubmit={handleCreateTenant} className="space-y-4">
-                <div>
-                  <label htmlFor="tenant-name" className="mb-2 block text-sm font-medium text-gray-700">
-                    Organization Name
-                  </label>
-                  <input
-                    id="tenant-name"
-                    type="text"
-                    required
-                    value={tenantFormData.name}
-                    onChange={(e) => setTenantFormData({ name: e.target.value })}
-                    className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="e.g. ATRA Security"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    disabled={submittingTenant}
-                    className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {submittingTenant ? 'Creating...' : 'Create Organization'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowTenantForm(false)}
-                    className="rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
+            <p className="text-sm leading-7 text-gray-700">
+              ATRAVAD WAF is managed under super-admin-controlled RBAC. Contact the ATRAVAD WAF operations team to create your tenant, assign your account, and enable policy management access.
+            </p>
           </div>
         </div>
       </Layout>

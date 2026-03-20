@@ -259,12 +259,12 @@ export default function Home() {
             <div>
               <SectionEyebrow>Built to win trust fast</SectionEyebrow>
               <h1 className="mt-6 max-w-4xl font-serif text-5xl leading-[0.98] text-white sm:text-6xl lg:text-7xl">
-                Security that customers can see before attackers ever reach the origin.
+                Let us take care of your cyber defense so you can focus on running and growing your business.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                ATRAVAD WAF gives websites and APIs a managed reverse-proxy protection layer with enterprise controls,
-                high-signal analytics, automated SSL delivery, and policy-driven defense that is ready for real
-                production traffic.
+                ATRAVAD WAF is a managed WAF-as-a-service operated by a 24/7 cyber defense operations center,
+                protecting your websites and APIs with continuous monitoring, policy enforcement, threat blocking,
+                managed SSL, and production-ready security operations.
               </p>
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">

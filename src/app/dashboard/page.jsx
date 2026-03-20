@@ -185,112 +185,24 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Tenant Creation - Show if user doesn't have a tenant */}
+        {/* Managed onboarding notice */}
         {!data.hasTenant && (
-          <>
-            {!showTenantForm ? (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-600 rounded-xl p-6 shadow-sm">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="ml-4 flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Welcome to ATRAVA-D WAF
-                    </h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      To get started, you need to create an organization (tenant). This will allow you to manage sites and policies.
-                    </p>
-                    <button
-                      onClick={() => setShowTenantForm(true)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 shadow-sm hover:shadow transition-all duration-200"
-                    >
-                      Create Organization
-                    </button>
-                  </div>
-                </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
+                <TenantIcon className="h-6 w-6 text-amber-700" />
               </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-                <div className="text-center mb-6">
-                  <div className="flex justify-center mb-4">
-                    <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-lg">
-                      <TenantIcon className="h-8 w-8 text-white" />
-                    </div>
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Create Your Organization
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    An organization (tenant) is required to manage your WAF infrastructure
-                  </p>
-                </div>
-                <form onSubmit={handleCreateTenant} className="space-y-6">
-                  <div>
-                    <label
-                      htmlFor="tenantName"
-                      className="block text-sm font-semibold text-gray-700 mb-2"
-                    >
-                      Organization Name
-                    </label>
-                    <input
-                      type="text"
-                      id="tenantName"
-                      required
-                      placeholder="e.g., Acme Corporation, My Company"
-                      value={tenantFormData.name}
-                      onChange={(e) => setTenantFormData({ name: e.target.value })}
-                      className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all sm:text-sm"
-                    />
-                    <p className="mt-2 text-xs text-gray-500">
-                      This name will be used to identify your organization across the platform
-                    </p>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <svg className="h-5 w-5 text-blue-600 mt-0.5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="flex-1 text-sm text-blue-800">
-                        <p className="font-medium mb-1">What is an Organization?</p>
-                        <p className="text-blue-700">
-                          An organization (tenant) isolates your resources from others. All your sites and policies will be associated with this organization. You'll become the administrator of this organization.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowTenantForm(false);
-                        setTenantFormData({ name: '' });
-                      }}
-                      className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submittingTenant || !tenantFormData.name.trim()}
-                      className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow transition-all duration-200"
-                    >
-                      {submittingTenant ? (
-                        <span className="flex items-center space-x-2">
-                          <LoadingSpinner size="sm" />
-                          <span>Creating...</span>
-                        </span>
-                      ) : (
-                        'Create Organization'
-                      )}
-                    </button>
-                  </div>
-                </form>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Managed access pending</h3>
+                <p className="mt-2 text-sm text-gray-700">
+                  ATRAVAD WAF is provisioned as a managed service. A super admin must create your tenant, assign your account, and complete onboarding before dashboard access is enabled.
+                </p>
+                <p className="mt-2 text-sm text-gray-600">
+                  Contact the ATRAVAD WAF operations team to request tenant assignment or account provisioning.
+                </p>
               </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
 
         {/* Stats Grid - Only show if user has a tenant */}

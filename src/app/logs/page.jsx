@@ -470,7 +470,7 @@ export default function LogsPage() {
     );
   };
 
-  // If user doesn't have a tenant, show onboarding
+  // If user doesn't have a tenant, show managed onboarding notice
   if (!hasTenant && !loading && !authLoading) {
     return (
       <Layout>
@@ -484,90 +484,22 @@ export default function LogsPage() {
             </div>
           </div>
 
-          {!showTenantForm ? (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-8 text-center">
-              <div className="flex justify-center mb-6">
-                <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
-                  <BuildingIcon className="h-10 w-10 text-white" />
-                </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 shadow-sm">
+                <BuildingIcon className="h-8 w-8 text-amber-700" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                Create Your Organization First
-              </h2>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                Before viewing security logs, you need to create an organization. This keeps your logs isolated from other users.
-              </p>
-              <button
-                onClick={() => setShowTenantForm(true)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
-              >
-                <PlusIcon className="h-5 w-5" />
-                Create Organization
-              </button>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-xl mx-auto">
-              <div className="text-center mb-6">
-                <div className="flex justify-center mb-4">
-                  <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
-                    <BuildingIcon className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Create Your Organization
-                </h2>
-                <p className="text-sm text-gray-600">
-                  Enter a name for your organization to get started
+              <div className="max-w-2xl">
+                <h2 className="text-2xl font-bold text-gray-900">Tenant assignment required</h2>
+                <p className="mt-3 text-sm leading-7 text-gray-700">
+                  Security logs and analytics are available only after the ATRAVAD WAF super admin team provisions your tenant and assigns your account.
+                </p>
+                <p className="mt-2 text-sm leading-7 text-gray-600">
+                  Contact the ATRAVAD WAF operations team to complete managed onboarding and enable access to your security data.
                 </p>
               </div>
-              <form onSubmit={handleCreateTenant} className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="tenantName"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Organization Name
-                  </label>
-                  <input
-                    type="text"
-                    id="tenantName"
-                    required
-                    placeholder="e.g., Acme Corporation, My Company"
-                    value={tenantFormData.name}
-                    onChange={(e) => setTenantFormData({ name: e.target.value })}
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                    autoFocus
-                  />
-                </div>
-                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowTenantForm(false);
-                      setTenantFormData({ name: '' });
-                    }}
-                    className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingTenant || !tenantFormData.name.trim()}
-                    className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow transition-all"
-                  >
-                    {submittingTenant ? (
-                      <span className="flex items-center gap-2">
-                        <LoadingSpinner size="sm" />
-                        Creating...
-                      </span>
-                    ) : (
-                      'Create & Continue'
-                    )}
-                  </button>
-                </div>
-              </form>
             </div>
-          )}
+          </div>
         </div>
       </Layout>
     );

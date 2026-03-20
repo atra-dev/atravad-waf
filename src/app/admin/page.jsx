@@ -382,12 +382,12 @@ export default function SuperAdminPage() {
                 {/* Header with filter only (read-only for Super Admin) */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">All Users</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Read-only view of all users across tenants. Account creation and management are handled by tenant admins.
-                      </p>
-                    </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">All Users</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Super admins control managed account provisioning, tenant assignment, and platform-wide user access.
+                        </p>
+                      </div>
                     <div className="flex items-center gap-3">
                       <select
                         value={selectedTenantFilter}

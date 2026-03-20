@@ -3,7 +3,6 @@
 import { Suspense, useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider 
 } from 'firebase/auth';
@@ -11,10 +10,8 @@ import { auth } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function LoginPageContent() {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
@@ -54,27 +51,10 @@ function LoginPageContent() {
     e.preventDefault();
     setError('');
 
-    // Validation
-    if (isSignUp && password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (isSignUp && password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
     setLoadingEmail(true);
 
     try {
-      let userCredential;
-      
-      if (isSignUp) {
-        userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        userCredential = await signInWithEmailAndPassword(auth, email, password);
-      }
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
       const token = await userCredential.user.getIdToken();
       
@@ -239,45 +219,16 @@ function LoginPageContent() {
             Enterprise Web Application Firewall
           </p>
           <p className="mt-1 text-sm text-gray-500">
-            {isSignUp ? 'Create your account to get started' : 'Sign in to your security dashboard'}
+            Sign in to your managed security dashboard
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 lg:p-10">
-          {/* Toggle between Sign In and Sign Up */}
-          <div className="mb-8 flex rounded-lg bg-gray-100 p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(false);
-                setError('');
-                setPassword('');
-                setConfirmPassword('');
-              }}
-              className={`flex-1 py-2.5 px-4 text-sm font-semibold rounded-md transition-all duration-200 ${
-                !isSignUp
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(true);
-                setError('');
-                setPassword('');
-                setConfirmPassword('');
-              }}
-              className={`flex-1 py-2.5 px-4 text-sm font-semibold rounded-md transition-all duration-200 ${
-                isSignUp
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Sign Up
-            </button>
+          <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-900">Managed access only</p>
+            <p className="mt-1 text-sm text-blue-800">
+              User accounts and tenant assignments are provisioned by the ATRAVAD WAF super admin team as part of the managed service.
+            </p>
           </div>
 
           <form className="space-y-5" onSubmit={handleAuth}>
@@ -321,35 +272,14 @@ function LoginPageContent() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  autoComplete="current-password"
                   required
                   className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all sm:text-sm"
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-                {isSignUp && (
-                  <p className="mt-2 text-xs text-gray-500">Must be at least 6 characters</p>
-                )}
               </div>
-              {isSignUp && (
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all sm:text-sm"
-                    placeholder="Confirm your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-              )}
             </div>
 
             <div className="space-y-4 pt-2">
@@ -365,10 +295,10 @@ function LoginPageContent() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      <span>{isSignUp ? 'Creating account...' : 'Signing in...'}</span>
+                      <span>Signing in...</span>
                     </span>
                   ) 
-                  : (isSignUp ? 'Create Account' : 'Sign In')
+                  : 'Sign In'
                 }
               </button>
 

@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { createOrGetUser } from '@/lib/user-utils';
+import { getUserByEmail, normalizeEmail } from '@/lib/user-utils';
 import { getCurrentUser } from '@/lib/api-helpers';
 
 /**
  * GET /api/users/me
- * Get current user details, auto-create user document if it doesn't exist (idempotent)
- * Uses email as document ID for clearer database schema
+ * Get current user details for pre-provisioned managed users only
  */
 export async function GET(request) {
   try {
@@ -29,12 +28,11 @@ export async function GET(request) {
       );
     }
 
-    // Create or get user document (idempotent - uses transaction to prevent duplicates)
     let userData;
     try {
-      userData = await createOrGetUser(adminDb, user);
+      userData = await getUserByEmail(adminDb, user.email);
     } catch (dbError) {
-      console.error('Error creating/fetching user document:', dbError?.message || dbError);
+      console.error('Error fetching user document:', dbError?.message || dbError);
       return NextResponse.json(
         { error: 'Failed to load user data' },
         { status: 503 }
@@ -43,14 +41,14 @@ export async function GET(request) {
 
     if (!userData) {
       return NextResponse.json(
-        { error: 'Failed to create user document' },
-        { status: 503 }
+        { error: 'Access denied: account is not provisioned by ATRAVAD WAF' },
+        { status: 403 }
       );
     }
 
     if (userData.invitationPending === true) {
       const acceptedAt = new Date().toISOString();
-      const normalizedEmail = userData.email.toLowerCase().trim();
+      const normalizedEmail = normalizeEmail(userData.email);
       await adminDb.collection('users').doc(normalizedEmail).update({
         uid: user.uid,
         invitationPending: false,
@@ -81,8 +79,7 @@ export async function GET(request) {
 
 /**
  * POST /api/users/me
- * Update current user document
- * Uses email as document ID
+ * Update current user document for pre-provisioned users only
  */
 export async function POST(request) {
   try {
@@ -101,12 +98,11 @@ export async function POST(request) {
     const body = await request.json();
     const { role, tenantName } = body;
 
-    // Get or create user document first
-    let userData = await createOrGetUser(adminDb, user);
+    let userData = await getUserByEmail(adminDb, user.email);
     if (!userData) {
       return NextResponse.json(
-        { error: 'Failed to get user document' },
-        { status: 500 }
+        { error: 'Access denied: account is not provisioned by ATRAVAD WAF' },
+        { status: 403 }
       );
     }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { createOrGetUser, normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
+import { getUserByEmail, normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
 import { getUserRole, isSuperAdmin } from '@/lib/rbac';
 
 // Helper to get current user from token
@@ -36,21 +36,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Ensure user document exists
-    await createOrGetUser(adminDb, user);
-
-    // Check if user already has a tenant
-    const normalizedEmail = normalizeEmail(user.email);
-    const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
-    if (userDoc.exists && userDoc.data().tenantName) {
+    const userRole = await getUserRole(adminDb, user.email);
+    if (!isSuperAdmin(userRole)) {
       return NextResponse.json(
-        { error: 'User already belongs to a tenant' },
-        { status: 400 }
+        { error: 'Forbidden: tenant creation is restricted to the Super Admin team' },
+        { status: 403 }
       );
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, assignUserEmail } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -82,12 +77,31 @@ export async function POST(request) {
       createdByEmail: user.email, // Also store email
     });
 
-    // Link user to tenant (using email as document ID)
-    await adminDb.collection('users').doc(normalizedEmail).update({
-      tenantName: normalizedTenantName, // Store normalized tenant name
-      role: 'admin',
-      updatedAt: new Date().toISOString(),
-    });
+    if (assignUserEmail) {
+      const normalizedAssignedEmail = normalizeEmail(assignUserEmail);
+      const assignedUserDoc = await adminDb.collection('users').doc(normalizedAssignedEmail).get();
+
+      if (!assignedUserDoc.exists) {
+        return NextResponse.json(
+          { error: 'Tenant created, but assigned user was not found' },
+          { status: 404 }
+        );
+      }
+
+      const assignedUserData = assignedUserDoc.data();
+      if (assignedUserData.role === 'super_admin') {
+        return NextResponse.json(
+          { error: 'Cannot assign a super admin account to a tenant' },
+          { status: 400 }
+        );
+      }
+
+      await adminDb.collection('users').doc(normalizedAssignedEmail).update({
+        tenantName: normalizedTenantName,
+        role: 'admin',
+        updatedAt: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({ id: normalizedTenantName, name });
   } catch (error) {
@@ -113,9 +127,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Ensure user document exists
-    await createOrGetUser(adminDb, user);
-    
     // Check if user is super admin - if so, return all tenants
     const userRole = await getUserRole(adminDb, user.email);
     if (isSuperAdmin(userRole)) {
@@ -127,15 +138,12 @@ export async function GET(request) {
       return NextResponse.json(tenants);
     }
 
-    // Get user's tenant (using email as document ID)
-    const normalizedEmail = normalizeEmail(user.email);
-    const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
-    if (!userDoc.exists) {
+    const existingUser = await getUserByEmail(adminDb, user.email);
+    if (!existingUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const userData = userDoc.data();
-    const tenantName = userData.tenantName;
+    const tenantName = existingUser.tenantName;
 
     if (!tenantName) {
       return NextResponse.json({ error: 'No tenant assigned' }, { status: 404 });

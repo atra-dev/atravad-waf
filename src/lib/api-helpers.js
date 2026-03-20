@@ -1,5 +1,5 @@
 import { adminDb, adminAuth } from '@/lib/firebase-admin';
-import { createOrGetUser, normalizeEmail, getUserByEmail, getTenantNameByEmail } from '@/lib/user-utils';
+import { normalizeEmail, getUserByEmail, getTenantNameByEmail } from '@/lib/user-utils';
 
 /**
  * Get current user from auth token
@@ -32,10 +32,7 @@ export async function getCurrentUser(request) {
  */
 export async function getTenantName(user) {
   if (!adminDb || !user || !user.email) return null;
-  
-  // Ensure user document exists
-  await createOrGetUser(adminDb, user);
-  
+
   return await getTenantNameByEmail(adminDb, user.email);
 }
 
@@ -52,14 +49,9 @@ export async function getTenantId(user) {
  */
 export async function getUserData(user) {
   if (!adminDb || !user || !user.email) return null;
-  
-  // Ensure user document exists
-  await createOrGetUser(adminDb, user);
-  
-  // Get user document by email
   const normalizedEmail = normalizeEmail(user.email);
   const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
-  
+
   if (!userDoc.exists) return null;
   return userDoc.data();
 }
