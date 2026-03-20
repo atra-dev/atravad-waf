@@ -9,7 +9,7 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login"];
+  const publicRoutes = ["/", "/login"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
   // Check for auth token in cookies
