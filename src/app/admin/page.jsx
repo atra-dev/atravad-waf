@@ -627,7 +627,7 @@ export default function SuperAdminPage() {
                       </select>
                     </div>
                   </div>
-                  <form onSubmit={handleCreateUser} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <form onSubmit={handleCreateUser} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.9fr)_150px_180px_minmax(0,1.2fr)]">
                     <input
                       type="email"
                       value={userForm.email}
@@ -671,7 +671,7 @@ export default function SuperAdminPage() {
                       <option value="password">Email + Password</option>
                       <option value="google">Google</option>
                     </select>
-                    <div className="flex gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
                       <input
                         type="password"
                         value={userForm.password}
@@ -698,16 +698,16 @@ export default function SuperAdminPage() {
 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                    <table className="min-w-[1120px] divide-y divide-gray-200">
+                      <thead className="bg-gray-50/90">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Auth</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="w-[26%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Email</th>
+                          <th className="w-[12%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Role</th>
+                          <th className="w-[18%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tenant</th>
+                          <th className="w-[22%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Auth</th>
+                          <th className="w-[10%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                          <th className="w-[8%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
+                          <th className="w-[14%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -717,11 +717,11 @@ export default function SuperAdminPage() {
                             return user.tenantName === selectedTenantFilter;
                           })
                           .map((user) => (
-                            <tr key={user.id} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="font-medium text-gray-900">{user.email}</div>
+                            <tr key={user.id} className="align-top transition-colors hover:bg-slate-50/70">
+                              <td className="px-6 py-4">
+                                <div className="max-w-[260px] break-words text-sm font-semibold text-gray-900">{user.email}</div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-6 py-4 align-top">
                                 {user.role === 'super_admin' ? (
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                     super_admin
@@ -730,21 +730,21 @@ export default function SuperAdminPage() {
                                   <select
                                     value={userEdits[user.id]?.role || user.role || 'client'}
                                     onChange={(e) => handleUserEditChange(user.id, 'role', e.target.value)}
-                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full min-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   >
                                     <option value="admin">admin</option>
                                     <option value="client">client</option>
                                   </select>
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <td className="px-6 py-4 align-top text-sm text-gray-900">
                                 {user.role === 'super_admin' ? (
                                   '-'
                                 ) : (
                                   <select
                                     value={userEdits[user.id]?.tenantName ?? user.tenantName ?? ''}
                                     onChange={(e) => handleUserEditChange(user.id, 'tenantName', e.target.value)}
-                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full min-w-[170px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   >
                                     <option value="">Unassigned</option>
                                     {tenants.map((tenant) => (
@@ -755,15 +755,15 @@ export default function SuperAdminPage() {
                                   </select>
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <td className="min-w-[260px] px-6 py-4 align-top text-sm text-gray-500">
                                 {user.role === 'super_admin' ? (
                                   user.authProvider || 'password'
                                 ) : (
-                                  <div className="space-y-2">
+                                  <div className="flex min-w-[220px] flex-col gap-2">
                                     <select
                                       value={userEdits[user.id]?.authProvider || user.authProvider || 'password'}
                                       onChange={(e) => handleUserEditChange(user.id, 'authProvider', e.target.value)}
-                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
                                       <option value="password">password</option>
                                       <option value="google">google</option>
@@ -778,22 +778,30 @@ export default function SuperAdminPage() {
                                           : 'Not required for Google'
                                       }
                                       disabled={(userEdits[user.id]?.authProvider || user.authProvider || 'password') !== 'password'}
-                                      className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                                      className="w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
                                     />
                                   </div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {user.invitationPending ? 'Pending activation' : 'Active'}
+                              <td className="px-6 py-4 align-top text-sm text-gray-500">
+                                <span
+                                  className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                    user.invitationPending
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-emerald-100 text-emerald-800'
+                                  }`}
+                                >
+                                  {user.invitationPending ? 'Pending activation' : 'Active'}
+                                </span>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <td className="px-6 py-4 align-top text-sm text-gray-500">
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-6 py-4 align-top">
                                 {user.role === 'super_admin' ? (
                                   <span className="text-xs text-gray-400">Protected</span>
                                 ) : (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex min-w-[120px] flex-col gap-2">
                                     <button
                                       type="button"
                                       onClick={() => handleSaveUser(user.id)}
@@ -808,7 +816,7 @@ export default function SuperAdminPage() {
                                           String(userEdits[user.id]?.password || '').length < 6
                                         )
                                       }
-                                      className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                      className="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                                     >
                                       {savingUserId === user.id ? 'Saving...' : 'Save'}
                                     </button>
@@ -816,7 +824,7 @@ export default function SuperAdminPage() {
                                       type="button"
                                       onClick={() => handleRemoveUser(user.id)}
                                       disabled={removingUserId === user.id}
-                                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                      className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
                                     >
                                       {removingUserId === user.id ? 'Removing...' : 'Remove'}
                                     </button>
