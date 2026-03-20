@@ -50,7 +50,7 @@ const platformFeatures = [
   'Advanced file upload validation with MIME, size, and extension controls',
   'Response inspection for protected applications',
   'WebSocket-aware proxy protection for modern apps',
-  'Real-time app and policy sync from Firestore to the WAF edge',
+  'Real-time app and policy sync across the managed WAF edge',
   'Multi-tenant management with role-based access controls',
   'DNS activation flow with assigned WAF IP and optional CNAME',
   'Cache purge support for protected applications',

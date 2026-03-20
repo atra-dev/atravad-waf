@@ -12,11 +12,69 @@ import { useRouter, useSearchParams } from 'next/navigation';
 function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!toast) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 4500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
+
+  const showToast = (message, tone = 'error') => {
+    setToast({ message, tone });
+  };
+
+  const getFriendlyAuthError = (error, mode = 'email') => {
+    const code = typeof error?.code === 'string' ? error.code : '';
+
+    if (code === 'auth/popup-closed-by-user') {
+      return 'Sign-in was cancelled before completion.';
+    }
+    if (code === 'auth/popup-blocked') {
+      return 'The sign-in popup was blocked. Please allow popups and try again.';
+    }
+    if (code === 'auth/cancelled-popup-request') {
+      return 'A sign-in request is already in progress. Please try again.';
+    }
+    if (code === 'auth/invalid-email') {
+      return 'Enter a valid email address.';
+    }
+    if (code === 'auth/user-disabled') {
+      return 'This account is currently disabled. Contact the ATRAVAD WAF team.';
+    }
+    if (
+      code === 'auth/user-not-found' ||
+      code === 'auth/wrong-password' ||
+      code === 'auth/invalid-credential' ||
+      code === 'auth/invalid-login-credentials'
+    ) {
+      return mode === 'google'
+        ? 'This Google account is not authorized for ATRAVAD WAF access.'
+        : 'Invalid sign-in credentials or the account is not authorized.';
+    }
+    if (code === 'auth/too-many-requests') {
+      return 'Too many sign-in attempts. Please wait and try again.';
+    }
+
+    return mode === 'google'
+      ? 'Unable to sign in with Google. Please contact the ATRAVAD WAF team if access should be enabled.'
+      : 'Unable to sign in. Please verify your access with the ATRAVAD WAF team.';
+  };
+
+  const getFriendlySessionError = (errorData) => {
+    if (errorData?.error === 'Access denied: account is not provisioned by ATRAVAD WAF') {
+      return 'Your account has not been provisioned for ATRAVAD WAF access.';
+    }
+    return 'Your account could not be verified for managed access.';
+  };
   
   // Check if user is already authenticated
   useEffect(() => {
@@ -49,7 +107,7 @@ function LoginPageContent() {
 
   const handleAuth = async (e) => {
     e.preventDefault();
-    setError('');
+    setToast(null);
 
     setLoadingEmail(true);
 
@@ -78,7 +136,7 @@ function LoginPageContent() {
         if (!verifyResponse.ok) {
           const errorData = await verifyResponse.json().catch(() => ({}));
           console.error('Session verification failed:', verifyResponse.status, errorData);
-          throw new Error(errorData.error || 'Session verification failed');
+          throw new Error(getFriendlySessionError(errorData));
         }
         
         const userData = await verifyResponse.json();
@@ -92,50 +150,18 @@ function LoginPageContent() {
         router.push(redirect);
       } catch (verifyError) {
         console.error('Session verification error:', verifyError);
-        setError(verifyError.message || 'Failed to establish session. Please try again.');
+        showToast(verifyError.message || 'Unable to verify managed access.');
         document.cookie = 'authToken=; path=/; max-age=0';
       }
     } catch (err) {
-      // Handle Firebase errors with user-friendly messages
-      let errorMessage = 'An error occurred';
-      
-      switch (err.code) {
-        case 'auth/email-already-in-use':
-          errorMessage = 'This email is already registered. Please sign in instead.';
-          break;
-        case 'auth/invalid-email':
-          errorMessage = 'Invalid email address.';
-          break;
-        case 'auth/operation-not-allowed':
-          errorMessage = 'This operation is not allowed.';
-          break;
-        case 'auth/weak-password':
-          errorMessage = 'Password is too weak.';
-          break;
-        case 'auth/user-disabled':
-          errorMessage = 'This account has been disabled.';
-          break;
-        case 'auth/user-not-found':
-          errorMessage = 'No account found with this email.';
-          break;
-        case 'auth/wrong-password':
-          errorMessage = 'Incorrect password.';
-          break;
-        case 'auth/too-many-requests':
-          errorMessage = 'Too many failed attempts. Please try again later.';
-          break;
-        default:
-          errorMessage = err.message || 'Failed to authenticate';
-      }
-      
-      setError(errorMessage);
+      showToast(getFriendlyAuthError(err, 'email'));
     } finally {
       setLoadingEmail(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    setError('');
+    setToast(null);
     setLoadingGoogle(true);
 
     try {
@@ -162,7 +188,7 @@ function LoginPageContent() {
         if (!verifyResponse.ok) {
           const errorData = await verifyResponse.json().catch(() => ({}));
           console.error('Session verification failed:', verifyResponse.status, errorData);
-          throw new Error(errorData.error || 'Session verification failed');
+          throw new Error(getFriendlySessionError(errorData));
         }
         
         const userData = await verifyResponse.json();
@@ -176,23 +202,11 @@ function LoginPageContent() {
         router.push(redirect);
       } catch (verifyError) {
         console.error('Session verification error:', verifyError);
-        setError(verifyError.message || 'Failed to establish session. Please try again.');
+        showToast(verifyError.message || 'Unable to verify managed access.');
         document.cookie = 'authToken=; path=/; max-age=0';
       }
     } catch (err) {
-      let errorMessage = 'Failed to sign in with Google';
-      
-      if (err.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign in popup was closed. Please try again.';
-      } else if (err.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup was blocked. Please allow popups and try again.';
-      } else if (err.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'Sign in was cancelled.';
-      } else {
-        errorMessage = err.message || errorMessage;
-      }
-      
-      setError(errorMessage);
+      showToast(getFriendlyAuthError(err, 'google'));
     } finally {
       setLoadingGoogle(false);
     }
@@ -200,6 +214,38 @@ function LoginPageContent() {
 
   return (
     <div className="h-screen overflow-hidden flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 px-4 sm:px-6 lg:px-8">
+      {toast ? (
+        <div className="fixed right-4 top-4 z-50 w-full max-w-sm">
+          <div
+            className={`rounded-2xl border px-4 py-3 shadow-xl backdrop-blur ${
+              toast.tone === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                : 'border-red-200 bg-red-50 text-red-900'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  toast.tone === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                }`}
+              >
+                {toast.tone === 'success' ? '!' : '!'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-6">{toast.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setToast(null)}
+                className="text-xs font-semibold uppercase tracking-[0.2em] text-current/70 hover:text-current"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="max-w-md w-full space-y-8 scale-[0.8] origin-center">
         {/* Logo and Branding */}
         <div className="text-center">
@@ -232,21 +278,6 @@ function LoginPageContent() {
           </div>
 
           <form className="space-y-5" onSubmit={handleAuth}>
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-red-800">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
