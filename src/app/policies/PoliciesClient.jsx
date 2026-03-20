@@ -191,6 +191,18 @@ export function PoliciesPageContent({
     const policy = policyVersion.policy || {};
     const exceptions = Array.isArray(policy.exceptions) ? policy.exceptions : [];
     const virtualPatches = Array.isArray(policy.virtualPatching) ? policy.virtualPatching : [];
+    const relatedVersions = policies.filter((item) => item.name === policyVersion.name);
+    const selectedApplicationIds = [
+      ...new Set(
+        relatedVersions.flatMap((item) =>
+          Array.isArray(item.applicationIds) && item.applicationIds.length > 0
+            ? item.applicationIds
+            : item.applicationId
+              ? [item.applicationId]
+              : []
+        )
+      ),
+    ];
 
     setEditingPolicyName(policyVersion.name);
     setFormData({
@@ -262,7 +274,7 @@ export function PoliciesPageContent({
         enabled: virtualPatches.length > 0,
         cveRules: virtualPatches.map((item) => item.cve).filter(Boolean),
       },
-      applicationId: policyVersion.applicationId || '',
+      applicationIds: selectedApplicationIds,
     });
 
     setActiveTab('basic');
@@ -386,7 +398,7 @@ export function PoliciesPageContent({
         apiProtection: formData.apiProtection.enabled ? formData.apiProtection : null,
         exceptions,
         virtualPatching,
-        applicationId: formData.applicationId || null,
+        applicationIds: Array.isArray(formData.applicationIds) ? formData.applicationIds : [],
       };
 
       const response = await fetch('/api/policies', {

@@ -151,6 +151,6 @@ export function getDefaultPolicyFormData() {
       enabled: false,
       cveRules: [],
     },
-    applicationId: '',
+    applicationIds: [],
   };
 }

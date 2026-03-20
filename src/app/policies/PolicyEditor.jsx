@@ -509,22 +509,48 @@ export default function PolicyEditor({
               </div>
 
               <div>
-                <label htmlFor="applicationId" className="mb-2 block text-sm font-medium text-gray-700">
-                  Application (Optional)
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Applications (Optional)
                 </label>
-                <select
-                  id="applicationId"
-                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={formData.applicationId}
-                  onChange={(e) => setFormData({ ...formData, applicationId: e.target.value })}
-                >
-                  <option value="">None</option>
-                  {apps.map((app) => (
-                    <option key={app.id} value={app.id}>
-                      {app.name} ({app.domain})
-                    </option>
-                  ))}
-                </select>
+                <div className="rounded-lg border border-gray-300 bg-white shadow-sm">
+                  <div className="border-b border-gray-200 px-4 py-3">
+                    <p className="text-sm font-medium text-gray-900">
+                      Assign this policy version to one or more sites
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {Array.isArray(formData.applicationIds) ? formData.applicationIds.length : 0} selected
+                    </p>
+                  </div>
+                  <div className="max-h-48 space-y-2 overflow-y-auto px-4 py-3">
+                    {apps.length === 0 ? (
+                      <p className="text-sm text-gray-500">No applications available.</p>
+                    ) : (
+                      apps.map((app) => {
+                        const selected = Array.isArray(formData.applicationIds) && formData.applicationIds.includes(app.id);
+                        return (
+                          <label key={app.id} className="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              checked={selected}
+                              onChange={(e) => {
+                                const currentIds = Array.isArray(formData.applicationIds) ? formData.applicationIds : [];
+                                const nextIds = e.target.checked
+                                  ? [...new Set([...currentIds, app.id])]
+                                  : currentIds.filter((id) => id !== app.id);
+                                setFormData({ ...formData, applicationIds: nextIds });
+                              }}
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-gray-900">{app.name}</span>
+                              <span className="block text-xs text-gray-500">{app.domain}</span>
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

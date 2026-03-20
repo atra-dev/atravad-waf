@@ -65,7 +65,11 @@ export default function PolicyVersionsPage() {
           sqlInjection: version.policy.sqlInjection,
           xss: version.policy.xss,
           fileUpload: version.policy.fileUpload,
-          applicationId: version.applicationId || null,
+          applicationIds: Array.isArray(version.applicationIds)
+            ? version.applicationIds
+            : version.applicationId
+              ? [version.applicationId]
+              : [],
         }),
       });
 

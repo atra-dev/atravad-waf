@@ -86,6 +86,7 @@ export async function POST(request) {
       exceptionHandling,
       virtualPatching,
       customRules,
+      applicationIds,
       applicationId,
       includeOWASPCRS = true,
       mode = 'prevention'
@@ -182,19 +183,27 @@ export async function POST(request) {
       version = versions[0] + 1;
     }
 
-    let assignedApplication = null;
-    if (applicationId) {
-      const appDoc = await adminDb.collection('applications').doc(applicationId).get();
+    const normalizedApplicationIds = [
+      ...new Set(
+        (Array.isArray(applicationIds) ? applicationIds : applicationId ? [applicationId] : [])
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+      ),
+    ];
+
+    const assignedApplications = [];
+    for (const selectedApplicationId of normalizedApplicationIds) {
+      const appDoc = await adminDb.collection('applications').doc(selectedApplicationId).get();
       if (!appDoc.exists) {
-        return NextResponse.json({ error: 'Selected application not found' }, { status: 400 });
+        return NextResponse.json({ error: 'One or more selected applications were not found' }, { status: 400 });
       }
 
       const appData = appDoc.data();
       if (appData.tenantName !== tenantName) {
-        return NextResponse.json({ error: 'Selected application is outside your tenant' }, { status: 403 });
+        return NextResponse.json({ error: 'One or more selected applications are outside your tenant' }, { status: 403 });
       }
 
-      assignedApplication = { id: appDoc.id, ...appData };
+      assignedApplications.push({ id: appDoc.id, ...appData });
     }
 
     const policyRef = await adminDb.collection('policies').add({
@@ -203,7 +212,8 @@ export async function POST(request) {
       modSecurityConfig,
       version,
       tenantName,
-      applicationId: applicationId || null,
+      applicationId: normalizedApplicationIds[0] || null,
+      applicationIds: normalizedApplicationIds,
       includeOWASPCRS,
       mode,
       validationWarnings: validation.warnings,
@@ -211,12 +221,16 @@ export async function POST(request) {
       createdBy: user.uid,
     });
 
-    if (assignedApplication) {
-      await adminDb.collection('applications').doc(assignedApplication.id).update({
-        policyId: policyRef.id,
-        updatedAt: new Date().toISOString(),
-        updatedBy: user.uid,
-      });
+    if (assignedApplications.length > 0) {
+      const updateBatch = adminDb.batch();
+      for (const assignedApplication of assignedApplications) {
+        updateBatch.update(adminDb.collection('applications').doc(assignedApplication.id), {
+          policyId: policyRef.id,
+          updatedAt: new Date().toISOString(),
+          updatedBy: user.uid,
+        });
+      }
+      await updateBatch.commit();
     }
 
     return NextResponse.json({
@@ -226,8 +240,10 @@ export async function POST(request) {
       policy,
       modSecurityConfig,
       validationWarnings: validation.warnings,
-      applicationId: assignedApplication?.id || null,
-      applicationName: assignedApplication?.domain || assignedApplication?.name || null,
+      applicationId: normalizedApplicationIds[0] || null,
+      applicationIds: normalizedApplicationIds,
+      applicationName: assignedApplications[0] ? getApplicationLabel(assignedApplications[0]) : null,
+      applicationNames: assignedApplications.map((app) => getApplicationLabel(app)).filter(Boolean),
     });
   } catch (error) {
     console.error('Error creating policy:', error);
@@ -284,10 +300,15 @@ export async function GET(request) {
     const policies = policiesSnapshot.docs
       .map((doc) => {
         const data = doc.data();
-        const explicitApp = data.applicationId ? appsById.get(data.applicationId) : null;
+        const explicitApps = [
+          ...(Array.isArray(data.applicationIds)
+            ? data.applicationIds.map((id) => appsById.get(id)).filter(Boolean)
+            : []),
+          ...(data.applicationId ? [appsById.get(data.applicationId)].filter(Boolean) : []),
+        ];
         const reverseMatchedApps = appsByPolicyId.get(doc.id) || [];
         const assignedApps = [
-          ...(explicitApp ? [explicitApp] : []),
+          ...explicitApps,
           ...reverseMatchedApps,
         ].filter(Boolean);
         const uniqueAssignedApps = Array.from(
