@@ -95,6 +95,14 @@ function SparkIcon({ className }) {
   );
 }
 
+function UploadIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4M8 8l4-4 4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+    </svg>
+  );
+}
+
 const advancedIcons = {
   shield: ShieldIcon,
   globe: GlobeIcon,
@@ -108,14 +116,34 @@ const advancedIcons = {
   code: CodeIcon,
   spark: SparkIcon,
 };
+const ruleIcons = {
+  shield: ShieldIcon,
+  globe: GlobeIcon,
+  bolt: BoltIcon,
+  robot: RobotIcon,
+  folder: FolderIcon,
+  key: KeyIcon,
+  cog: CogIcon,
+  wrench: WrenchIcon,
+  database: DatabaseIcon,
+  code: CodeIcon,
+  spark: SparkIcon,
+  upload: UploadIcon,
+};
 
-const top10Colors = {
-  red: 'bg-red-500',
-  yellow: 'bg-amber-400',
-  blue: 'bg-sky-500',
-  orange: 'bg-orange-500',
-  purple: 'bg-violet-500',
-  green: 'bg-emerald-500',
+const ruleIconTones = {
+  shield: 'border-blue-200 bg-blue-50 text-blue-700',
+  globe: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+  bolt: 'border-amber-200 bg-amber-50 text-amber-700',
+  robot: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+  folder: 'border-sky-200 bg-sky-50 text-sky-700',
+  key: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  cog: 'border-slate-200 bg-slate-50 text-slate-700',
+  wrench: 'border-violet-200 bg-violet-50 text-violet-700',
+  database: 'border-rose-200 bg-rose-50 text-rose-700',
+  code: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  spark: 'border-orange-200 bg-orange-50 text-orange-700',
+  upload: 'border-blue-200 bg-blue-50 text-blue-700',
 };
 
 const allSecurityRules = {
@@ -154,21 +182,21 @@ const allSecurityRules = {
     title: 'OWASP Top 10 Protections',
     description: 'Enhanced protections for OWASP Top 10 vulnerabilities',
     rules: [
-      { name: 'SQL Injection Protection', description: 'Enhanced SQL injection detection with multiple detection layers', color: 'red' },
-      { name: 'Cross-Site Scripting (XSS)', description: 'Comprehensive XSS detection including script tags and event handlers', color: 'yellow' },
-      { name: 'File Upload Protection', description: 'Dangerous file extension blocking and file size limits', color: 'blue' },
-      { name: 'Path Traversal Protection', description: 'Directory traversal attack prevention', color: 'orange' },
-      { name: 'Remote Code Execution (RCE)', description: 'Command injection and code execution attempt detection', color: 'purple' },
-      { name: 'CSRF Protection', description: 'Cross-Site Request Forgery token validation and origin checks', color: 'green' },
-      { name: 'Session Fixation Protection', description: 'Session ID pattern detection and manipulation prevention', color: 'blue' },
-      { name: 'SSRF Protection', description: 'Server-Side Request Forgery detection (internal IPs, dangerous URLs)', color: 'yellow' },
-      { name: 'XXE Protection', description: 'XML External Entity injection detection', color: 'orange' },
-      { name: 'Authentication Bypass Protection', description: 'SQL injection in auth params and bypass pattern detection', color: 'red' },
-      { name: 'IDOR Protection', description: 'Insecure Direct Object Reference monitoring', color: 'green' },
-      { name: 'Security Misconfiguration Detection', description: 'Exposed config files and default credentials detection', color: 'yellow' },
-      { name: 'Sensitive Data Exposure Protection', description: 'Credit cards, SSNs, API keys detection in responses', color: 'red' },
-      { name: 'Broken Access Control Protection', description: 'Privilege escalation and unauthorized access detection', color: 'orange' },
-      { name: 'Security Headers Monitoring', description: 'Passive monitoring for missing security headers', color: 'blue' },
+      { name: 'SQL Injection Protection', description: 'Enhanced SQL injection detection with multiple detection layers', iconType: 'database' },
+      { name: 'Cross-Site Scripting (XSS)', description: 'Comprehensive XSS detection including script tags and event handlers', iconType: 'spark' },
+      { name: 'File Upload Protection', description: 'Dangerous file extension blocking and file size limits', iconType: 'upload' },
+      { name: 'Path Traversal Protection', description: 'Directory traversal attack prevention', iconType: 'folder' },
+      { name: 'Remote Code Execution (RCE)', description: 'Command injection and code execution attempt detection', iconType: 'bolt' },
+      { name: 'CSRF Protection', description: 'Cross-Site Request Forgery token validation and origin checks', iconType: 'shield' },
+      { name: 'Session Fixation Protection', description: 'Session ID pattern detection and manipulation prevention', iconType: 'key' },
+      { name: 'SSRF Protection', description: 'Server-Side Request Forgery detection (internal IPs, dangerous URLs)', iconType: 'globe' },
+      { name: 'XXE Protection', description: 'XML External Entity injection detection', iconType: 'code' },
+      { name: 'Authentication Bypass Protection', description: 'SQL injection in auth params and bypass pattern detection', iconType: 'shield' },
+      { name: 'IDOR Protection', description: 'Insecure Direct Object Reference monitoring', iconType: 'key' },
+      { name: 'Security Misconfiguration Detection', description: 'Exposed config files and default credentials detection', iconType: 'cog' },
+      { name: 'Sensitive Data Exposure Protection', description: 'Credit cards, SSNs, API keys detection in responses', iconType: 'shield' },
+      { name: 'Broken Access Control Protection', description: 'Privilege escalation and unauthorized access detection', iconType: 'wrench' },
+      { name: 'Security Headers Monitoring', description: 'Passive monitoring for missing security headers', iconType: 'shield' },
     ],
   },
   advanced: {
@@ -202,19 +230,17 @@ function RuleSection({ section, countLabel }) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {section.rules.map((rule) => {
-          const AdvancedIcon = rule.iconType ? advancedIcons[rule.iconType] : null;
+          const RuleIcon = rule.iconType ? ruleIcons[rule.iconType] : null;
           return (
             <div key={rule.name} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
               <div className="flex items-start gap-3">
-                {rule.color ? (
+                {RuleIcon ? (
                   <span
-                    className={`mt-1 inline-flex h-3.5 w-3.5 shrink-0 rounded-full ${top10Colors[rule.color] || 'bg-slate-400'}`}
-                    aria-hidden="true"
-                  />
-                ) : null}
-                {AdvancedIcon ? (
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600">
-                    <AdvancedIcon className="h-5 w-5" />
+                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                      ruleIconTones[rule.iconType] || 'border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    <RuleIcon className="h-5 w-5" />
                   </span>
                 ) : null}
                 <div className="min-w-0">
