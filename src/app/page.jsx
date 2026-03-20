@@ -62,7 +62,7 @@ const proofPoints = [
   { label: 'Protection model', value: 'Reverse proxy edge WAF' },
   { label: 'Inspection engine', value: 'ModSecurity v3 + OWASP CRS' },
   { label: 'Certificate options', value: "Let's Encrypt or custom SSL" },
-  { label: 'Deployment style', value: 'AWS or data center' },
+  { label: 'Security visibility', value: 'Logs, analytics, live policy control' },
 ];
 
 const deploymentSteps = [
@@ -89,6 +89,51 @@ const deploymentSteps = [
     title: 'Monitor and refine',
     description:
       'Review analytics, blocked traffic, and policy outcomes to tighten protection without slowing delivery.',
+  },
+];
+
+const pricingPlans = [
+  {
+    name: 'Starter',
+    price: '$99',
+    cadence: '/month',
+    description: 'For smaller sites that need managed WAF protection and core visibility.',
+    highlight: false,
+    features: [
+      '1 protected website or application',
+      'ModSecurity + OWASP CRS protection',
+      'Managed SSL or custom certificate support',
+      'Basic policy controls and traffic analytics',
+      'Email support',
+    ],
+  },
+  {
+    name: 'Growth',
+    price: '$299',
+    cadence: '/month',
+    description: 'For growing businesses that need broader control, monitoring, and abuse protection.',
+    highlight: true,
+    features: [
+      'Up to 5 protected websites or applications',
+      'Bot mitigation, geo controls, and rate limiting',
+      'Advanced policy management and virtual patching',
+      'Analytics dashboard with threat visibility',
+      'Priority support',
+    ],
+  },
+  {
+    name: 'Enterprise',
+    price: 'Custom',
+    cadence: '',
+    description: 'For teams with larger environments, custom onboarding, and operational requirements.',
+    highlight: false,
+    features: [
+      'Unlimited or custom-provisioned protected assets',
+      'Multi-tenant operations and tailored policy workflows',
+      'Custom rollout, onboarding, and support coverage',
+      'Advanced security review and configuration guidance',
+      'Dedicated account coordination',
+    ],
   },
 ];
 
@@ -389,18 +434,95 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="bg-white py-24 text-slate-950">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <SectionEyebrow>Pricing</SectionEyebrow>
+            <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
+              Straightforward plans for managed WAF protection.
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-slate-600">
+              Choose a plan based on how many sites you need to protect and how much security control your team needs
+              from day one.
+            </p>
+          </div>
+
+          <div className="mt-14 grid gap-6 lg:grid-cols-3">
+            {pricingPlans.map((plan) => (
+              <article
+                key={plan.name}
+                className={`rounded-[32px] border p-8 shadow-[0_22px_70px_rgba(15,23,42,0.08)] ${
+                  plan.highlight
+                    ? 'border-cyan-300 bg-slate-950 text-white'
+                    : 'border-slate-200 bg-[#f7f9fc] text-slate-950'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p
+                      className={`text-sm font-semibold uppercase tracking-[0.3em] ${
+                        plan.highlight ? 'text-cyan-300' : 'text-slate-500'
+                      }`}
+                    >
+                      {plan.name}
+                    </p>
+                    <p className={`mt-4 text-5xl font-semibold ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
+                      {plan.price}
+                      {plan.cadence ? <span className={`ml-1 text-lg ${plan.highlight ? 'text-slate-300' : 'text-slate-500'}`}>{plan.cadence}</span> : null}
+                    </p>
+                  </div>
+                  {plan.highlight ? (
+                    <span className="rounded-full bg-cyan-400 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-950">
+                      Most popular
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className={`mt-5 text-sm leading-7 ${plan.highlight ? 'text-slate-300' : 'text-slate-600'}`}>
+                  {plan.description}
+                </p>
+
+                <div className="mt-8 space-y-4">
+                  {plan.features.map((feature) => (
+                    <div key={feature} className="flex items-start gap-3">
+                      <span className={`mt-1 h-2.5 w-2.5 rounded-full ${plan.highlight ? 'bg-cyan-300' : 'bg-cyan-700'}`} />
+                      <span className={`text-sm leading-7 ${plan.highlight ? 'text-slate-200' : 'text-slate-700'}`}>
+                        {feature}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8">
+                  <Link
+                    href="/login"
+                    className={`flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-semibold ${
+                      plan.highlight
+                        ? 'bg-cyan-400 text-slate-950 hover:bg-cyan-300'
+                        : 'bg-slate-950 text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    {plan.name === 'Enterprise' ? 'Talk to sales' : 'Get started'}
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="bg-[#091322] py-24 text-white">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_26px_90px_rgba(2,6,23,0.55)]">
-              <SectionEyebrow>Deployment and operations</SectionEyebrow>
+              <SectionEyebrow>Operations and control</SectionEyebrow>
               <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
-                Run it in AWS or your data center without changing the protection model.
+                Operate security from one control layer without adding complexity for customers.
               </h2>
               <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
-                ATRAVAD WAF is built around a managed reverse proxy and real-time configuration sync. Customers point
-                DNS to the assigned WAF endpoint, while your team manages policies, SSL, applications, and tenants from
-                the dashboard.
+                ATRAVAD WAF gives your team one place to manage policies, SSL, protected applications, analytics, and
+                tenant-scoped activity while customers experience a clean, managed protection layer in front of their
+                sites and APIs.
               </p>
               <div className="mt-8 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
