@@ -793,6 +793,180 @@ export default function PolicyEditor({
                     <input
                       type="checkbox"
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={formData.geoBlocking.enabled}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          geoBlocking: { ...formData.geoBlocking, enabled: e.target.checked },
+                        })
+                      }
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-900">Geographic Blocking</span>
+                  </label>
+                  <p className="mb-3 ml-8 text-xs text-gray-600">
+                    Country-based access control using trusted edge headers such as <code>CF-IPCountry</code> or <code>X-Vercel-IP-Country</code>.
+                  </p>
+                  {formData.geoBlocking.enabled ? (
+                    <div className="ml-8 mt-3 space-y-4">
+                      <TagListInput
+                        label="Blocked Countries (ISO country codes)"
+                        value={formData.geoBlocking.blockedCountries}
+                        onChange={(blockedCountries) =>
+                          setFormData({
+                            ...formData,
+                            geoBlocking: { ...formData.geoBlocking, blockedCountries },
+                          })
+                        }
+                        placeholder="e.g. CN"
+                        helperText="Bulk import two-letter ISO country codes."
+                        bulkPlaceholder={'Paste ISO country codes\nCN\nRU\nKP'}
+                        dialogTitle="Manage Blocked Countries"
+                        validate={validateCountryCode}
+                        normalize={(s) => s.trim().toUpperCase()}
+                      />
+                      <TagListInput
+                        label="Allowed Countries (empty = all)"
+                        value={formData.geoBlocking.allowedCountries}
+                        onChange={(allowedCountries) =>
+                          setFormData({
+                            ...formData,
+                            geoBlocking: { ...formData.geoBlocking, allowedCountries },
+                          })
+                        }
+                        placeholder="e.g. US"
+                        helperText="Use allow-lists only when you want strict country access control."
+                        bulkPlaceholder={'Paste ISO country codes\nUS\nGB\nPH'}
+                        dialogTitle="Manage Allowed Countries"
+                        validate={validateCountryCode}
+                        normalize={(s) => s.trim().toUpperCase()}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <label className="mb-3 flex items-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={formData.advancedRateLimiting.enabled}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          advancedRateLimiting: { ...formData.advancedRateLimiting, enabled: e.target.checked },
+                        })
+                      }
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-900">Advanced Rate Limiting</span>
+                  </label>
+                  <p className="mb-3 ml-8 text-xs text-gray-600">Per-endpoint and adaptive rate limiting for embedded proxy deployments.</p>
+                  {formData.advancedRateLimiting.enabled ? (
+                    <div className="ml-8 mt-3 space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.advancedRateLimiting.adaptive}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              advancedRateLimiting: { ...formData.advancedRateLimiting, adaptive: e.target.checked },
+                            })
+                          }
+                        />
+                        <span className="ml-2 text-xs text-gray-700">Adaptive Rate Limiting</span>
+                      </label>
+                      <div className="mt-2">
+                        <label className="mb-1 block text-xs text-gray-600">Per-Endpoint Rules (JSON format: {`{"endpoint": "requests_per_minute"}`})</label>
+                        <textarea
+                          placeholder='{"\/api\/users": 100, "\/api\/admin": 50}'
+                          className="block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          rows={3}
+                          onChange={(e) => {
+                            try {
+                              const parsed = JSON.parse(e.target.value);
+                              setFormData({
+                                ...formData,
+                                advancedRateLimiting: { ...formData.advancedRateLimiting, perEndpoint: parsed },
+                              });
+                            } catch (err) {
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <label className="mb-3 flex items-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={formData.botDetection.enabled}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          botDetection: { ...formData.botDetection, enabled: e.target.checked },
+                        })
+                      }
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-900">Bot Detection & Mitigation</span>
+                  </label>
+                  <p className="mb-3 ml-8 text-xs text-gray-600">User-Agent filtering, bot signature detection, crawler blocking</p>
+                  {formData.botDetection.enabled ? (
+                    <div className="ml-8 mt-3 space-y-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.botDetection.userAgentFiltering}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              botDetection: { ...formData.botDetection, userAgentFiltering: e.target.checked },
+                            })
+                          }
+                        />
+                        <span className="ml-2 text-xs text-gray-700">User-Agent Filtering</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.botDetection.botSignatureDetection}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              botDetection: { ...formData.botDetection, botSignatureDetection: e.target.checked },
+                            })
+                          }
+                        />
+                        <span className="ml-2 text-xs text-gray-700">Bot Signature Detection</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={formData.botDetection.crawlerBlocking}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              botDetection: { ...formData.botDetection, crawlerBlocking: e.target.checked },
+                            })
+                          }
+                        />
+                        <span className="ml-2 text-xs text-gray-700">Crawler Blocking</span>
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <label className="mb-3 flex items-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       checked={formData.advancedFileUpload.enabled}
                       onChange={(e) =>
                         setFormData({
