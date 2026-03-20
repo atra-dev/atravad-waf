@@ -11,6 +11,12 @@ function isAllowedSignInProvider(expectedAuthProvider, actualSignInProvider) {
   return actualSignInProvider === 'password' || actualSignInProvider === 'custom';
 }
 
+function normalizeAuthProviderFromSignIn(signInProvider) {
+  if (signInProvider === 'google.com') return 'google';
+  if (signInProvider === 'password' || signInProvider === 'custom') return 'password';
+  return null;
+}
+
 /**
  * GET /api/users/me
  * Get current user details for pre-provisioned managed users only
@@ -54,8 +60,26 @@ export async function GET(request) {
       );
     }
 
-    const expectedAuthProvider = userData.authProvider || 'password';
     const actualSignInProvider = user.firebase?.sign_in_provider || null;
+    const normalizedEmail = normalizeEmail(userData.email);
+
+    if (!userData.authProvider) {
+      const inferredAuthProvider = normalizeAuthProviderFromSignIn(actualSignInProvider);
+      if (inferredAuthProvider) {
+        const migratedAt = new Date().toISOString();
+        await adminDb.collection('users').doc(normalizedEmail).update({
+          authProvider: inferredAuthProvider,
+          updatedAt: migratedAt,
+        });
+        userData = {
+          ...userData,
+          authProvider: inferredAuthProvider,
+          updatedAt: migratedAt,
+        };
+      }
+    }
+
+    const expectedAuthProvider = userData.authProvider || 'password';
     if (!isAllowedSignInProvider(expectedAuthProvider, actualSignInProvider)) {
       return NextResponse.json(
         {
@@ -68,7 +92,6 @@ export async function GET(request) {
 
     if (userData.invitationPending === true) {
       const acceptedAt = new Date().toISOString();
-      const normalizedEmail = normalizeEmail(userData.email);
       await adminDb.collection('users').doc(normalizedEmail).update({
         uid: user.uid,
         invitationPending: false,
