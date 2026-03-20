@@ -3,6 +3,14 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getUserByEmail, normalizeEmail } from '@/lib/user-utils';
 import { getCurrentUser } from '@/lib/api-helpers';
 
+function isAllowedSignInProvider(expectedAuthProvider, actualSignInProvider) {
+  if (expectedAuthProvider === 'google') {
+    return actualSignInProvider === 'google.com';
+  }
+
+  return actualSignInProvider === 'password' || actualSignInProvider === 'custom';
+}
+
 /**
  * GET /api/users/me
  * Get current user details for pre-provisioned managed users only
@@ -42,6 +50,18 @@ export async function GET(request) {
     if (!userData) {
       return NextResponse.json(
         { error: 'Access denied: account is not provisioned by ATRAVAD WAF' },
+        { status: 403 }
+      );
+    }
+
+    const expectedAuthProvider = userData.authProvider || 'password';
+    const actualSignInProvider = user.firebase?.sign_in_provider || null;
+    if (!isAllowedSignInProvider(expectedAuthProvider, actualSignInProvider)) {
+      return NextResponse.json(
+        {
+          error: 'Access denied: account is not authorized for this sign-in method',
+          expectedAuthProvider,
+        },
         { status: 403 }
       );
     }

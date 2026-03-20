@@ -73,6 +73,15 @@ function LoginPageContent() {
     if (errorData?.error === 'Access denied: account is not provisioned by ATRAVAD WAF') {
       return 'Your account has not been provisioned for ATRAVAD WAF access.';
     }
+    if (errorData?.error === 'Access denied: account is not authorized for this sign-in method') {
+      if (errorData?.expectedAuthProvider === 'google') {
+        return 'This account is authorized for Google sign-in only.';
+      }
+      if (errorData?.expectedAuthProvider === 'password') {
+        return 'This account is authorized for password sign-in only.';
+      }
+      return 'This account is not authorized for the selected sign-in method.';
+    }
     return 'Your account could not be verified for managed access.';
   };
   

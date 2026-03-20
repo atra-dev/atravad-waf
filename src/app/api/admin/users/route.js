@@ -59,6 +59,10 @@ export async function GET(request) {
           role: userData.role,
           tenantName: userData.tenantName,
           tenant: tenantData,
+          authProvider: userData.authProvider || 'password',
+          invitationPending: userData.invitationPending === true,
+          invitedAt: userData.invitedAt || null,
+          acceptedAt: userData.acceptedAt || null,
           createdAt: userData.createdAt,
           updatedAt: userData.updatedAt,
         };
@@ -85,7 +89,7 @@ export async function GET(request) {
 /**
  * POST /api/admin/users
  * Create a new user (admin or client) for a tenant (Super Admin only)
- * Body: { email, password, role, tenantName }
+ * Body: { email, password?, role, tenantName, authProvider? }
  */
 export async function POST(request) {
   try {
@@ -111,7 +115,8 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { email, password, role, tenantName } = body;
+    const { email, password, role, tenantName, authProvider } = body;
+    const normalizedAuthProvider = authProvider === 'google' ? 'google' : 'password';
 
     // Validation
     if (!email || !email.includes('@')) {
@@ -164,20 +169,20 @@ export async function POST(request) {
       );
     }
 
-    // Create user in Firebase Auth
-    let firebaseUser;
+    if (normalizedAuthProvider === 'password' && (!password || String(password).length < 6)) {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters for password-based accounts' },
+        { status: 400 }
+      );
+    }
+
+    // Create user in Firebase Auth only for password-based managed accounts.
+    let firebaseUser = null;
     try {
-      if (password) {
-        // Create user with password
+      if (normalizedAuthProvider === 'password') {
         firebaseUser = await adminAuth.createUser({
           email: normalizedEmail,
           password: password,
-          emailVerified: false,
-        });
-      } else {
-        // Create user without password (for OAuth users)
-        firebaseUser = await adminAuth.createUser({
-          email: normalizedEmail,
           emailVerified: false,
         });
       }
@@ -193,13 +198,18 @@ export async function POST(request) {
     }
 
     // Create user document in Firestore
+    const now = new Date().toISOString();
     const userData = {
       email: normalizedEmail,
-      uid: firebaseUser.uid,
+      uid: firebaseUser?.uid || null,
       role: role,
       tenantName: normalizedTenantName,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      authProvider: normalizedAuthProvider,
+      invitationPending: normalizedAuthProvider === 'google',
+      invitedAt: normalizedAuthProvider === 'google' ? now : null,
+      acceptedAt: null,
+      createdAt: now,
+      updatedAt: now,
     };
 
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
@@ -218,6 +228,8 @@ export async function POST(request) {
       tenant: tenantData,
       createdAt: userData.createdAt,
       updatedAt: userData.updatedAt,
+      authProvider: userData.authProvider,
+      invitationPending: userData.invitationPending,
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
@@ -230,12 +242,12 @@ export async function POST(request) {
 
 /**
  * PUT /api/admin/users
- * Update user role and/or tenant (Super Admin only)
- * Body: { email, role?, tenantName? }
+ * Update user role, tenant, and managed auth mode (Super Admin only)
+ * Body: { email, role?, tenantName?, authProvider?, password? }
  */
 export async function PUT(request) {
   try {
-    if (!adminDb) {
+    if (!adminDb || !adminAuth) {
       return NextResponse.json(
         { error: 'Firebase Admin not initialized' },
         { status: 500 }
@@ -257,7 +269,7 @@ export async function PUT(request) {
     }
 
     const body = await request.json();
-    const { email, role, tenantName } = body;
+    const { email, role, tenantName, authProvider, password } = body;
 
     if (!email) {
       return NextResponse.json(
@@ -329,6 +341,63 @@ export async function PUT(request) {
       }
     }
 
+    if (authProvider !== undefined) {
+      const nextAuthProvider = authProvider === 'google' ? 'google' : 'password';
+      const previousAuthProvider = userData.authProvider || 'password';
+
+      if (nextAuthProvider === 'password') {
+        if (!password || String(password).length < 6) {
+          return NextResponse.json(
+            { error: 'Password must be at least 6 characters when converting to password access' },
+            { status: 400 }
+          );
+        }
+
+        try {
+          if (userData.uid) {
+            await adminAuth.updateUser(userData.uid, { password });
+            updateData.uid = userData.uid;
+          } else {
+            const existingAuthUser = await adminAuth.getUserByEmail(normalizedEmail).catch((error) => {
+              if (error.code === 'auth/user-not-found') return null;
+              throw error;
+            });
+
+            if (existingAuthUser) {
+              await adminAuth.updateUser(existingAuthUser.uid, { password });
+              updateData.uid = existingAuthUser.uid;
+            } else {
+              const createdAuthUser = await adminAuth.createUser({
+                email: normalizedEmail,
+                password,
+                emailVerified: false,
+              });
+              updateData.uid = createdAuthUser.uid;
+            }
+          }
+        } catch (authError) {
+          console.error('Error converting user to password auth:', authError);
+          return NextResponse.json(
+            { error: 'Failed to convert account to password-based access' },
+            { status: 500 }
+          );
+        }
+
+        updateData.authProvider = 'password';
+        updateData.invitationPending = false;
+        updateData.acceptedAt =
+          previousAuthProvider === 'password'
+            ? (userData.acceptedAt || null)
+            : new Date().toISOString();
+        updateData.invitedAt = userData.invitedAt || null;
+      } else {
+        updateData.authProvider = 'google';
+        updateData.invitationPending = true;
+        updateData.acceptedAt = null;
+        updateData.invitedAt = new Date().toISOString();
+      }
+    }
+
     // Update user document
     await adminDb.collection('users').doc(normalizedEmail).update(updateData);
 
@@ -358,6 +427,10 @@ export async function PUT(request) {
       role: updatedUserData.role,
       tenantName: updatedUserData.tenantName,
       tenant: tenantData,
+      authProvider: updatedUserData.authProvider || 'password',
+      invitationPending: updatedUserData.invitationPending === true,
+      invitedAt: updatedUserData.invitedAt || null,
+      acceptedAt: updatedUserData.acceptedAt || null,
       createdAt: updatedUserData.createdAt,
       updatedAt: updatedUserData.updatedAt,
     });

@@ -69,6 +69,30 @@ export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState(null);
   const [selectedTenantFilter, setSelectedTenantFilter] = useState('all');
+  const [tenantForm, setTenantForm] = useState({ name: '', assignUserEmail: '' });
+  const [userForm, setUserForm] = useState({
+    email: '',
+    password: '',
+    role: 'admin',
+    tenantName: '',
+    authProvider: 'password',
+  });
+  const [creatingTenant, setCreatingTenant] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [savingUserId, setSavingUserId] = useState('');
+  const [removingUserId, setRemovingUserId] = useState('');
+  const [userEdits, setUserEdits] = useState({});
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timeoutId = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
+
+  const showToast = (message, tone = 'success') => {
+    setToast({ message, tone });
+  };
 
   useEffect(() => {
     checkAccessAndFetchData();
@@ -133,6 +157,19 @@ export default function SuperAdminPage() {
 
       setTenants(tenantsData || []);
       setUsers(usersData || []);
+      setUserEdits(
+        Object.fromEntries(
+          (usersData || []).map((user) => [
+            user.id,
+            {
+              role: user.role || 'client',
+              tenantName: user.tenantName || '',
+              authProvider: user.authProvider || 'password',
+              password: '',
+            },
+          ])
+        )
+      );
       setActivity({
         logs: activityData.logs || [],
       });
@@ -148,6 +185,151 @@ export default function SuperAdminPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleCreateTenant = async (e) => {
+    e.preventDefault();
+    setCreatingTenant(true);
+    try {
+      const response = await fetch('/api/admin/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: tenantForm.name,
+          assignUserEmail: tenantForm.assignUserEmail || undefined,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || 'Failed to create tenant', 'error');
+        return;
+      }
+
+      setTenantForm({ name: '', assignUserEmail: '' });
+      await fetchData(true);
+      showToast('Tenant created successfully.');
+    } catch (err) {
+      console.error('Error creating tenant:', err);
+      showToast('Failed to create tenant.', 'error');
+    } finally {
+      setCreatingTenant(false);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setCreatingUser(true);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userForm.email,
+          password: userForm.authProvider === 'password' ? userForm.password : undefined,
+          role: userForm.role,
+          tenantName: userForm.tenantName,
+          authProvider: userForm.authProvider,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || 'Failed to create user', 'error');
+        return;
+      }
+
+      setUserForm({
+        email: '',
+        password: '',
+        role: 'admin',
+        tenantName: userForm.tenantName,
+        authProvider: 'password',
+      });
+      await fetchData(true);
+      showToast('Managed user provisioned successfully.');
+    } catch (err) {
+      console.error('Error creating user:', err);
+      showToast('Failed to create user.', 'error');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const handleUserEditChange = (userId, field, value) => {
+    setUserEdits((prev) => ({
+      ...prev,
+      [userId]: {
+        ...(prev[userId] || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSaveUser = async (userId) => {
+    const pendingEdit = userEdits[userId];
+    const currentUser = users.find((item) => item.id === userId);
+    if (!pendingEdit || !currentUser) return;
+
+    setSavingUserId(userId);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userId,
+          role: pendingEdit.role,
+          tenantName: pendingEdit.tenantName || null,
+          authProvider: pendingEdit.authProvider,
+          password: pendingEdit.authProvider === 'password' ? pendingEdit.password : undefined,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || 'Failed to update user access.', 'error');
+        return;
+      }
+
+      await fetchData(true);
+      showToast('User access updated successfully.');
+    } catch (err) {
+      console.error('Error updating user:', err);
+      showToast('Failed to update user access.', 'error');
+    } finally {
+      setSavingUserId('');
+    }
+  };
+
+  const handleRemoveUser = async (userId) => {
+    const currentUser = users.find((item) => item.id === userId);
+    if (!currentUser) return;
+
+    const confirmed = window.confirm(`Remove managed access for ${currentUser.email}? This will delete the managed user record.`);
+    if (!confirmed) return;
+
+    setRemovingUserId(userId);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userId }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || 'Failed to remove managed access.', 'error');
+        return;
+      }
+
+      await fetchData(true);
+      showToast('Managed access removed successfully.');
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      showToast('Failed to remove managed access.', 'error');
+    } finally {
+      setRemovingUserId('');
     }
   };
 
@@ -175,6 +357,18 @@ export default function SuperAdminPage() {
   return (
     <Layout>
       <div className="space-y-8">
+        {toast ? (
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+              toast.tone === 'error'
+                ? 'border-red-200 bg-red-50 text-red-800'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            {toast.message}
+          </div>
+        ) : null}
+
         {/* Header */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -328,46 +522,77 @@ export default function SuperAdminPage() {
             {loading ? (
               <SkeletonLoader variant="table" />
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">All Tenants</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sites</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {tenants.map((tenant) => (
-                    <tr key={tenant.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{tenant.name}</div>
-                        <div className="text-sm text-gray-500">{tenant.id}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.userCount || 0}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.appCount || 0}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.policyCount || 0}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
-                      </td>
-                    </tr>
-                  ))}
-                  {tenants.length === 0 && (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                        No tenants found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+              <div className="space-y-4">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900">Create Tenant</h3>
+                  <p className="mt-1 text-sm text-gray-500">Provision a managed tenant and optionally assign an existing user as its admin.</p>
+                  <form onSubmit={handleCreateTenant} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <input
+                      type="text"
+                      value={tenantForm.name}
+                      onChange={(e) => setTenantForm((prev) => ({ ...prev, name: e.target.value }))}
+                      placeholder="Tenant name"
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <input
+                      type="email"
+                      value={tenantForm.assignUserEmail}
+                      onChange={(e) => setTenantForm((prev) => ({ ...prev, assignUserEmail: e.target.value }))}
+                      placeholder="Assign user email (optional)"
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={creatingTenant || !tenantForm.name.trim()}
+                      className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {creatingTenant ? 'Creating...' : 'Create Tenant'}
+                    </button>
+                  </form>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900">All Tenants</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sites</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {tenants.map((tenant) => (
+                          <tr key={tenant.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-gray-900">{tenant.name}</div>
+                              <div className="text-sm text-gray-500">{tenant.id}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.userCount || 0}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.appCount || 0}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.policyCount || 0}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                        {tenants.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                              No tenants found
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </>
@@ -379,15 +604,14 @@ export default function SuperAdminPage() {
               <SkeletonLoader variant="table" />
             ) : (
               <div className="space-y-4">
-                {/* Header with filter only (read-only for Super Admin) */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">All Users</h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Super admins control managed account provisioning, tenant assignment, and platform-wide user access.
-                        </p>
-                      </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Provision Managed User</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Create password-based or Google-authorized accounts and bind them to a managed tenant.
+                      </p>
+                    </div>
                     <div className="flex items-center gap-3">
                       <select
                         value={selectedTenantFilter}
@@ -403,9 +627,75 @@ export default function SuperAdminPage() {
                       </select>
                     </div>
                   </div>
+                  <form onSubmit={handleCreateUser} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <input
+                      type="email"
+                      value={userForm.email}
+                      onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
+                      placeholder="User email"
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                    <select
+                      value={userForm.tenantName}
+                      onChange={(e) => setUserForm((prev) => ({ ...prev, tenantName: e.target.value }))}
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select tenant</option>
+                      {tenants.map((tenant) => (
+                        <option key={tenant.id} value={tenant.id}>
+                          {tenant.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={userForm.role}
+                      onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value }))}
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="client">Client</option>
+                    </select>
+                    <select
+                      value={userForm.authProvider}
+                      onChange={(e) =>
+                        setUserForm((prev) => ({
+                          ...prev,
+                          authProvider: e.target.value,
+                          password: e.target.value === 'password' ? prev.password : '',
+                        }))
+                      }
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="password">Email + Password</option>
+                      <option value="google">Google</option>
+                    </select>
+                    <div className="flex gap-3">
+                      <input
+                        type="password"
+                        value={userForm.password}
+                        onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder={userForm.authProvider === 'password' ? 'Password' : 'Not required for Google'}
+                        disabled={userForm.authProvider !== 'password'}
+                        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                      />
+                      <button
+                        type="submit"
+                        disabled={
+                          creatingUser ||
+                          !userForm.email.trim() ||
+                          !userForm.tenantName ||
+                          (userForm.authProvider === 'password' && userForm.password.length < 6)
+                        }
+                        className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {creatingUser ? 'Creating...' : 'Create User'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
 
-                {/* Users Table - read-only */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
@@ -414,7 +704,10 @@ export default function SuperAdminPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Auth</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -429,20 +722,106 @@ export default function SuperAdminPage() {
                                 <div className="font-medium text-gray-900">{user.email}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
-                                  user.role === 'admin' ? 'bg-blue-100 text-blue-800' :
-                                  user.role === 'analyst' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {user.role || 'client'}
-                                </span>
+                                {user.role === 'super_admin' ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    super_admin
+                                  </span>
+                                ) : (
+                                  <select
+                                    value={userEdits[user.id]?.role || user.role || 'client'}
+                                    onChange={(e) => handleUserEditChange(user.id, 'role', e.target.value)}
+                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="admin">admin</option>
+                                    <option value="client">client</option>
+                                  </select>
+                                )}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {user.tenant?.name || '-'}
+                                {user.role === 'super_admin' ? (
+                                  '-'
+                                ) : (
+                                  <select
+                                    value={userEdits[user.id]?.tenantName ?? user.tenantName ?? ''}
+                                    onChange={(e) => handleUserEditChange(user.id, 'tenantName', e.target.value)}
+                                    className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {tenants.map((tenant) => (
+                                      <option key={tenant.id} value={tenant.id}>
+                                        {tenant.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {user.role === 'super_admin' ? (
+                                  user.authProvider || 'password'
+                                ) : (
+                                  <div className="space-y-2">
+                                    <select
+                                      value={userEdits[user.id]?.authProvider || user.authProvider || 'password'}
+                                      onChange={(e) => handleUserEditChange(user.id, 'authProvider', e.target.value)}
+                                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                      <option value="password">password</option>
+                                      <option value="google">google</option>
+                                    </select>
+                                    <input
+                                      type="password"
+                                      value={userEdits[user.id]?.password || ''}
+                                      onChange={(e) => handleUserEditChange(user.id, 'password', e.target.value)}
+                                      placeholder={
+                                        (userEdits[user.id]?.authProvider || user.authProvider || 'password') === 'password'
+                                          ? 'Set new password'
+                                          : 'Not required for Google'
+                                      }
+                                      disabled={(userEdits[user.id]?.authProvider || user.authProvider || 'password') !== 'password'}
+                                      className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                                    />
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {user.invitationPending ? 'Pending activation' : 'Active'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {user.role === 'super_admin' ? (
+                                  <span className="text-xs text-gray-400">Protected</span>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveUser(user.id)}
+                                      disabled={
+                                        savingUserId === user.id ||
+                                        (
+                                          (userEdits[user.id]?.authProvider || user.authProvider || 'password') === 'password' &&
+                                          (
+                                            (user.authProvider || 'password') !== 'password' ||
+                                            String(userEdits[user.id]?.password || '').length > 0
+                                          ) &&
+                                          String(userEdits[user.id]?.password || '').length < 6
+                                        )
+                                      }
+                                      className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                                    >
+                                      {savingUserId === user.id ? 'Saving...' : 'Save'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveUser(user.id)}
+                                      disabled={removingUserId === user.id}
+                                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                    >
+                                      {removingUserId === user.id ? 'Removing...' : 'Remove'}
+                                    </button>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -451,7 +830,7 @@ export default function SuperAdminPage() {
                           return user.tenantName === selectedTenantFilter;
                         }).length === 0 && (
                           <tr>
-                            <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
+                            <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
                               No users found
                             </td>
                           </tr>
