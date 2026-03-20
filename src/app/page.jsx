@@ -94,61 +94,62 @@ const deploymentSteps = [
 
 const pricingPlans = [
   {
-    name: 'Basic Platform',
-    price: '$189',
+    name: 'Managed Essential',
+    price: '$249',
     cadence: '/yr',
-    description: 'For smaller websites that need essential WAF coverage with controlled platform usage.',
+    description: 'For smaller websites that need fully managed WAF protection without building an in-house security team.',
     highlight: false,
     features: [
       '1 protected website or application',
-      'ModSecurity + OWASP CRS protection',
-      'Up to 250,000 inspected requests per month',
-      'Managed SSL or custom certificate support',
-      'Basic policy controls and 7-day analytics history',
-      'Email support',
+      'Managed WAF monitoring and policy handling',
+      '24/7 cyber defense operations center oversight',
+      'Managed SSL and domain onboarding support',
+      'Threat blocking with core analytics visibility',
+      'Email and scheduled support assistance',
     ],
   },
   {
-    name: 'Pro Platform',
-    price: '$289',
+    name: 'Managed Professional',
+    price: '$399',
     cadence: '/yr',
-    description: 'For growing businesses that need stronger protection, better visibility, and more traffic allowance.',
+    description: 'For growing businesses that need stronger managed protection, faster handling, and deeper security visibility.',
     highlight: true,
     features: [
       '1 protected website or application',
-      'Up to 1,000,000 inspected requests per month',
-      'Bot mitigation, geo controls, and rate limiting',
-      'Advanced policy management and virtual patching',
-      'Analytics dashboard with 30-day threat visibility',
-      'Priority support',
+      '24/7 cyber defense operations center management',
+      'Managed bot mitigation, geo controls, and rate limiting',
+      'Virtual patching and tuned policy adjustments',
+      'Extended analytics and threat visibility',
+      'Priority support and faster response handling',
     ],
   },
   {
-    name: 'Business Platform',
-    price: '$469',
+    name: 'Managed Business',
+    price: '$649',
     cadence: '/yr',
-    description: 'For higher-traffic environments that need broader resource allocation and deeper operational coverage.',
+    description: 'For business-critical applications that require higher-touch managed defense and stronger operational coverage.',
     highlight: false,
     features: [
       '1 protected website or application',
-      'Up to 3,000,000 inspected requests per month',
-      'Full bot, geo, rate-limit, and virtual patching controls',
-      'Analytics dashboard with 90-day threat visibility',
-      'Priority support with faster response handling',
+      '24/7 managed WAF operations and escalation handling',
+      'Advanced threat controls with hands-on tuning',
+      'Longer analytics retention and richer reporting',
+      'Priority support with faster response targets',
+      'Commercial-grade onboarding and service guidance',
     ],
   },
   {
-    name: 'Multi-Site & Custom',
+    name: 'Managed Multi-Site & Custom',
     price: 'Custom',
     cadence: '',
-    description: 'For agencies, teams with multiple protected assets, or customers needing tailored resource allocation.',
+    description: 'For agencies, larger organizations, and customers needing a fully tailored managed security service.',
     highlight: false,
     features: [
-      '2 or more protected websites and custom traffic allocations',
-      'Tailored analytics, logging, and onboarding coverage',
-      'Multi-tenant operations and tailored policy workflows',
-      'Custom support and rollout planning',
-      'Dedicated commercial discussion',
+      'Multiple protected websites or application portfolios',
+      'Tailored 24/7 cyber defense operations coverage',
+      'Custom onboarding, policy workflows, and reporting',
+      'Dedicated service planning and commercial alignment',
+      'Custom SLA and support structure',
     ],
   },
 ];
@@ -455,11 +456,12 @@ export default function Home() {
           <div className="max-w-3xl">
             <SectionEyebrow>Pricing</SectionEyebrow>
             <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
-              Annual pricing built for real protection and sustainable resource usage.
+              Managed WAF-as-a-service pricing for organizations that want security operated for them.
             </h2>
             <p className="mt-5 text-lg leading-8 text-slate-600">
-              These plans are positioned below premium competitors while still accounting for inspected traffic,
-              analytics retention, SSL management, and platform resources consumed by each protected site.
+              ATRAVAD WAF is a managed service operated by a 24/7 cyber defense operations center. We take care of
+              policy handling, traffic protection, monitoring, and operational defense so your team can focus on
+              running and growing the business.
             </p>
           </div>
 
