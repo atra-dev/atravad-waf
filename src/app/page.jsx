@@ -450,7 +450,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-white py-24 text-slate-950">
+      <section id="pricing" className="bg-white py-24 text-slate-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="max-w-3xl">
             <SectionEyebrow>Pricing</SectionEyebrow>
@@ -557,24 +557,26 @@ export default function Home() {
             </div>
 
             <div className="rounded-[32px] border border-cyan-400/20 bg-[linear-gradient(180deg,rgba(34,211,238,0.12),rgba(8,17,31,0.94))] p-8 shadow-[0_26px_90px_rgba(2,6,23,0.55)]">
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-200">Call to action</p>
-              <h3 className="mt-5 text-3xl font-semibold text-white">Position your WAF as visible protection, not invisible infrastructure.</h3>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-200">Get started</p>
+              <h3 className="mt-5 text-3xl font-semibold text-white">
+                Protect production websites and APIs with a managed enterprise WAF.
+              </h3>
               <p className="mt-4 text-sm leading-7 text-slate-200">
-                Use the landing page to show customers exactly what the service does: block threats, secure delivery,
-                expose operational insight, and simplify deployment.
+                Deliver commercially credible protection with managed SSL, policy enforcement, threat visibility, and
+                security controls built for live customer environments.
               </p>
               <div className="mt-8 space-y-3">
                 <Link
                   href="/login"
                   className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
                 >
-                  Open ATRAVAD WAF
+                  Start with ATRAVAD WAF
                 </Link>
                 <a
-                  href="#capabilities"
+                  href="#pricing"
                   className="flex w-full items-center justify-center rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white hover:border-white/35"
                 >
-                  Review platform features
+                  Review pricing
                 </a>
               </div>
             </div>
