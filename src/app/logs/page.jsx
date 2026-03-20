@@ -290,6 +290,7 @@ export default function LogsPage() {
       const params = new URLSearchParams();
       params.append('hours', '24');
       if (filters.site) params.append('site', filters.site);
+      if (filters.severity) params.append('severity', filters.severity);
       if (filters.action) params.append('decision', filters.action);
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
