@@ -32,9 +32,9 @@ const capabilityHighlights = [
       'Enforce API key presence, auth format expectations, and version rules for sensitive endpoints.',
   },
   {
-    title: 'Secure SSL Delivery',
+      title: 'Managed SSL Delivery',
     description:
-      "Support Let's Encrypt auto-provisioning, custom certificates, and SNI-based domain handling.",
+      'We provision and manage certificate coverage, custom SSL onboarding, and SNI-based domain handling for protected applications.',
   },
   {
     title: 'Operational Visibility',
@@ -232,11 +232,11 @@ export default function Home() {
           <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
-                <img src="/logo.png" alt="ATRAVAD WAF" className="h-8 w-8 object-contain" />
+                <img src="/logo.png" alt="ATRAVA Defense" className="h-8 w-8 object-contain" />
               </div>
               <div>
-                <p className="text-sm font-semibold tracking-[0.2em] text-white/70">ATRAVAD WAF</p>
-                <p className="text-xs text-white/45">Enterprise web application firewall</p>
+                <p className="text-sm font-semibold tracking-[0.2em] text-white/70">ATRAVA Defense</p>
+                <p className="text-xs text-white/45">Managed WAF-as-a-service</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -262,7 +262,7 @@ export default function Home() {
                 Let us take care of your cyber defense so you can focus on running and growing your business.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                ATRAVAD WAF is a managed WAF-as-a-service operated by a 24/7 cyber defense operations center,
+                ATRAVA Defense is a managed WAF-as-a-service operated by a 24/7 cyber defense operations center,
                 protecting your websites and APIs with continuous monitoring, policy enforcement, threat blocking,
                 managed SSL, and production-ready security operations.
               </p>
@@ -331,7 +331,7 @@ export default function Home() {
                     <ShieldIcon className="h-10 w-10 text-cyan-300" />
                   </div>
                   <div className="mt-5 space-y-3">
-                    {['Traffic reaches ATRAVAD edge', 'Threats are filtered by policy engine', 'Clean traffic is forwarded to origin'].map((item) => (
+                    {['Traffic reaches the ATRAVA Defense edge', 'Threats are filtered by the policy engine', 'Clean traffic is forwarded to origin'].map((item) => (
                       <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-3">
                         <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
                         <span className="text-sm text-white/85">{item}</span>
@@ -459,7 +459,7 @@ export default function Home() {
               Managed WAF-as-a-service pricing for organizations that want security operated for them.
             </h2>
             <p className="mt-5 text-lg leading-8 text-slate-600">
-              ATRAVAD WAF is a managed service operated by a 24/7 cyber defense operations center. We take care of
+              ATRAVA Defense is a managed service operated by a 24/7 cyber defense operations center. We take care of
               policy handling, traffic protection, monitoring, and operational defense so your team can focus on
               running and growing the business.
             </p>
@@ -542,7 +542,7 @@ export default function Home() {
                 Operate security from one control layer without adding complexity for customers.
               </h2>
               <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
-                ATRAVAD WAF gives your team one place to manage policies, SSL, protected applications, analytics, and
+                ATRAVA Defense gives your team one place to manage policies, SSL, protected applications, analytics, and
                 tenant-scoped activity while customers experience a clean, managed protection layer in front of their
                 sites and APIs.
               </p>
@@ -576,7 +576,7 @@ export default function Home() {
                   href="/login"
                   className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 hover:bg-cyan-300"
                 >
-                  Start with ATRAVAD WAF
+                  Start with ATRAVA Defense
                 </Link>
                 <a
                   href="#pricing"

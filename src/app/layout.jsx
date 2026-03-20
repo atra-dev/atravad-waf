@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "ATRAVA-D WAF",
+  title: "ATRAVA Defense - Managed WAF-as-a-service",
   description: "Web Application Firewall Management Platform",
   icons: {
     icon: "/favicon.ico",

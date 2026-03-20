@@ -55,7 +55,7 @@ export async function GET(request) {
 
     if (!userData) {
       return NextResponse.json(
-        { error: 'Access denied: account is not provisioned by ATRAVAD WAF' },
+        { error: 'Access denied: account is not provisioned by ATRAVA Defense' },
         { status: 403 }
       );
     }
@@ -144,7 +144,7 @@ export async function POST(request) {
     let userData = await getUserByEmail(adminDb, user.email);
     if (!userData) {
       return NextResponse.json(
-        { error: 'Access denied: account is not provisioned by ATRAVAD WAF' },
+        { error: 'Access denied: account is not provisioned by ATRAVA Defense' },
         { status: 403 }
       );
     }

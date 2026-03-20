@@ -544,7 +544,7 @@ export function PoliciesPageContent({
             </div>
 
             <p className="text-sm leading-7 text-gray-700">
-              ATRAVAD WAF is managed under super-admin-controlled RBAC. Contact the ATRAVAD WAF operations team to create your tenant, assign your account, and enable policy management access.
+              ATRAVA Defense is managed under super-admin-controlled RBAC. Contact the ATRAVA Defense operations team to create your tenant, assign your account, and enable policy management access.
             </p>
           </div>
         </div>

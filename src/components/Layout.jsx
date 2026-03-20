@@ -245,15 +245,15 @@ export default function Layout({ children }) {
                 <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white ring-1 ring-gray-200 overflow-hidden">
                   <img
                     src="/logo.png"
-                    alt="ATRAVA-D WAF logo"
+                    alt="ATRAVA Defense logo"
                     className="w-10 h-10 object-contain"
                   />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-                    ATRAVA-D WAF
+                    ATRAVA Defense
                   </h1>
-                  <p className="text-xs text-gray-500">Enterprise Security Platform</p>
+                  <p className="text-xs text-gray-500">Managed WAF-as-a-service</p>
                 </div>
               </div>
             </div>

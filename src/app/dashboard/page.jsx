@@ -195,10 +195,10 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900">Managed access pending</h3>
                 <p className="mt-2 text-sm text-gray-700">
-                  ATRAVAD WAF is provisioned as a managed service. A super admin must create your tenant, assign your account, and complete onboarding before dashboard access is enabled.
+                  ATRAVA Defense is provisioned as a managed service. A super admin must create your tenant, assign your account, and complete onboarding before dashboard access is enabled.
                 </p>
                 <p className="mt-2 text-sm text-gray-600">
-                  Contact the ATRAVAD WAF operations team to request tenant assignment or account provisioning.
+                  Contact the ATRAVA Defense operations team to request tenant assignment or account provisioning.
                 </p>
               </div>
             </div>

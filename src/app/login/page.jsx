@@ -48,7 +48,7 @@ function LoginPageContent() {
       return 'Enter a valid email address.';
     }
     if (code === 'auth/user-disabled') {
-      return 'This account is currently disabled. Contact the ATRAVAD WAF team.';
+      return 'This account is currently disabled. Contact the ATRAVA Defense team.';
     }
     if (
       code === 'auth/user-not-found' ||
@@ -57,7 +57,7 @@ function LoginPageContent() {
       code === 'auth/invalid-login-credentials'
     ) {
       return mode === 'google'
-        ? 'This Google account is not authorized for ATRAVAD WAF access.'
+        ? 'This Google account is not authorized for ATRAVA Defense access.'
         : 'Invalid sign-in credentials or the account is not authorized.';
     }
     if (code === 'auth/too-many-requests') {
@@ -65,13 +65,13 @@ function LoginPageContent() {
     }
 
     return mode === 'google'
-      ? 'Unable to sign in with Google. Please contact the ATRAVAD WAF team if access should be enabled.'
-      : 'Unable to sign in. Please verify your access with the ATRAVAD WAF team.';
+      ? 'Unable to sign in with Google. Please contact the ATRAVA Defense team if access should be enabled.'
+      : 'Unable to sign in. Please verify your access with the ATRAVA Defense team.';
   };
 
   const getFriendlySessionError = (errorData) => {
-    if (errorData?.error === 'Access denied: account is not provisioned by ATRAVAD WAF') {
-      return 'Your account has not been provisioned for ATRAVAD WAF access.';
+    if (errorData?.error === 'Access denied: account is not provisioned by ATRAVA Defense') {
+      return 'Your account has not been provisioned for ATRAVA Defense access.';
     }
     if (errorData?.error === 'Access denied: account is not authorized for this sign-in method') {
       if (errorData?.expectedAuthProvider === 'google') {
@@ -262,16 +262,16 @@ function LoginPageContent() {
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white ring-1 ring-gray-200 shadow-lg overflow-hidden">
               <img
                 src="/logo.png"
-                alt="ATRAVA-D WAF logo"
+                alt="ATRAVA Defense logo"
                 className="w-16 h-16 object-contain"
               />
             </div>
           </div>
           <h1 className="text-4xl font-bold text-gray-900 tracking-tight">
-            ATRAVA-D WAF
+            ATRAVA Defense
           </h1>
           <p className="mt-2 text-base text-gray-600 font-medium">
-            Enterprise Web Application Firewall
+            Managed WAF-as-a-service
           </p>
           <p className="mt-1 text-sm text-gray-500">
             Sign in to your managed security dashboard
@@ -282,7 +282,7 @@ function LoginPageContent() {
           <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-4">
             <p className="text-sm font-semibold text-blue-900">Managed access only</p>
             <p className="mt-1 text-sm text-blue-800">
-              User accounts and tenant assignments are provisioned by the ATRAVAD WAF super admin team as part of the managed service.
+              User accounts and tenant assignments are provisioned by the ATRAVA Defense super admin team as part of the managed service.
             </p>
           </div>
 
@@ -396,7 +396,7 @@ function LoginPageContent() {
         {/* Footer */}
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            Enterprise-grade Web Application Firewall Platform
+            Managed web application firewall platform
           </p>
         </div>
       </div>

@@ -492,10 +492,10 @@ export default function LogsPage() {
               <div className="max-w-2xl">
                 <h2 className="text-2xl font-bold text-gray-900">Tenant assignment required</h2>
                 <p className="mt-3 text-sm leading-7 text-gray-700">
-                  Security logs and analytics are available only after the ATRAVAD WAF super admin team provisions your tenant and assigns your account.
+                  Security logs and analytics are available only after the ATRAVA Defense super admin team provisions your tenant and assigns your account.
                 </p>
                 <p className="mt-2 text-sm leading-7 text-gray-600">
-                  Contact the ATRAVAD WAF operations team to complete managed onboarding and enable access to your security data.
+                  Contact the ATRAVA Defense operations team to complete managed onboarding and enable access to your security data.
                 </p>
               </div>
             </div>

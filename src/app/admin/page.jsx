@@ -381,7 +381,7 @@ export default function SuperAdminPage() {
                     <ActivityIcon className="h-7 w-7 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">WAF Super Admin</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">ATRAVA Defense Super Admin</h1>
                     <p className="text-sm text-gray-600">Platform-wide oversight and management</p>
                   </div>
                 </div>

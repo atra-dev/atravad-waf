@@ -274,7 +274,7 @@ export default function PoliciesList({
           <div className="max-w-3xl">
             <h2 className="text-2xl font-bold text-gray-900">Available Security Rules & Protections</h2>
             <p className="mt-2 text-sm text-gray-600">
-              Complete list of all security rules and protections provided by ATRAVAD WAF.
+              Complete list of all security rules and protections provided by ATRAVA Defense.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

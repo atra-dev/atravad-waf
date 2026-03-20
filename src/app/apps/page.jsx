@@ -668,7 +668,7 @@ const getTrafficBarHeight = (value, maxValue) => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Websites</h1>
               <p className="mt-1 text-sm text-gray-600">
-                Manage and protect your websites with ATRAVAD WAF
+                Manage and protect your websites with ATRAVA Defense
               </p>
             </div>
           </div>
@@ -681,10 +681,10 @@ const getTrafficBarHeight = (value, maxValue) => {
               <div className="max-w-2xl">
                 <h2 className="text-2xl font-bold text-gray-900">Tenant assignment required</h2>
                 <p className="mt-3 text-sm leading-7 text-gray-700">
-                  Website onboarding is handled by the ATRAVAD WAF super admin team. Your account must be assigned to a managed tenant before you can add or manage protected sites.
+                  Website onboarding is handled by the ATRAVA Defense super admin team. Your account must be assigned to a managed tenant before you can add or manage protected sites.
                 </p>
                 <p className="mt-2 text-sm leading-7 text-gray-600">
-                  Contact the ATRAVAD WAF operations team to provision your organization, create user access, and complete managed onboarding.
+                  Contact the ATRAVA Defense operations team to provision your organization, create user access, and complete managed onboarding.
                 </p>
               </div>
             </div>
@@ -1898,7 +1898,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                   </h2>
                   <p className="mt-2 text-gray-600">
                     {setupActivated ? (
-                      <>Your domain is pointing to ATRAVAD WAF and protection is active for <strong>{selectedAppForSetup.domain}</strong></>
+                      <>Your domain is pointing to ATRAVA Defense and protection is active for <strong>{selectedAppForSetup.domain}</strong></>
                     ) : (
                       <>Point your domain&apos;s DNS to activate WAF protection for <strong>{selectedAppForSetup.domain}</strong></>
                     )}
@@ -2010,8 +2010,8 @@ const getTrafficBarHeight = (value, maxValue) => {
 
                 <p className="text-xs text-gray-500 text-center">
                   {setupActivated
-                    ? 'ATRAVAD WAF is active for this site. Global DNS propagation may still vary briefly across some resolvers.'
-                    : 'Once DNS propagates, your site will be protected by ATRAVAD WAF. The status will update automatically.'}
+                    ? 'ATRAVA Defense is active for this site. Global DNS propagation may still vary briefly across some resolvers.'
+                    : 'Once DNS propagates, your site will be protected by ATRAVA Defense. The status will update automatically.'}
                 </p>
                     </>
                   );
