@@ -244,6 +244,77 @@ function shouldReturnJsonBlockedResponse(req) {
   return false;
 }
 
+function mergeVaryHeader(currentValue, additions = []) {
+  const values = new Map();
+  const pushValue = (value) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) return;
+    values.set(normalized.toLowerCase(), normalized);
+  };
+
+  String(currentValue || "")
+    .split(",")
+    .forEach((entry) => pushValue(entry));
+  additions.forEach((entry) => pushValue(entry));
+
+  return Array.from(values.values()).join(", ");
+}
+
+function isHtmlNavigationRequest(req) {
+  const method = String(req?.method || "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") return false;
+
+  const pathname = req?.url?.split("?")[0] || "/";
+  if (pathname.startsWith("/api/")) return false;
+  if (pathname.startsWith("/_next/")) return false;
+  if (pathname.startsWith("/.well-known/")) return false;
+
+  const accept = String(req?.headers?.accept || "").toLowerCase();
+  if (accept.includes("text/html")) return true;
+
+  return !/\.[a-z0-9]+$/i.test(pathname);
+}
+
+function isProtectedHtmlDocumentResponse(req, headers = {}) {
+  if (!isHtmlNavigationRequest(req)) return false;
+  const contentType = String(headers?.["content-type"] || headers?.["Content-Type"] || "").toLowerCase();
+  return !contentType || contentType.includes("text/html");
+}
+
+function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
+  if (!app?.policyId || !isProtectedHtmlDocumentResponse(req, headers)) {
+    return headers;
+  }
+
+  const nextHeaders = { ...headers };
+  delete nextHeaders.etag;
+  delete nextHeaders.ETag;
+  delete nextHeaders["last-modified"];
+  delete nextHeaders["Last-Modified"];
+  delete nextHeaders.expires;
+  delete nextHeaders.Expires;
+  delete nextHeaders.age;
+  delete nextHeaders.Age;
+
+  nextHeaders["Cache-Control"] =
+    "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, private";
+  nextHeaders.Pragma = "no-cache";
+  nextHeaders.Expires = "0";
+  nextHeaders["Surrogate-Control"] = "no-store";
+  nextHeaders["CDN-Cache-Control"] = "no-store";
+  nextHeaders["X-ATRAVAD-Document-Cache"] = "bypass";
+  nextHeaders.Vary = mergeVaryHeader(nextHeaders.Vary || nextHeaders.vary, [
+    "Accept",
+    "Accept-Encoding",
+    "X-Geo-Country",
+    "X-ATRAVAD-Geo-Country",
+    "CF-IPCountry",
+    "X-Vercel-IP-Country",
+  ]);
+
+  return nextHeaders;
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -463,7 +534,9 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
     "X-ATRAVAD-Client-IP": clientIp || "unknown",
     "X-ATRAVAD-Proxy-IP": proxyIp || "unknown",
     ...(isGeoBlocked ? { "X-ATRAVAD-Geo-Blocked": "true" } : {}),
-    ...(isGeoBlocked ? { "Clear-Site-Data": "\"cache\"" } : {}),
+    ...(isGeoBlocked
+      ? { "Clear-Site-Data": "\"cache\", \"storage\", \"cookies\"" }
+      : {}),
     ...cacheHeaders,
   });
 
@@ -1900,9 +1973,14 @@ export class ProxyWAFServer {
               return;
             }
             if (!clientRes.headersSent) {
+              const forwardedHeaders = applyProtectedDocumentHeaders(
+                clientReq,
+                proxyRes.headers,
+                app,
+              );
               clientRes.writeHead(
                 proxyRes.statusCode,
-                withWafFingerprintHeaders(proxyRes.headers),
+                withWafFingerprintHeaders(forwardedHeaders),
               );
               clientRes.end(body);
             }
@@ -1949,9 +2027,14 @@ export class ProxyWAFServer {
                 return;
               }
               if (!clientRes.headersSent) {
+                const forwardedHeaders = applyProtectedDocumentHeaders(
+                  clientReq,
+                  proxyRes.headers,
+                  app,
+                );
                 clientRes.writeHead(
                   proxyRes.statusCode,
-                  withWafFingerprintHeaders(proxyRes.headers),
+                  withWafFingerprintHeaders(forwardedHeaders),
                 );
               }
               clientRes.end(body);
@@ -1983,14 +2066,19 @@ export class ProxyWAFServer {
               }
             });
             return;
-          }
-          if (!clientRes.headersSent) {
-            clientRes.writeHead(
-              proxyRes.statusCode,
-              withWafFingerprintHeaders(proxyRes.headers),
-            );
-          }
-          proxyRes.pipe(clientRes);
+            }
+            if (!clientRes.headersSent) {
+              const forwardedHeaders = applyProtectedDocumentHeaders(
+                clientReq,
+                proxyRes.headers,
+                app,
+              );
+              clientRes.writeHead(
+                proxyRes.statusCode,
+                withWafFingerprintHeaders(forwardedHeaders),
+              );
+            }
+            proxyRes.pipe(clientRes);
           logProxyResult({
             statusCode: proxyRes.statusCode,
             level: proxyRes.statusCode >= 500 ? "error" : "info",
