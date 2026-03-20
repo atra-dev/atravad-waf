@@ -244,6 +244,29 @@ function shouldReturnJsonBlockedResponse(req) {
   return false;
 }
 
+function getBlockedReasonType(reason = "") {
+  const rawReason = String(reason || "");
+  if (/ip.*block|blacklist|not\s+whitelist|ip access control/i.test(rawReason)) {
+    return "ip";
+  }
+  if (/geographic blocking|blocked country|non-allowed country|geo-blocking/i.test(rawReason)) {
+    return "geo";
+  }
+  return "waf";
+}
+
+function isStaticAssetBypassCandidate(req) {
+  const pathname = req?.url?.split("?")[0] || "/";
+  return pathname.startsWith("/_next/static/");
+}
+
+function shouldBypassStaticAssetBlocking(req, matchedRules = [], reason = "") {
+  if (!isStaticAssetBypassCandidate(req)) return false;
+  const effectiveReason = reason || matchedRules?.[0]?.message || "";
+  const type = getBlockedReasonType(effectiveReason);
+  return type === "geo" || type === "ip";
+}
+
 function mergeVaryHeader(currentValue, additions = []) {
   const values = new Map();
   const pushValue = (value) => {
@@ -514,8 +537,9 @@ function renderBlockedHtml({
 
 function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwardedFor, reason, matchedRules } = {}) {
   const rawReason = String(reason || "");
-  const isIpBlocked = /ip.*block|blacklist|not\s+whitelist|ip access control/i.test(rawReason);
-  const isGeoBlocked = /geographic blocking|blocked country|non-allowed country|geo-blocking/i.test(rawReason);
+  const reasonType = getBlockedReasonType(rawReason);
+  const isIpBlocked = reasonType === "ip";
+  const isGeoBlocked = reasonType === "geo";
   const topRuleId = matchedRules?.[0]?.id ? String(matchedRules[0].id) : null;
   const blockPrefix = isGeoBlocked ? "GEO" : "IPB";
   const cacheHeaders = {
@@ -1613,34 +1637,44 @@ export class ProxyWAFServer {
         if (!inspection.allowed || inspection.blocked) {
           const clientIpInfo = getClientIpInfo(req);
           const topRule = inspection.matchedRules?.[0] || null;
-          sendBlockedResponse(res, req, {
-            host,
-            path: req.url,
-            clientIp: clientIpInfo.clientIp,
-            proxyIp: clientIpInfo.proxyIp,
-            forwardedFor: clientIpInfo.forwardedFor,
-            reason: topRule?.message || "Security rule violation",
-            matchedRules: inspection.matchedRules,
-          });
-          console.warn(`Request blocked for ${host}:`, {
-            url: req.url,
-            method: req.method,
-            matchedRules: inspection.matchedRules,
-            engine: inspection.engine,
-          });
-          this.queueSecurityLog({
-            app,
-            req,
-            level: "warn",
-            severity: "CRITICAL",
-            message: `Request blocked by WAF for ${host}`,
-            blocked: true,
-            statusCode: 403,
-            ruleId: topRule?.id || null,
-            ruleMessage: topRule?.message || null,
-            response: { statusCode: 403, engine: inspection.engine || null },
-          });
-          return;
+          const topReason = topRule?.message || "Security rule violation";
+          if (shouldBypassStaticAssetBlocking(req, inspection.matchedRules, topReason)) {
+            console.info(`Allowing protected static asset request for ${host}:`, {
+              url: req.url,
+              method: req.method,
+              matchedRules: inspection.matchedRules,
+              engine: inspection.engine,
+            });
+          } else {
+            sendBlockedResponse(res, req, {
+              host,
+              path: req.url,
+              clientIp: clientIpInfo.clientIp,
+              proxyIp: clientIpInfo.proxyIp,
+              forwardedFor: clientIpInfo.forwardedFor,
+              reason: topReason,
+              matchedRules: inspection.matchedRules,
+            });
+            console.warn(`Request blocked for ${host}:`, {
+              url: req.url,
+              method: req.method,
+              matchedRules: inspection.matchedRules,
+              engine: inspection.engine,
+            });
+            this.queueSecurityLog({
+              app,
+              req,
+              level: "warn",
+              severity: "CRITICAL",
+              message: `Request blocked by WAF for ${host}`,
+              blocked: true,
+              statusCode: 403,
+              ruleId: topRule?.id || null,
+              ruleMessage: topReason || null,
+              response: { statusCode: 403, engine: inspection.engine || null },
+            });
+            return;
+          }
         }
       }
 
