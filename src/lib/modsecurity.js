@@ -1,5 +1,16 @@
 import { existsSync } from 'fs';
 
+function escapeActionValue(value) {
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, ' ');
+}
+
+function escapeRegexPattern(value) {
+  return String(value ?? '').replace(/\r?\n/g, '');
+}
+
 /**
  * ModSecurity Engine Integration
  * 
@@ -84,6 +95,11 @@ export function generateModSecurityConfig(policy, options = {}) {
     config += 'Include /etc/modsecurity/rules/RESPONSE-980-CORRELATION.conf\n';
     config += '\n# Custom rules below will complement CRS\n\n';
   }
+
+  // Always-on scanner/signature blocking to catch common security tooling
+  // even when optional bot-detection features are not enabled on a policy.
+  config += generateKnownScannerBlockRules(ruleIdBase);
+  ruleIdBase += 100;
 
   // SQL Injection Protection
   if (policy.sqlInjection) {
@@ -323,6 +339,17 @@ function generateSQLInjectionRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
     setvar:'tx.sql_injection_score=+1'"\n\n`;
 
+  // Raw URI / query-string SQLi probes (helps when upstream parsing does not
+  // populate ARGS the way we expect for edge-only inspection).
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:union(?:\\s+all)?\\s+select|select\\b.{0,80}\\bfrom|(?:^|[?&][^=]{0,48}=)['\\\"]?\\s*(?:or|and)\\s*['\\\"]?(?:1|true|[a-z]\\w*)['\\\"]?\\s*=\\s*['\\\"]?(?:1|true|[a-z]\\w*)|sleep\\s*\\(|benchmark\\s*\\(|waitfor\\s+delay|information_schema|@@version)" \\
+    "id:${ruleIdBase + 4},phase:2,block,msg:'SQL Injection Attack: Raw URI Pattern Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-sqli',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.sql_injection_score=+1'"\n\n`;
+
   return rules;
 }
 
@@ -367,6 +394,16 @@ function generateXSSRules(ruleIdBase) {
     t:none,t:urlDecodeUni,t:normalizePathWin,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
+  // Raw URI / query-string XSS probes.
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:<script[^>]*>|</script>|javascript:|vbscript:|data:text/html|on(?:load|error|click|mouseover|focus|blur)\\s*=|%3cscript|%3c/svg|%3cimg)" \\
+    "id:${ruleIdBase + 3},phase:2,block,msg:'XSS Attack: Raw URI Pattern Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-xss',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.xss_score=+1'"\n\n`;
+
   return rules;
 }
 
@@ -409,7 +446,7 @@ function generateFileUploadRules(ruleIdBase) {
 function generatePathTraversalRules(ruleIdBase) {
   let rules = '# Path Traversal Protection Rules\n';
   
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx (?:(?:\\.\\.(?:%2f|%5c|/|\\\\))|(?:(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\))|(?:^(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\)))" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_URI|QUERY_STRING|REQUEST_HEADERS|XML:/* "@rx (?:(?:\\.\\.(?:%2f|%5c|/|\\\\))|(?:(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\))|(?:^(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\)))" \\
     "id:${ruleIdBase},phase:2,block,msg:'Path Traversal Attack Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
@@ -417,6 +454,38 @@ function generatePathTraversalRules(ruleIdBase) {
     tag:'OWASP_CRS',\\
     tag:'OWASP_CRS/WEB_ATTACK/PATH_TRAVERSAL',\\
     t:none,t:urlDecodeUni,t:normalizePathWin,t:lowercase,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:/etc/passwd|/etc/shadow|/proc/self/environ|\\\\windows\\\\win\\.ini|/windows/system32|boot\\.ini|%2fetc%2fpasswd|%2e%2e%2f|%2e%2e%5c)" \\
+    "id:${ruleIdBase + 1},phase:2,block,msg:'Path Traversal Attack: Sensitive File Probe Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-path-traversal',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
+  return rules;
+}
+
+function generateKnownScannerBlockRules(ruleIdBase) {
+  let rules = '# Known Scanner / Tool Signature Blocking Rules\n';
+
+  rules += `SecRule REQUEST_HEADERS:User-Agent "@rx (?i)(?:sqlmap|nikto|wafw00f|acunetix|netsparker|nessus|openvas|nmap\\s+scripting\\s+engine|nmap|masscan|zgrab|dirbuster|gobuster|ffuf|wpscan|nuclei|jaeles|zaproxy|burp)" \\
+    "id:${ruleIdBase},phase:1,block,msg:'Scanner Detection: Known Security Tool User-Agent Detected',\\
+    logdata:'User-Agent: %{MATCHED_VAR}',\\
+    severity:'CRITICAL',\\
+    tag:'scanner-detection',\\
+    tag:'attack-recon',\\
+    t:none,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:/\\.git/|/\\.env(?:$|[?&#])|/wp-admin|/wp-login\\.php|/phpmyadmin|/server-status|/actuator|/\\.svn/|/\\.hg/)" \\
+    "id:${ruleIdBase + 1},phase:1,block,msg:'Scanner Detection: Reconnaissance Path Probe Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'scanner-detection',\\
+    tag:'attack-recon',\\
+    t:none,t:urlDecodeUni,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
   return rules;
@@ -446,46 +515,63 @@ function generateRCERules(ruleIdBase) {
  */
 function generateCSRFRules(ruleIdBase) {
   let rules = '# CSRF (Cross-Site Request Forgery) Protection Rules\n';
-  
-  // CSRF token validation for state-changing methods
+
+  // Capture host for same-origin checks.
+  rules += `SecAction "id:${ruleIdBase},phase:1,pass,nolog,t:none,setvar:'tx.allowed_host=%{request_headers.host}'"\n\n`;
+
+  // Require same-site context for state-changing browser requests.
   rules += `SecRule REQUEST_METHOD "@rx ^(?:POST|PUT|DELETE|PATCH)$" \\
-    "id:${ruleIdBase},phase:2,block,msg:'CSRF Protection: Missing or Invalid CSRF Token',\\
-    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    "id:${ruleIdBase + 1},phase:2,block,msg:'CSRF Protection: Missing Origin and Referer Headers',\\
     severity:'CRITICAL',\\
     tag:'attack-csrf',\\
-    tag:'OWASP_CRS',\\
-    tag:'OWASP_CRS/WEB_ATTACK/CSRF',\\
     t:none,\\
     chain"\n`;
-  rules += `SecRule &ARGS:csrf_token "@eq 0" \\
+  rules += `SecRule &REQUEST_HEADERS:Origin "@eq 0" "t:none,chain"\n`;
+  rules += `SecRule &REQUEST_HEADERS:Referer "@eq 0" \\
     "t:none,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
     setvar:'tx.csrf_score=+1'"\n\n`;
 
-  // Origin header validation
+  // Origin header must match the protected host when present.
   rules += `SecRule REQUEST_METHOD "@rx ^(?:POST|PUT|DELETE|PATCH)$" \\
-    "id:${ruleIdBase + 1},phase:2,block,msg:'CSRF Protection: Origin Header Validation Failed',\\
+    "id:${ruleIdBase + 2},phase:2,block,msg:'CSRF Protection: Origin Header Validation Failed',\\
     logdata:'Origin: %{REQUEST_HEADERS.Origin}',\\
     severity:'CRITICAL',\\
     tag:'attack-csrf',\\
     t:none,\\
     chain"\n`;
-  rules += `SecRule &REQUEST_HEADERS:Origin "@eq 0" \\
+  rules += `SecRule &REQUEST_HEADERS:Origin "@gt 0" "t:none,chain"\n`;
+  rules += `SecRule REQUEST_HEADERS:Origin "!@contains %{tx.allowed_host}" \\
     "t:none,\\
-    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.csrf_score=+1'"\n\n`;
 
-  // Referer header validation
+  // Referer fallback when Origin is absent.
   rules += `SecRule REQUEST_METHOD "@rx ^(?:POST|PUT|DELETE|PATCH)$" \\
-    "id:${ruleIdBase + 2},phase:2,block,msg:'CSRF Protection: Referer Header Validation Failed',\\
+    "id:${ruleIdBase + 3},phase:2,block,msg:'CSRF Protection: Referer Header Validation Failed',\\
     logdata:'Referer: %{REQUEST_HEADERS.Referer}',\\
     severity:'WARNING',\\
     tag:'attack-csrf',\\
     t:none,\\
     chain"\n`;
-  rules += `SecRule REQUEST_HEADERS:Referer "@rx ^https?://(?!localhost|127\\.0\\.0\\.1|.*\\.local)([^/]+)" \\
-    "capture,\\
-    t:none,\\
+  rules += `SecRule &REQUEST_HEADERS:Origin "@eq 0" "t:none,chain"\n`;
+  rules += `SecRule &REQUEST_HEADERS:Referer "@gt 0" "t:none,chain"\n`;
+  rules += `SecRule REQUEST_HEADERS:Referer "!@contains %{tx.allowed_host}" \\
+    "t:none,\\
     setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
+
+  // Token validation only for form-style submissions.
+  rules += `SecRule REQUEST_METHOD "@rx ^(?:POST|PUT|DELETE|PATCH)$" \\
+    "id:${ruleIdBase + 4},phase:2,block,msg:'CSRF Protection: Missing Form Security Token',\\
+    severity:'CRITICAL',\\
+    tag:'attack-csrf',\\
+    t:none,\\
+    chain"\n`;
+  rules += `SecRule REQUEST_HEADERS:Content-Type "@rx (?i)^(?:application/x-www-form-urlencoded|multipart/form-data)" "t:none,chain"\n`;
+  rules += `SecRule &ARGS:csrf_token "@eq 0" \\
+    "t:none,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.csrf_score=+1'"\n\n`;
 
   return rules;
 }
@@ -960,15 +1046,14 @@ function generateGeoBlockingRules(ruleIdBase, geoBlocking) {
   const { blockedCountries = [], allowedCountries = [], action = 'block' } = geoBlocking;
   let rules = '# Geographic Blocking Rules\n';
 
-  // Note: This requires GeoIP database integration
-  // For now, we'll create rules that can be used with ModSecurity GeoIP module
+  rules += `SecAction "id:${ruleIdBase},phase:1,pass,nolog,t:none,setvar:'tx.geo_country=%{request_headers.cf-ipcountry}'"\n`;
+  rules += `SecRule TX:GEO_COUNTRY "@rx ^$" "id:${ruleIdBase + 1},phase:1,pass,nolog,t:none,setvar:'tx.geo_country=%{request_headers.x-vercel-ip-country}'"\n`;
+  rules += `SecRule TX:GEO_COUNTRY "@rx ^$" "id:${ruleIdBase + 2},phase:1,pass,nolog,t:none,setvar:'tx.geo_country=%{request_headers.x-geo-country}'"\n\n`;
+
   if (blockedCountries.length > 0) {
     const countryCodes = blockedCountries.join('|').toUpperCase();
-    rules += `# Geographic Blocking: Blocked Countries\n`;
-    rules += `# Requires: ModSecurity with GeoIP module\n`;
-    rules += `# SecRule REMOTE_ADDR "@geoLookup" "id:${ruleIdBase},phase:1,pass,t:none,setvar:'tx.geo_country=%{GEO.country_code}'"\n`;
     rules += `SecRule TX:GEO_COUNTRY "@rx ^(?:${countryCodes})$" \\
-    "id:${ruleIdBase + 1},phase:1,block,msg:'Geographic Blocking: Request from Blocked Country',\\
+    "id:${ruleIdBase + 3},phase:1,block,msg:'Geographic Blocking: Request from Blocked Country',\\
     logdata:'Country: %{tx.geo_country}, IP: %{REMOTE_ADDR}',\\
     severity:'WARNING',\\
     tag:'geo-blocking',\\
@@ -978,10 +1063,8 @@ function generateGeoBlockingRules(ruleIdBase, geoBlocking) {
 
   if (allowedCountries.length > 0) {
     const countryCodes = allowedCountries.join('|').toUpperCase();
-    rules += `# Geographic Blocking: Allowed Countries Only\n`;
-    rules += `# Requires: ModSecurity with GeoIP module\n`;
     rules += `SecRule TX:GEO_COUNTRY "!@rx ^(?:${countryCodes})$" \\
-    "id:${ruleIdBase + 2},phase:1,block,msg:'Geographic Blocking: Request from Non-Allowed Country',\\
+    "id:${ruleIdBase + 4},phase:1,block,msg:'Geographic Blocking: Request from Non-Allowed Country',\\
     logdata:'Country: %{tx.geo_country}, IP: %{REMOTE_ADDR}',\\
     severity:'WARNING',\\
     tag:'geo-blocking',\\
@@ -1032,27 +1115,8 @@ function generateAdvancedRateLimitingRules(ruleIdBase, advancedRateLimiting) {
 
   // Per-User Rate Limiting (based on session/user ID)
   if (Object.keys(perUser).length > 0) {
-    rules += '# Per-User Rate Limiting\n';
-    Object.entries(perUser).forEach(([userIdentifier, config], index) => {
-      const { requestsPerMinute = 60 } = config;
-      const userVar = userIdentifier === 'session' ? 'SESSIONID' : 'USERID';
-      
-      rules += `SecRule REQUEST_COOKIES:${userVar}|ARGS:${userIdentifier} "@rx .+" \\
-    "id:${ruleIdBase + 100 + index * 10},phase:1,nolog,pass,t:none,\\
-    setvar:'user.${userIdentifier}_rate=+1',\\
-    expirevar:'user.${userIdentifier}_rate=60'"\n\n`;
-
-      rules += `SecRule REQUEST_COOKIES:${userVar}|ARGS:${userIdentifier} "@rx .+" \\
-    "id:${ruleIdBase + 100 + index * 10 + 1},phase:1,block,msg:'Advanced Rate Limiting: User Rate Limit Exceeded',\\
-    logdata:'User: %{MATCHED_VAR}, Count: %{user.${userIdentifier}_rate}',\\
-    severity:'WARNING',\\
-    tag:'rate-limit',\\
-    tag:'user-rate-limit',\\
-    chain"\n`;
-      rules += `SecRule USER:${userIdentifier}_rate "@gt ${requestsPerMinute}" \\
-    "t:none,\\
-    setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
-    });
+    rules += '# Per-User Rate Limiting is not emitted in embedded/native proxy mode because USER collections are not stable there.\n';
+    rules += '# Keep per-user limits disabled unless enforcement is moved to an external store or the app layer.\n\n';
   }
 
   // Adaptive Rate Limiting (adjusts based on attack patterns)
@@ -1120,6 +1184,13 @@ function generateBotDetectionRules(ruleIdBase, botDetection) {
     tag:'bot-detection',\\
     t:none,\\
     setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
+
+    rules += `SecRule TX:BOT_DETECTED "@eq 1" \\
+    "id:${ruleIdBase + 6},phase:1,block,msg:'Bot Detection: Automated Client Blocked',\\
+    severity:'WARNING',\\
+    tag:'bot-detection',\\
+    t:none,\\
+    setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
   }
 
   // Crawler blocking
@@ -1137,7 +1208,7 @@ function generateBotDetectionRules(ruleIdBase, botDetection) {
   // Challenge-response (CAPTCHA-like)
   if (challengeResponse) {
     rules += `SecRule TX:BOT_DETECTED "@eq 1" \\
-    "id:${ruleIdBase + 5},phase:1,pass,msg:'Bot Detection: Challenge Response Required',\\
+    "id:${ruleIdBase + 5},phase:1,block,msg:'Bot Detection: Challenge Response Required',\\
     severity:'INFO',\\
     tag:'bot-detection',\\
     tag:'challenge-response',\\
@@ -1277,8 +1348,16 @@ function generateAPIProtectionRules(ruleIdBase, apiProtection) {
 
   // OAuth token validation
   if (oauthValidation) {
+    rules += `SecRule REQUEST_HEADERS:Authorization "@rx ^$" \\
+    "id:${ruleIdBase + 1},phase:1,block,msg:'API Protection: Missing OAuth Bearer Token',\\
+    severity:'CRITICAL',\\
+    tag:'api-protection',\\
+    tag:'oauth-validation',\\
+    t:none,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
     rules += `SecRule REQUEST_HEADERS:Authorization "!@rx ^Bearer\\s+[A-Za-z0-9\\-\\._~\\+\\/]+=*$" \\
-    "id:${ruleIdBase + 1},phase:1,block,msg:'API Protection: Invalid OAuth Token',\\
+    "id:${ruleIdBase + 2},phase:1,block,msg:'API Protection: Invalid OAuth Token Format',\\
     logdata:'Authorization: %{MATCHED_VAR}',\\
     severity:'CRITICAL',\\
     tag:'api-protection',\\
@@ -1289,12 +1368,20 @@ function generateAPIProtectionRules(ruleIdBase, apiProtection) {
 
   // JWT validation
   if (jwtValidation) {
+    rules += `SecRule REQUEST_HEADERS:Authorization "@rx ^$" \\
+    "id:${ruleIdBase + 3},phase:1,block,msg:'API Protection: Missing JWT Bearer Token',\\
+    severity:'CRITICAL',\\
+    tag:'api-protection',\\
+    tag:'jwt-validation',\\
+    t:none,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
     rules += `SecRule REQUEST_HEADERS:Authorization "@rx ^Bearer\\s+([A-Za-z0-9\\-\\._~\\+\\/]+=*)" \\
-    "id:${ruleIdBase + 2},phase:1,pass,capture,t:none,\\
+    "id:${ruleIdBase + 4},phase:1,pass,capture,t:none,\\
     setvar:'tx.jwt_token=%{TX.1}'"\n\n`;
 
     rules += `SecRule TX:JWT_TOKEN "!@rx ^[A-Za-z0-9\\-\\._~\\+\\/]+=*\\.[A-Za-z0-9\\-\\._~\\+\\/]+=*\\.[A-Za-z0-9\\-\\._~\\+\\/]+=*$" \\
-    "id:${ruleIdBase + 3},phase:1,block,msg:'API Protection: Invalid JWT Format',\\
+    "id:${ruleIdBase + 5},phase:1,block,msg:'API Protection: Invalid JWT Format',\\
     logdata:'JWT: %{tx.jwt_token}',\\
     severity:'CRITICAL',\\
     tag:'api-protection',\\
@@ -1308,11 +1395,11 @@ function generateAPIProtectionRules(ruleIdBase, apiProtection) {
     const allowedVersions = apiProtection.allowedVersions || ['v1', 'v2'];
     const versionPattern = allowedVersions.join('|');
     rules += `SecRule REQUEST_URI|REQUEST_HEADERS:API-Version "@rx (?:v\\d+|version=\\d+)" \\
-    "id:${ruleIdBase + 4},phase:1,pass,capture,t:none,\\
+    "id:${ruleIdBase + 6},phase:1,pass,capture,t:none,\\
     setvar:'tx.api_version=%{TX.0}'"\n\n`;
 
     rules += `SecRule TX:API_VERSION "!@rx ^(?:${versionPattern})$" \\
-    "id:${ruleIdBase + 5},phase:1,block,msg:'API Protection: Unsupported API Version',\\
+    "id:${ruleIdBase + 7},phase:1,block,msg:'API Protection: Unsupported API Version',\\
     logdata:'Version: %{tx.api_version}',\\
     severity:'WARNING',\\
     tag:'api-protection',\\
@@ -1341,13 +1428,7 @@ function generateExceptionRules(ruleIdBase, exceptions) {
     "id:${ruleIdBase + index},phase:1,nolog,pass,t:none,\\
     ctl:ruleRemoveById=${ruleIdList}"\n\n`;
     } else {
-      // Disable all rules for this path
-      rules += `# Exception: ${reason} (All rules disabled)\n`;
-      rules += `SecRule REQUEST_URI "@rx ^${pathPattern}" \\
-    "id:${ruleIdBase + index},phase:1,nolog,pass,t:none,\\
-    ctl:ruleEngine=Off"\\
-    "id:${ruleIdBase + index + 1},phase:2,nolog,pass,t:none,\\
-    ctl:ruleEngine=On"\n\n`;
+      rules += `# Exception skipped for ${reason}: explicit rule IDs are required for production safety\n\n`;
     }
   });
 
@@ -1363,14 +1444,18 @@ function generateVirtualPatchingRules(ruleIdBase, virtualPatching) {
   virtualPatching.forEach((patch, index) => {
     const { cve, description, pattern, severity = 'CRITICAL' } = patch;
     const ruleId = ruleIdBase + index * 10;
+    const safeCve = escapeActionValue(cve);
+    const safeDescription = escapeActionValue(description);
+    const safePattern = escapeRegexPattern(pattern);
+    const safeSeverity = escapeActionValue(severity);
 
-    rules += `# Virtual Patch: ${cve} - ${description}\n`;
-    rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx ${pattern}" \\
-    "id:${ruleId},phase:2,block,msg:'Virtual Patch: ${cve} - ${description}',\\
+    rules += `# Virtual Patch: ${safeCve} - ${safeDescription}\n`;
+    rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx ${safePattern}" \\
+    "id:${ruleId},phase:2,block,msg:'Virtual Patch: ${safeCve} - ${safeDescription}',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
-    severity:'${severity}',\\
+    severity:'${safeSeverity}',\\
     tag:'virtual-patch',\\
-    tag:'cve-${cve}',\\
+    tag:'cve-${safeCve}',\\
     t:none,t:urlDecodeUni,t:normalizePathWin,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
   });
@@ -1392,12 +1477,19 @@ function generateCustomRule(rule, ruleId) {
     pattern = '',
     transformations = 't:none',
   } = rule;
+  const safeVariables = String(variables || 'ARGS').replace(/\r?\n/g, ' ');
+  const safePattern = escapeRegexPattern(pattern);
+  const safeMsg = escapeActionValue(msg);
+  const safeSeverity = escapeActionValue(severity);
+  const safeTag = escapeActionValue(tag);
+  const safeTransformations = String(transformations || 't:none').replace(/\r?\n/g, ' ');
+  const safeAction = String(action || 'block').replace(/\r?\n/g, ' ');
 
-  return `SecRule ${variables} "@rx ${pattern}" \\
-    "id:${ruleId},phase:${phase},${action},msg:'${msg}',\\
-    severity:'${severity}',\\
-    tag:'${tag}',\\
-    ${transformations}"\n\n`;
+  return `SecRule ${safeVariables} "@rx ${safePattern}" \\
+    "id:${ruleId},phase:${phase},${safeAction},msg:'${safeMsg}',\\
+    severity:'${safeSeverity}',\\
+    tag:'${safeTag}',\\
+    ${safeTransformations}"\n\n`;
 }
 
 /**

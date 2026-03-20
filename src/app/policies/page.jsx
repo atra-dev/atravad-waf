@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Layout from '@/components/Layout';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -24,55 +24,363 @@ const XIcon = ({ className }) => (
   </svg>
 );
 
-/** Tag list input: add one value at a time (Enter or Add), remove via chip X. Replaces comma-separated fields. */
-function TagListInput({ value = [], onChange, placeholder, normalize = (s) => s.trim(), label }) {
+function splitBulkEntries(input) {
+  return String(input || '')
+    .split(/[\r\n,;\t ]+/g)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function validateIPv4orIPv6(value) {
+  if (!value) return false;
+  const ipv4 =
+    /^(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+  const ipv6 = /^[0-9a-f:]+$/i;
+  return ipv4.test(value) || (value.includes(':') && ipv6.test(value));
+}
+
+function validateCIDR(value) {
+  const [ip, prefix] = String(value || '').split('/');
+  if (!ip || prefix === undefined) return false;
+  const prefixNum = Number(prefix);
+  if (!Number.isInteger(prefixNum)) return false;
+  if (ip.includes(':')) return validateIPv4orIPv6(ip) && prefixNum >= 0 && prefixNum <= 128;
+  return validateIPv4orIPv6(ip) && prefixNum >= 0 && prefixNum <= 32;
+}
+
+function validateCountryCode(value) {
+  return /^[A-Z]{2}$/.test(String(value || ''));
+}
+
+function validateRuleId(value) {
+  return /^\d{3,10}$/.test(String(value || ''));
+}
+
+/** Large-list editor for IPs, CIDRs, countries, and rule IDs. Supports bulk paste and filtered preview. */
+function TagListInput({
+  value = [],
+  onChange,
+  placeholder,
+  normalize = (s) => s.trim(),
+  label,
+  helperText = '',
+  bulkPlaceholder = 'Paste one value per line, comma-separated, or space-separated',
+  validate = null,
+  dialogTitle = '',
+}) {
   const [draft, setDraft] = useState('');
+  const [bulkDraft, setBulkDraft] = useState('');
+  const [filterQuery, setFilterQuery] = useState('');
+  const [showAllResults, setShowAllResults] = useState(false);
+  const [showManager, setShowManager] = useState(false);
+  const [validationMessage, setValidationMessage] = useState('');
+
+  const commitValues = (entries) => {
+    const next = [];
+    const seen = new Set();
+    let invalidCount = 0;
+    for (const raw of entries) {
+      const normalized = normalize(String(raw || ''));
+      if (!normalized || seen.has(normalized)) continue;
+      if (validate && !validate(normalized)) {
+        invalidCount += 1;
+        continue;
+      }
+      seen.add(normalized);
+      next.push(normalized);
+    }
+    onChange(next);
+    setValidationMessage(invalidCount > 0 ? `${invalidCount.toLocaleString()} invalid entr${invalidCount === 1 ? 'y was' : 'ies were'} skipped.` : '');
+  };
+
   const addValue = () => {
-    const n = normalize(draft);
-    if (!n || value.includes(n)) return;
-    onChange([...value, n]);
+    commitValues([...value, draft]);
     setDraft('');
   };
-  const removeAt = (i) => onChange(value.filter((_, idx) => idx !== i));
+
+  const importBulk = () => {
+    const parts = splitBulkEntries(bulkDraft);
+    commitValues([...value, ...parts]);
+    setBulkDraft('');
+  };
+
+  const removeItem = (item) => {
+    onChange(value.filter((entry) => entry !== item));
+  };
+
+  const filteredValues = useMemo(() => {
+    const query = filterQuery.trim().toLowerCase();
+    if (!query) return value;
+    return value.filter((item) => item.toLowerCase().includes(query));
+  }, [filterQuery, value]);
+
+  const visibleValues = showAllResults ? filteredValues : filteredValues.slice(0, 100);
+  const hiddenCount = Math.max(filteredValues.length - visibleValues.length, 0);
+  const invalidCount = validate ? value.filter((item) => !validate(item)).length : 0;
+
+  const copyAll = async () => {
+    if (!value.length || !navigator?.clipboard) return;
+    await navigator.clipboard.writeText(value.join('\n'));
+  };
+
   return (
-    <div>
+    <div className="space-y-3">
       {label && <label className="block text-xs text-gray-600 mb-1">{label}</label>}
-      <div className="flex flex-wrap gap-2 items-center">
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addValue())}
-          placeholder={placeholder}
-          className="flex-1 min-w-[140px] rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2 border"
-        />
-        <button
-          type="button"
-          onClick={addValue}
-          className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-        >
-          <PlusIcon className="w-4 h-4 mr-1" />
-          Add
-        </button>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+          {value.length.toLocaleString()} items
+        </span>
+        {helperText ? <span>{helperText}</span> : null}
+        {invalidCount > 0 ? (
+          <span className="rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-700">
+            {invalidCount.toLocaleString()} invalid
+          </span>
+        ) : null}
       </div>
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {value.map((item, i) => (
-            <span
-              key={`${item}-${i}`}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm bg-blue-50 text-blue-800 border border-blue-200"
-            >
-              {item}
+      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3">
+        <div className="flex flex-wrap gap-2 items-center">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addValue())}
+            placeholder={placeholder}
+            className="flex-1 min-w-[180px] rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-3 py-2"
+          />
+          <button
+            type="button"
+            onClick={addValue}
+            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          >
+            <PlusIcon className="w-4 h-4 mr-1" />
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowManager(true)}
+            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Manage List
+          </button>
+          <button
+            type="button"
+            onClick={copyAll}
+            disabled={value.length === 0}
+            className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Copy All
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            disabled={value.length === 0}
+            className="inline-flex items-center px-3 py-2 rounded-md border border-red-200 bg-red-50 text-sm font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Clear All
+          </button>
+        </div>
+        {validationMessage ? <p className="text-xs text-amber-700">{validationMessage}</p> : null}
+        {value.length > 0 && (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={filterQuery}
+                onChange={(e) => {
+                  setFilterQuery(e.target.value);
+                  setShowAllResults(false);
+                }}
+                placeholder="Filter current entries"
+                className="flex-1 min-w-[220px] rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <span className="text-xs text-gray-500">
+                Showing {visibleValues.length.toLocaleString()} of {filteredValues.length.toLocaleString()}
+              </span>
+            </div>
+            <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-gray-50">
+              <ul className="divide-y divide-gray-200">
+                {visibleValues.map((item) => (
+                  <li key={item} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                    <code className="truncate text-gray-800">{item}</code>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item)}
+                      className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-red-600"
+                      aria-label={`Remove ${item}`}
+                    >
+                      <XIcon className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {hiddenCount > 0 && (
               <button
                 type="button"
-                onClick={() => removeAt(i)}
-                className="p-0.5 rounded hover:bg-blue-100 text-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                aria-label={`Remove ${item}`}
+                onClick={() => setShowAllResults(true)}
+                className="text-xs font-medium text-blue-700 hover:text-blue-800"
               >
-                <XIcon className="w-3.5 h-3.5" />
+                Show remaining {hiddenCount.toLocaleString()} entries
               </button>
-            </span>
-          ))}
+            )}
+          </>
+        )}
+      </div>
+      {showManager && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <div>
+                <h3 className="text-xl font-semibold text-slate-900">{dialogTitle || label || 'Manage Entries'}</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Built for bulk import, search, export, and cleanup of large rule lists.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManager(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)]">
+              <div className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-5 lg:border-b-0 lg:border-r">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                      <div className="text-xs font-medium uppercase tracking-wide text-blue-700">Entries</div>
+                      <div className="mt-1 text-2xl font-semibold text-blue-900">{value.length.toLocaleString()}</div>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <div className="text-xs font-medium uppercase tracking-wide text-emerald-700">Valid</div>
+                      <div className="mt-1 text-2xl font-semibold text-emerald-900">{(value.length - invalidCount).toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Add Single Entry</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addValue())}
+                        placeholder={placeholder}
+                        className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={addValue}
+                        className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-slate-500">Bulk Import</label>
+                    <textarea
+                      value={bulkDraft}
+                      onChange={(e) => setBulkDraft(e.target.value)}
+                      placeholder={bulkPlaceholder}
+                      rows={10}
+                      className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 font-mono"
+                    />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-slate-500">One per line or separated by comma, space, tab, or semicolon.</p>
+                      <button
+                        type="button"
+                        onClick={importBulk}
+                        className="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      >
+                        Import Entries
+                      </button>
+                    </div>
+                  </div>
+                  {validate ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      Validation is enabled for this field. Invalid entries are skipped during add/import.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="min-h-0 overflow-y-auto p-5">
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <input
+                    type="text"
+                    value={filterQuery}
+                    onChange={(e) => {
+                      setFilterQuery(e.target.value);
+                      setShowAllResults(false);
+                    }}
+                    placeholder="Search entries"
+                    className="min-w-[260px] flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyAll}
+                    disabled={value.length === 0}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Export / Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onChange([])}
+                    disabled={value.length === 0}
+                    className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                  >
+                    Clear List
+                  </button>
+                </div>
+                <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                  <span>Showing {visibleValues.length.toLocaleString()} of {filteredValues.length.toLocaleString()} filtered entries</span>
+                  {hiddenCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllResults(true)}
+                      className="font-medium text-blue-700 hover:text-blue-800"
+                    >
+                      Load remaining {hiddenCount.toLocaleString()}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="overflow-hidden rounded-xl border border-slate-200">
+                  <div className="grid grid-cols-[minmax(0,1fr)_96px] bg-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <span>Entry</span>
+                    <span>Action</span>
+                  </div>
+                  <div className="max-h-[50vh] overflow-y-auto bg-white">
+                    {visibleValues.length > 0 ? (
+                      <ul className="divide-y divide-slate-200">
+                        {visibleValues.map((item) => (
+                          <li key={item} className="grid grid-cols-[minmax(0,1fr)_96px] items-center gap-3 px-4 py-3 text-sm">
+                            <div className="min-w-0">
+                              <code className="block truncate text-slate-800">{item}</code>
+                              {validate && !validate(item) ? (
+                                <span className="mt-1 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                  Invalid
+                                </span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item)}
+                              className="justify-self-start rounded-md px-2 py-1 text-sm font-medium text-red-600 hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="px-4 py-10 text-center text-sm text-slate-500">No matching entries.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -333,6 +641,7 @@ export default function PoliciesPage() {
                 .filter(Boolean),
               reason: 'UI exception rule',
             }))
+            .filter((exception) => exception.ruleIds.length > 0)
         : [];
 
       // UI currently collects CVE IDs only, so we generate conservative keyword-match patches.
@@ -717,7 +1026,7 @@ export default function PoliciesPage() {
         { name: "Security Misconfiguration Detection", description: "Exposed config files and default credentials detection", icon: "🟡" },
         { name: "Sensitive Data Exposure Protection", description: "Credit cards, SSNs, API keys detection in responses", icon: "🔴" },
         { name: "Broken Access Control Protection", description: "Privilege escalation and unauthorized access detection", icon: "🟠" },
-        { name: "Security Headers Enforcement", description: "Security header monitoring and validation", icon: "🔵" },
+        { name: "Security Headers Monitoring", description: "Passive monitoring for missing security headers", icon: "🔵" },
       ]
     },
     advanced: {
@@ -725,12 +1034,12 @@ export default function PoliciesPage() {
       description: "Enterprise-grade advanced security capabilities",
       rules: [
         { name: "IP Access Control", description: "IP whitelisting/blacklisting with CIDR block support", icon: "🛡️" },
-        { name: "Geographic Blocking", description: "Country-based access control with GeoIP integration", icon: "🌍" },
-        { name: "Advanced Rate Limiting", description: "Per-endpoint, per-user, and adaptive rate limiting", icon: "⚡" },
+        { name: "Geographic Blocking", description: "Country-based access control using trusted edge geo headers", icon: "🌍" },
+        { name: "Advanced Rate Limiting", description: "Per-endpoint and adaptive rate limiting", icon: "⚡" },
         { name: "Bot Detection & Mitigation", description: "User-Agent filtering, bot signature detection, crawler blocking", icon: "🤖" },
-        { name: "Advanced File Upload Validation", description: "MIME type validation, content scanning, magic bytes", icon: "📁" },
-        { name: "API-Specific Protections", description: "API key validation, OAuth/JWT validation, API versioning", icon: "🔑" },
-        { name: "Exception Handling", description: "Path-based rule exclusions and wildcard support", icon: "⚙️" },
+        { name: "Advanced File Upload Validation", description: "MIME type, size, and extension validation", icon: "📁" },
+        { name: "API-Specific Protections", description: "API key checks plus OAuth/JWT format and version validation", icon: "🔑" },
+        { name: "Exception Handling", description: "Path-based rule exclusions by explicit rule ID", icon: "⚙️" },
         { name: "Virtual Patching", description: "CVE-specific rules for zero-day protection", icon: "🔧" },
       ]
     }
@@ -1086,7 +1395,7 @@ export default function PoliciesPage() {
                           { key: 'securityMisconfig', label: 'Security Misconfiguration Detection', desc: 'Exposed config files detection' },
                           { key: 'sensitiveDataExposure', label: 'Sensitive Data Exposure Protection', desc: 'Credit cards, SSNs, API keys detection' },
                           { key: 'brokenAccessControl', label: 'Broken Access Control Protection', desc: 'Privilege escalation detection' },
-                          { key: 'securityHeaders', label: 'Security Headers Enforcement', desc: 'Security header monitoring' },
+                          { key: 'securityHeaders', label: 'Security Headers Monitoring', desc: 'Passive security header monitoring' },
                         ].map((protection) => (
                           <label key={protection.key} className="flex items-start p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                             <input
@@ -1197,6 +1506,10 @@ export default function PoliciesPage() {
                               ipAccessControl: { ...formData.ipAccessControl, whitelist }
                             })}
                             placeholder="e.g. 192.168.1.100"
+                            helperText="Use for individual IPv4/IPv6 addresses."
+                            bulkPlaceholder={'Paste IPs, one per line or comma-separated\n192.168.1.10\n203.0.113.4'}
+                            dialogTitle="Manage Whitelist IPs"
+                            validate={validateIPv4orIPv6}
                             normalize={(s) => s.trim()}
                           />
                           <TagListInput
@@ -1207,6 +1520,38 @@ export default function PoliciesPage() {
                               ipAccessControl: { ...formData.ipAccessControl, blacklist }
                             })}
                             placeholder="e.g. 203.0.113.0"
+                            helperText="Large deny-lists are supported through bulk paste."
+                            bulkPlaceholder={'Paste IPs, one per line or comma-separated\n203.0.113.44\n198.51.100.80'}
+                            dialogTitle="Manage Blacklist IPs"
+                            validate={validateIPv4orIPv6}
+                            normalize={(s) => s.trim()}
+                          />
+                          <TagListInput
+                            label="Whitelist CIDR Blocks"
+                            value={formData.ipAccessControl.whitelistCIDR}
+                            onChange={(whitelistCIDR) => setFormData({
+                              ...formData,
+                              ipAccessControl: { ...formData.ipAccessControl, whitelistCIDR }
+                            })}
+                            placeholder="e.g. 192.168.1.0/24"
+                            helperText="Prefer CIDR blocks when managing large trusted ranges."
+                            bulkPlaceholder={'Paste CIDRs, one per line\n10.0.0.0/8\n172.16.0.0/12'}
+                            dialogTitle="Manage Whitelist CIDR Blocks"
+                            validate={validateCIDR}
+                            normalize={(s) => s.trim()}
+                          />
+                          <TagListInput
+                            label="Blacklist CIDR Blocks"
+                            value={formData.ipAccessControl.blacklistCIDR}
+                            onChange={(blacklistCIDR) => setFormData({
+                              ...formData,
+                              ipAccessControl: { ...formData.ipAccessControl, blacklistCIDR }
+                            })}
+                            placeholder="e.g. 203.0.113.0/24"
+                            helperText="Use CIDR blocks for large hostile ranges."
+                            bulkPlaceholder={'Paste CIDRs, one per line\n203.0.113.0/24\n198.51.100.0/24'}
+                            dialogTitle="Manage Blacklist CIDR Blocks"
+                            validate={validateCIDR}
                             normalize={(s) => s.trim()}
                           />
                         </div>
@@ -1228,7 +1573,7 @@ export default function PoliciesPage() {
                         <span className="ml-2 text-lg mr-2">🌍</span>
                         <span className="text-sm font-medium text-gray-900">Geographic Blocking</span>
                       </label>
-                      <p className="text-xs text-gray-600 ml-8 mb-3">Country-based access control with GeoIP integration</p>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">Country-based access control using trusted edge headers such as <code>CF-IPCountry</code> or <code>X-Vercel-IP-Country</code>.</p>
                       {formData.geoBlocking.enabled && (
                         <div className="mt-3 space-y-4 ml-8">
                           <TagListInput
@@ -1239,6 +1584,10 @@ export default function PoliciesPage() {
                               geoBlocking: { ...formData.geoBlocking, blockedCountries }
                             })}
                             placeholder="e.g. CN"
+                            helperText="Bulk import two-letter ISO country codes."
+                            bulkPlaceholder={'Paste ISO country codes\nCN\nRU\nKP'}
+                            dialogTitle="Manage Blocked Countries"
+                            validate={validateCountryCode}
                             normalize={(s) => s.trim().toUpperCase()}
                           />
                           <TagListInput
@@ -1249,6 +1598,10 @@ export default function PoliciesPage() {
                               geoBlocking: { ...formData.geoBlocking, allowedCountries }
                             })}
                             placeholder="e.g. US"
+                            helperText="Use allow-lists only when you want strict country access control."
+                            bulkPlaceholder={'Paste ISO country codes\nUS\nGB\nPH'}
+                            dialogTitle="Manage Allowed Countries"
+                            validate={validateCountryCode}
                             normalize={(s) => s.trim().toUpperCase()}
                           />
                         </div>
@@ -1270,7 +1623,7 @@ export default function PoliciesPage() {
                         <span className="ml-2 text-lg mr-2">⚡</span>
                         <span className="text-sm font-medium text-gray-900">Advanced Rate Limiting</span>
                       </label>
-                      <p className="text-xs text-gray-600 ml-8 mb-3">Per-endpoint, per-user, and adaptive rate limiting</p>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">Per-endpoint and adaptive rate limiting for embedded proxy deployments.</p>
                       {formData.advancedRateLimiting.enabled && (
                         <div className="mt-3 space-y-2 ml-8">
                           <label className="flex items-center">
@@ -1381,7 +1734,7 @@ export default function PoliciesPage() {
                         <span className="ml-2 text-lg mr-2">📁</span>
                         <span className="text-sm font-medium text-gray-900">Advanced File Upload Validation</span>
                       </label>
-                      <p className="text-xs text-gray-600 ml-8 mb-3">MIME type validation, content scanning, magic bytes</p>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">MIME type, file size, and extension validation.</p>
                       {formData.advancedFileUpload.enabled && (
                         <div className="mt-3 space-y-3 ml-8">
                           <label className="flex items-center">
@@ -1447,7 +1800,7 @@ export default function PoliciesPage() {
                         <span className="ml-2 text-lg mr-2">🔑</span>
                         <span className="text-sm font-medium text-gray-900">API-Specific Protections</span>
                       </label>
-                      <p className="text-xs text-gray-600 ml-8 mb-3">API key validation, OAuth/JWT validation, API versioning</p>
+                      <p className="text-xs text-gray-600 ml-8 mb-3">API key checks plus OAuth/JWT format validation and API version enforcement.</p>
                       {formData.apiProtection.enabled && (
                         <div className="mt-3 space-y-2 ml-8">
                           <label className="flex items-center">
@@ -1506,6 +1859,7 @@ export default function PoliciesPage() {
                         <span className="text-sm font-medium text-gray-900">Exception Handling</span>
                       </label>
                       <p className="text-xs text-gray-600 ml-8 mb-3">Path-based rule exclusions and wildcard support</p>
+                      <p className="text-xs text-amber-700 ml-8 mb-3">Explicit rule IDs are required. Full path-level engine disable is not allowed in production mode.</p>
                       {formData.exceptionHandling.enabled && (
                         <div className="mt-3 space-y-4 ml-8">
                           <TagListInput
@@ -1516,6 +1870,8 @@ export default function PoliciesPage() {
                               exceptionHandling: { ...formData.exceptionHandling, excludedPaths }
                             })}
                             placeholder="e.g. /api/health"
+                            dialogTitle="Manage Exception Paths"
+                            helperText="Use exact paths or wildcards. These exclusions only apply when paired with explicit rule IDs."
                             normalize={(s) => s.trim()}
                           />
                           <TagListInput
@@ -1526,6 +1882,9 @@ export default function PoliciesPage() {
                               exceptionHandling: { ...formData.exceptionHandling, excludedRules }
                             })}
                             placeholder="e.g. 942100"
+                            dialogTitle="Manage Excluded Rule IDs"
+                            helperText="Only numeric ModSecurity or custom rule IDs are accepted."
+                            validate={validateRuleId}
                             normalize={(s) => s.trim()}
                           />
                         </div>

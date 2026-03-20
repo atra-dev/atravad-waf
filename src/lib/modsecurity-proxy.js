@@ -364,10 +364,12 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
   }
 
   const ua = (headers['user-agent'] || '').toLowerCase();
-  if (ua.includes('sqlmap') || ua.includes('nikto') || ua.includes('nmap')) {
+  if (
+    /(sqlmap|nikto|wafw00f|acunetix|netsparker|nessus|openvas|nmap|masscan|zgrab|dirbuster|gobuster|ffuf|wpscan|nuclei|jaeles|zaproxy|burp)/i.test(ua)
+  ) {
     matchedRules.push({
       id: 100002,
-      message: 'Suspicious User-Agent detected',
+      message: 'Known security scanner User-Agent detected',
       severity: 'WARNING',
       matchedData: headers['user-agent'],
       matchedVar: 'REQUEST_HEADERS:User-Agent',
