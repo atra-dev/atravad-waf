@@ -47,8 +47,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    // Refresh every 30 seconds
-    const interval = setInterval(() => fetchDashboardData(true), 30000);
+    // Refresh every 5 minutes to avoid unnecessary Firestore churn.
+    const interval = setInterval(() => fetchDashboardData(true), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 

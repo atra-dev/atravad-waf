@@ -3,8 +3,16 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getCurrentUser } from '@/lib/api-helpers';
 import { getUserRole, isSuperAdmin } from '@/lib/rbac';
 import { normalizeTenantName, normalizeEmail } from '@/lib/user-utils';
-import { createTenantSubscription, getPlanOptions, normalizePlanId, SUBSCRIPTION_STATUSES } from '@/lib/plans';
+import { createTenantSubscription, getPlanDefinition, getPlanOptions, normalizePlanId, SUBSCRIPTION_STATUSES } from '@/lib/plans';
 import { getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
+
+const ADMIN_TENANTS_CACHE_TTL_MS = 120000;
+
+function invalidateAdminTenantCaches() {
+  invalidateServerCache('admin:tenants');
+  invalidateServerCache('admin:activity:');
+}
 
 /**
  * GET /api/admin/tenants
@@ -24,7 +32,6 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is super admin
     const userRole = await getUserRole(adminDb, user.email);
     if (!isSuperAdmin(userRole)) {
       return NextResponse.json(
@@ -33,21 +40,81 @@ export async function GET(request) {
       );
     }
 
-    const tenantsSnapshot = await adminDb.collection('tenants').get();
-    const tenants = await Promise.all(
-      tenantsSnapshot.docs.map((doc) => getTenantSummary(adminDb, doc.id))
+    const tenants = await getOrSetServerCache(
+      'admin:tenants:list',
+      async () => {
+        const [tenantsSnapshot, appsSnapshot, policiesSnapshot, usersSnapshot] = await Promise.all([
+          adminDb.collection('tenants').get(),
+          adminDb.collection('applications').get(),
+          adminDb.collection('policies').get(),
+          adminDb.collection('users').get(),
+        ]);
+
+        const usageByTenant = new Map();
+        const ensureUsage = (tenantName) => {
+          if (!tenantName) return null;
+          if (!usageByTenant.has(tenantName)) {
+            usageByTenant.set(tenantName, {
+              currentApps: 0,
+              currentPolicies: 0,
+              currentUsers: 0,
+            });
+          }
+          return usageByTenant.get(tenantName);
+        };
+
+        for (const doc of appsSnapshot.docs) {
+          const usage = ensureUsage(doc.data()?.tenantName);
+          if (usage) usage.currentApps += 1;
+        }
+
+        for (const doc of policiesSnapshot.docs) {
+          const usage = ensureUsage(doc.data()?.tenantName);
+          if (usage) usage.currentPolicies += 1;
+        }
+
+        for (const doc of usersSnapshot.docs) {
+          const usage = ensureUsage(doc.data()?.tenantName);
+          if (usage) usage.currentUsers += 1;
+        }
+
+        return tenantsSnapshot.docs.map((doc) => {
+          const tenantData = doc.data() || {};
+          const normalizedPlanId = normalizePlanId(tenantData.planId);
+          const subscription = createTenantSubscription(normalizedPlanId, {
+            subscriptionStatus: tenantData.subscriptionStatus,
+            billingCycle: tenantData.billingCycle,
+            limits: tenantData.limits,
+            features: tenantData.features,
+          });
+          const usage = usageByTenant.get(doc.id) || {
+            currentApps: 0,
+            currentPolicies: 0,
+            currentUsers: 0,
+          };
+
+          return {
+            id: doc.id,
+            ...tenantData,
+            planId: normalizedPlanId,
+            plan: getPlanDefinition(normalizedPlanId),
+            subscription,
+            limits: subscription.limits,
+            features: subscription.features,
+            usage: {
+              ...usage,
+              currentMonthRequests: 0,
+            },
+            userCount: usage.currentUsers,
+            appCount: usage.currentApps,
+            policyCount: usage.currentPolicies,
+          };
+        });
+      },
+      { ttlMs: ADMIN_TENANTS_CACHE_TTL_MS }
     );
 
-    return NextResponse.json(
-      tenants
-        .filter(Boolean)
-        .map((tenant) => ({
-          ...tenant,
-          userCount: tenant.usage?.currentUsers || 0,
-          appCount: tenant.usage?.currentApps || 0,
-          policyCount: tenant.usage?.currentPolicies || 0,
-        }))
-    );
+    return NextResponse.json(tenants);
   } catch (error) {
     console.error('Error fetching all tenants:', error);
     return NextResponse.json(
@@ -158,6 +225,7 @@ export async function POST(request) {
     }
 
     invalidateTenantSubscriptionCache(tenantId);
+    invalidateAdminTenantCaches();
 
     return NextResponse.json(
       {
@@ -246,6 +314,7 @@ export async function PUT(request) {
     });
 
     invalidateTenantSubscriptionCache(tenantId);
+    invalidateAdminTenantCaches();
     const tenant = await getTenantSummary(adminDb, tenantId);
     return NextResponse.json({
       ...tenant,

@@ -4,6 +4,14 @@ import { getCurrentUser } from '@/lib/api-helpers';
 import { getUserRole, isSuperAdmin, ROLES } from '@/lib/rbac';
 import { normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
 import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
+
+const ADMIN_USERS_CACHE_TTL_MS = 120000;
+
+function invalidateAdminUserCaches() {
+  invalidateServerCache('admin:users');
+  invalidateServerCache('admin:activity:');
+}
 
 /**
  * GET /api/admin/users
@@ -32,50 +40,59 @@ export async function GET(request) {
       );
     }
 
-    // Get all users
-    const usersSnapshot = await adminDb.collection('users').get();
-    const users = await Promise.all(
-      usersSnapshot.docs.map(async (doc) => {
-        const userData = doc.data();
-        let tenantData = null;
-        
-        // Get tenant info if user has a tenant
-        if (userData.tenantName) {
-          const tenantDoc = await adminDb
-            .collection('tenants')
-            .doc(userData.tenantName)
-            .get();
-          
-          if (tenantDoc.exists) {
-            tenantData = {
-              id: tenantDoc.id,
-              name: tenantDoc.data().name,
-            };
-          }
-        }
+    const users = await getOrSetServerCache(
+      'admin:users:list',
+      async () => {
+        const usersSnapshot = await adminDb.collection('users').get();
+        const tenantNames = [
+          ...new Set(
+            usersSnapshot.docs
+              .map((doc) => doc.data()?.tenantName)
+              .filter(Boolean)
+          ),
+        ];
+        const tenantDocs = await Promise.all(
+          tenantNames.map((tenantName) => adminDb.collection('tenants').doc(tenantName).get())
+        );
+        const tenantMap = new Map(
+          tenantDocs
+            .filter((doc) => doc.exists)
+            .map((doc) => [
+              doc.id,
+              {
+                id: doc.id,
+                name: doc.data().name,
+              },
+            ])
+        );
 
-        return {
-          id: doc.id, // Email is the document ID
-          email: userData.email,
-          role: userData.role,
-          tenantName: userData.tenantName,
-          tenant: tenantData,
-          authProvider: userData.authProvider || 'password',
-          invitationPending: userData.invitationPending === true,
-          invitedAt: userData.invitedAt || null,
-          acceptedAt: userData.acceptedAt || null,
-          createdAt: userData.createdAt,
-          updatedAt: userData.updatedAt,
-        };
-      })
+        const mappedUsers = usersSnapshot.docs.map((doc) => {
+          const userData = doc.data();
+          return {
+            id: doc.id,
+            email: userData.email,
+            role: userData.role,
+            tenantName: userData.tenantName,
+            tenant: userData.tenantName ? tenantMap.get(userData.tenantName) || null : null,
+            authProvider: userData.authProvider || 'password',
+            invitationPending: userData.invitationPending === true,
+            invitedAt: userData.invitedAt || null,
+            acceptedAt: userData.acceptedAt || null,
+            createdAt: userData.createdAt,
+            updatedAt: userData.updatedAt,
+          };
+        });
+
+        mappedUsers.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+          const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+          return dateB - dateA;
+        });
+
+        return mappedUsers;
+      },
+      { ttlMs: ADMIN_USERS_CACHE_TTL_MS }
     );
-
-    // Sort by creation date (newest first)
-    users.sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
-      return dateB - dateA;
-    });
 
     return NextResponse.json(users);
   } catch (error) {
@@ -229,6 +246,7 @@ export async function POST(request) {
 
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
     invalidateTenantSubscriptionCache(normalizedTenantName);
+    invalidateAdminUserCaches();
 
     // Get tenant info for response
     const tenantData = {
@@ -442,6 +460,7 @@ export async function PUT(request) {
     if (updatedUserData.tenantName) {
       invalidateTenantSubscriptionCache(updatedUserData.tenantName);
     }
+    invalidateAdminUserCaches();
 
     // Get tenant info if exists
     let tenantData = null;
@@ -563,6 +582,7 @@ export async function DELETE(request) {
     if (userData.tenantName) {
       invalidateTenantSubscriptionCache(userData.tenantName);
     }
+    invalidateAdminUserCaches();
 
     return NextResponse.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
