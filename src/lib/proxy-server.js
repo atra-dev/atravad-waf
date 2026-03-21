@@ -29,6 +29,7 @@ import { buildForwardedForHeader, normalizeIpAddress, resolveClientIp } from "./
 import { deriveRuleId } from "./log-rule-utils.js";
 import { persistSecurityLog } from "./log-storage.js";
 import { getDefaultOriginServername } from "./origin-utils.js";
+import { getTrafficLoggingConfig, shouldCaptureAllowedTraffic } from "./traffic-logging.js";
 
 const requireMod = createRequire(import.meta.url);
 let selfsigned = null;
@@ -858,12 +859,18 @@ export class ProxyWAFServer {
     this.httpServer = null;
     this.httpsServer = null;
     this.healthCheckIntervals = new Map();
+    this.healthCheckConfigs = new Map();
     this.applicationRefreshInterval = null;
     this.applicationRefreshInFlight = null;
     this.applicationRefreshIntervalMs = parsePositiveInt(
       options.applicationRefreshIntervalMs ?? process.env.ATRAVAD_APP_REFRESH_INTERVAL_SEC,
-      60,
+      300,
     ) * 1000;
+    this.policyRefreshIntervalMs = parsePositiveInt(
+      options.policyRefreshIntervalMs ?? process.env.ATRAVAD_POLICY_REFRESH_INTERVAL_SEC,
+      300,
+    ) * 1000;
+    this.policyLastLoadedAt = new Map();
     this.tenantName = options.tenantName || null;
     // Multi-tenant: support single name or comma-separated list (Firestore 'in' max 10)
     this.tenantNames = this.tenantName
@@ -892,15 +899,15 @@ export class ProxyWAFServer {
     this.provisioningInProgress = new Set(); // domain -> avoid duplicate provision
     this.logAllowedRequests =
       options.logAllowedRequests ??
-      (process.env.WAF_LOG_ALLOWED_REQUESTS !== "false" &&
-        process.env.WAF_LOG_ALLOWED_REQUESTS !== "0");
+      (process.env.WAF_LOG_ALLOWED_REQUESTS === "true" ||
+        process.env.WAF_LOG_ALLOWED_REQUESTS === "1");
     this.logHealthRequests =
       options.logHealthRequests === true ||
       process.env.WAF_LOG_HEALTH_REQUESTS === "true" ||
       process.env.WAF_LOG_HEALTH_REQUESTS === "1";
     this.allowedLogSampleRate = parsePositiveInt(
       options.allowedLogSampleRate ?? process.env.WAF_ALLOWED_LOG_SAMPLE_RATE,
-      20,
+      200,
     );
     this.logDedupWindowMs =
       parsePositiveInt(
@@ -962,7 +969,8 @@ export class ProxyWAFServer {
   shouldLogRequest(pathname, blocked, statusCode) {
     if (!this.logHealthRequests && isHealthPath(pathname)) return false;
     if (blocked) return true;
-    if (this.logAllowedRequests) return true;
+    if (Number.isFinite(statusCode) && statusCode >= 400) return true;
+    if (pathname === "/ws" || pathname.startsWith("/ws/")) return true;
     return Number.isFinite(statusCode) && statusCode >= 400;
   }
 
@@ -980,12 +988,6 @@ export class ProxyWAFServer {
     const normalizedUa = String(userAgent || "").toLowerCase();
     if (!normalizedUa) return false;
     return this.skipBotPatterns.some((pattern) => normalizedUa.includes(pattern));
-  }
-
-  shouldSampleAllowedLog(blocked) {
-    if (blocked) return true;
-    if (this.allowedLogSampleRate <= 1) return true;
-    return Math.random() < 1 / this.allowedLogSampleRate;
   }
 
   shouldSkipDuplicateLog({ tenantName, host, uriPath, ruleId, clientIp, statusCode }) {
@@ -1035,7 +1037,6 @@ export class ProxyWAFServer {
     const userAgent = req.headers?.["user-agent"] || "";
     if (!this.shouldLogRequest(uriPath, blocked, statusCode)) return;
     if (this.shouldSkipLowValueRequest(uriPath, userAgent)) return;
-    if (!this.shouldSampleAllowedLog(blocked)) return;
     const clientIpInfo = getClientIpInfo(req);
     const clientIp = clientIpInfo.clientIp;
     const host = req.headers?.host || null;
@@ -1096,6 +1097,13 @@ export class ProxyWAFServer {
 
     const writeLog = async () => {
       try {
+        let trafficLoggingConfig = null;
+        if (!blocked && entry.decision === "allowed") {
+          trafficLoggingConfig = await getTrafficLoggingConfig(adminDb);
+          if (!shouldCaptureAllowedTraffic(trafficLoggingConfig)) {
+            return;
+          }
+        }
         if (clientIp) {
           const geo = await geolocateIpCached(clientIp);
           if (geo?.success) {
@@ -1106,7 +1114,7 @@ export class ProxyWAFServer {
             entry.geoIsPrivate = Boolean(geo.isPrivate);
           }
         }
-        await persistSecurityLog(adminDb, entry);
+        await persistSecurityLog(adminDb, entry, { trafficLoggingConfig });
       } catch (err) {
         console.warn("Failed to write security log:", err.message);
       }
@@ -1210,9 +1218,24 @@ export class ProxyWAFServer {
       return;
     }
 
+    const now = Date.now();
+    const cachedAt = this.policyLastLoadedAt.get(app.policyId) || 0;
+    const hasCachedPolicy =
+      this.modSecurity?.policies instanceof Map &&
+      this.modSecurity.policies.has(app.policyId);
+
+    if (
+      hasCachedPolicy &&
+      this.policyRefreshIntervalMs > 0 &&
+      now - cachedAt < this.policyRefreshIntervalMs
+    ) {
+      return;
+    }
+
     try {
       const policy = await this.modSecurity.loadPolicy(app.policyId);
       if (policy) {
+        this.policyLastLoadedAt.set(app.policyId, now);
         console.log(
           `Loaded policy "${policy.name}" for application ${app.domain}`,
         );
@@ -1299,6 +1322,7 @@ export class ProxyWAFServer {
         if (activeOriginUrls.has(originUrl)) continue;
         clearInterval(intervalId);
         this.healthCheckIntervals.delete(originUrl);
+        this.healthCheckConfigs.delete(originUrl);
         this.originHealth.delete(originUrl);
       }
 
@@ -1373,6 +1397,14 @@ export class ProxyWAFServer {
     const checkPath = healthCheck.path || "/health";
     const interval = (healthCheck.interval || 30) * 1000; // Convert to ms
     const timeout = (healthCheck.timeout || 5) * 1000;
+    const configKey = `${checkPath}|${interval}|${timeout}`;
+
+    if (
+      this.healthCheckIntervals.has(originUrl) &&
+      this.healthCheckConfigs.get(originUrl) === configKey
+    ) {
+      return;
+    }
 
     // Stop existing health check if any
     if (this.healthCheckIntervals.has(originUrl)) {
@@ -1388,6 +1420,7 @@ export class ProxyWAFServer {
     }, interval);
 
     this.healthCheckIntervals.set(originUrl, intervalId);
+    this.healthCheckConfigs.set(originUrl, configKey);
   }
 
   /**

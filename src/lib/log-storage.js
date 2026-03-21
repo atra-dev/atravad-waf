@@ -2,7 +2,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { normalizeDomainInput } from './domain-utils.js';
 import { normalizeIpAddress } from './ip-utils.js';
 import { classifyAttack, getDecisionKey } from './log-analytics.js';
-import { getTenantSummary } from './tenant-subscription.js';
+import { getTenantRetentionSettings } from './tenant-subscription.js';
+import {
+  getAllowedRawLogSampleRate,
+  getTrafficLoggingConfig,
+  shouldStoreAllowedRawLogs,
+} from './traffic-logging.js';
 
 function normalizeSeverity(severity) {
   const value = String(severity || '').trim().toLowerCase();
@@ -46,6 +51,26 @@ function setValue(target, path, value) {
     cursor = cursor[key];
   }
   cursor[path[path.length - 1]] = value;
+}
+
+function shouldPersistRawLog(log, trafficLoggingConfig) {
+  const decision = getDecisionKey(log);
+
+  if (decision !== 'allowed') {
+    return true;
+  }
+
+  if (!shouldStoreAllowedRawLogs(trafficLoggingConfig)) {
+    return false;
+  }
+
+  const sampleRate = getAllowedRawLogSampleRate(trafficLoggingConfig);
+
+  if (sampleRate <= 1) {
+    return true;
+  }
+
+  return Math.random() < 1 / sampleRate;
 }
 
 function buildRollupUpdate(log, retentionDays) {
@@ -105,10 +130,10 @@ function buildRollupUpdate(log, retentionDays) {
   return update;
 }
 
-export async function persistSecurityLog(adminDb, rawLog) {
+export async function persistSecurityLog(adminDb, rawLog, options = {}) {
   if (!adminDb || !rawLog?.tenantName) return null;
 
-  const tenant = await getTenantSummary(adminDb, rawLog.tenantName);
+  const tenant = await getTenantRetentionSettings(adminDb, rawLog.tenantName);
   const logRetentionDays = Number(tenant?.limits?.logRetentionDays || 7);
   const analyticsRetentionDays = Number(tenant?.limits?.analyticsRetentionDays || 30);
   const timestamp = rawLog.timestamp || new Date().toISOString();
@@ -130,8 +155,18 @@ export async function persistSecurityLog(adminDb, rawLog) {
   };
 
   const batch = adminDb.batch();
-  const logRef = adminDb.collection('logs').doc();
-  batch.set(logRef, entry);
+  let logRef = null;
+  const trafficLoggingConfig =
+    options.trafficLoggingConfig ||
+    (getDecisionKey(entry) === 'allowed'
+      ? await getTrafficLoggingConfig(adminDb)
+      : null);
+  const persistRawLog = shouldPersistRawLog(entry, trafficLoggingConfig);
+
+  if (persistRawLog) {
+    logRef = adminDb.collection('logs').doc();
+    batch.set(logRef, entry);
+  }
 
   const rollupRef = adminDb
     .collection('log_rollups_hourly')
@@ -139,5 +174,5 @@ export async function persistSecurityLog(adminDb, rawLog) {
   batch.set(rollupRef, buildRollupUpdate(entry, analyticsRetentionDays), { merge: true });
 
   await batch.commit();
-  return { id: logRef.id, ...entry };
+  return { id: logRef?.id || null, rawStored: persistRawLog, ...entry };
 }

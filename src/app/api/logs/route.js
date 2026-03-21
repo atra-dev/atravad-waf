@@ -2,15 +2,56 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
-import { rateLimit } from '@/lib/rate-limit';
 import { geolocateIpCached } from '@/lib/geolocation';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { persistSecurityLog } from '@/lib/log-storage';
 import { getTenantSummary } from '@/lib/tenant-subscription';
+import { getTrafficLoggingConfig, shouldCaptureAllowedTraffic } from '@/lib/traffic-logging';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
+const MAX_INGEST_BATCH_SIZE = Math.max(
+  Number.parseInt(process.env.WAF_LOG_INGEST_MAX_BATCH || '50', 10) || 50,
+  1
+);
+const LOW_VALUE_PATH_PREFIXES = ['/_next/', '/static/', '/assets/'];
+const LOW_VALUE_PATH_EXACT = new Set([
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/manifest.json',
+  '/health',
+  '/_atravad/health',
+]);
+const LOW_VALUE_PATH_EXTENSIONS = [
+  '.js',
+  '.css',
+  '.map',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.ico',
+  '.webp',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+];
+const BOT_UA_PATTERNS = [
+  'googlebot',
+  'bingbot',
+  'yandexbot',
+  'duckduckbot',
+  'baiduspider',
+  'slurp',
+  'crawler',
+  'spider',
+  'bot/',
+  'headlesschrome',
+];
 
 function normalizeSeverity(severity) {
   const value = String(severity || '').trim().toLowerCase();
@@ -42,6 +83,59 @@ function deriveDecision(log) {
   const statusCode = Number(log?.statusCode);
   if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
   return 'allowed';
+}
+
+function getLogPath(log) {
+  const rawPath = String(log?.uri || log?.request?.uri || '').split('?')[0] || '/';
+  return rawPath.startsWith('/') ? rawPath.toLowerCase() : `/${rawPath.toLowerCase()}`;
+}
+
+function isLowValueAllowedLog(log, decision) {
+  if (decision !== 'allowed') return false;
+
+  const pathname = getLogPath(log);
+  if (LOW_VALUE_PATH_EXACT.has(pathname)) return true;
+  if (LOW_VALUE_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return true;
+  if (LOW_VALUE_PATH_EXTENSIONS.some((ext) => pathname.endsWith(ext))) return true;
+
+  const normalizedUa = String(log?.userAgent || '').toLowerCase();
+  if (!normalizedUa) return false;
+  return BOT_UA_PATTERNS.some((pattern) => normalizedUa.includes(pattern));
+}
+
+function getBatchDedupKey(log, tenantName, decision) {
+  const clientIp = normalizeIpAddress(log.clientIp || log.ipAddress || '') || '';
+  const host =
+    normalizeDomainInput(log.source || log.request?.host || '') ||
+    normalizeDomainInput(log.nodeId || '') ||
+    tenantName;
+  const path = getLogPath(log);
+  const statusCode = Number(log?.statusCode);
+  const derivedRuleId = deriveRuleId({
+    ruleId: log?.ruleId,
+    ruleMessage: log?.ruleMessage,
+    message: log?.message,
+    blocked: Boolean(log?.blocked),
+    statusCode: Number.isFinite(statusCode) ? statusCode : null,
+  });
+
+  return [
+    tenantName,
+    host,
+    path,
+    decision,
+    Number.isFinite(statusCode) ? statusCode : '',
+    derivedRuleId || '',
+    clientIp,
+  ].join('|');
+}
+
+function shouldIngestLog(log, decision, trafficLoggingConfig) {
+  if (decision !== 'allowed') {
+    return true;
+  }
+
+  return shouldCaptureAllowedTraffic(trafficLoggingConfig);
 }
 
 /**
@@ -77,11 +171,6 @@ export async function POST(request) {
       );
     }
 
-    const rateLimitResult = await rateLimit(request, { routeGroup: '/api/logs' });
-    if (!rateLimitResult.allowed) {
-      return rateLimitResult.response;
-    }
-
     if (!logs || !Array.isArray(logs)) {
       return NextResponse.json(
         { error: 'logs array is required' },
@@ -89,10 +178,40 @@ export async function POST(request) {
       );
     }
 
+    if (logs.length > MAX_INGEST_BATCH_SIZE) {
+      return NextResponse.json(
+        {
+          error: `logs batch too large. Maximum ${MAX_INGEST_BATCH_SIZE} logs per request.`,
+        },
+        { status: 413 }
+      );
+    }
+
     const now = new Date().toISOString();
     const writtenLogs = [];
+    const seenLogs = new Set();
+    let skippedLowValue = 0;
+    let skippedDuplicates = 0;
+    const trafficLoggingConfig = await getTrafficLoggingConfig(adminDb);
 
     for (const log of logs) {
+      const decision = deriveDecision(log);
+      if (!shouldIngestLog(log, decision, trafficLoggingConfig)) {
+        skippedLowValue += 1;
+        continue;
+      }
+      if (isLowValueAllowedLog(log, decision)) {
+        skippedLowValue += 1;
+        continue;
+      }
+
+      const dedupKey = getBatchDedupKey(log, tenantName.trim(), decision);
+      if (seenLogs.has(dedupKey)) {
+        skippedDuplicates += 1;
+        continue;
+      }
+      seenLogs.add(dedupKey);
+
       const clientIp = normalizeIpAddress(log.clientIp || log.ipAddress || '') || null;
       const proxyIp = normalizeIpAddress(log.proxyIp || '') || null;
       const forwardedFor = Array.isArray(log.forwardedFor)
@@ -132,7 +251,7 @@ export async function POST(request) {
         method: log.method || null,
         statusCode: log.statusCode || null,
         blocked: log.blocked || false,
-        decision: deriveDecision(log),
+        decision,
         ingestedAt: now,
         ipAddress: clientIp,
         geoCountry: geo?.success ? geo.country || null : null,
@@ -140,13 +259,15 @@ export async function POST(request) {
         geoContinent: geo?.success ? geo.continent || null : null,
         geoContinentCode: geo?.success ? geo.continentCode || null : null,
         geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
-      });
+      }, { trafficLoggingConfig });
       writtenLogs.push(savedLog);
     }
 
     return NextResponse.json({
       success: true,
       ingested: writtenLogs.length,
+      skippedLowValue,
+      skippedDuplicates,
       timestamp: now,
     });
   } catch (error) {

@@ -2,6 +2,7 @@ import { createTenantSubscription, getPlanDefinition, normalizePlanId } from './
 import { getOrSetServerCache, invalidateServerCache } from './server-cache.js';
 
 const TENANT_CACHE_TTL_MS = 30000;
+const TENANT_RETENTION_CACHE_TTL_MS = 300000;
 
 export function invalidateTenantSubscriptionCache(tenantName) {
   if (!tenantName) return;
@@ -57,6 +58,33 @@ export async function getTenantSummary(adminDb, tenantName) {
       };
     },
     { ttlMs: TENANT_CACHE_TTL_MS }
+  );
+}
+
+export async function getTenantRetentionSettings(adminDb, tenantName) {
+  if (!adminDb || !tenantName) return null;
+
+  return getOrSetServerCache(
+    `tenant:${tenantName}:retention`,
+    async () => {
+      const tenantDoc = await adminDb.collection('tenants').doc(tenantName).get();
+      if (!tenantDoc.exists) return null;
+
+      const tenantData = tenantDoc.data() || {};
+      const normalizedPlanId = normalizePlanId(tenantData.planId);
+      const subscription = createTenantSubscription(normalizedPlanId, {
+        subscriptionStatus: tenantData.subscriptionStatus,
+        billingCycle: tenantData.billingCycle,
+        limits: tenantData.limits,
+      });
+
+      return {
+        tenantName,
+        planId: normalizedPlanId,
+        limits: subscription.limits,
+      };
+    },
+    { ttlMs: TENANT_RETENTION_CACHE_TTL_MS }
   );
 }
 

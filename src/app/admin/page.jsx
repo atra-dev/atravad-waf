@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import { getPlanOptions } from '@/lib/plans';
+import { TRAFFIC_LOGGING_MODES } from '@/lib/traffic-logging';
 
 const PLAN_OPTIONS = getPlanOptions();
 const ADMIN_TABS = [
@@ -164,6 +165,19 @@ export default function SuperAdminPage() {
   const [userEdits, setUserEdits] = useState({});
   const [tenantEdits, setTenantEdits] = useState({});
   const [toast, setToast] = useState(null);
+  const [trafficLogging, setTrafficLogging] = useState(null);
+  const [trafficLoggingForm, setTrafficLoggingForm] = useState({
+    mode: TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY,
+    allowedSampleRate: 200,
+    storeAllowedRawLogs: false,
+    allowedRawLogSampleRate: 100,
+    investigationHours: 0,
+    investigationMode: TRAFFIC_LOGGING_MODES.SAMPLED,
+    investigationAllowedSampleRate: 20,
+    investigationStoreAllowedRawLogs: false,
+    investigationAllowedRawLogSampleRate: 20,
+  });
+  const [savingTrafficLogging, setSavingTrafficLogging] = useState(false);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -212,14 +226,15 @@ export default function SuperAdminPage() {
       setError(null);
     }
     try {
-      const [tenantsRes, usersRes, activityRes] = await Promise.all([
+      const [tenantsRes, usersRes, activityRes, loggingRes] = await Promise.all([
         fetch('/api/admin/tenants'),
         fetch('/api/admin/users'),
         fetch('/api/admin/activity?limit=20'),
+        fetch('/api/admin/logging'),
       ]);
 
-      if (!tenantsRes.ok || !usersRes.ok || !activityRes.ok) {
-        if (tenantsRes.status === 403 || usersRes.status === 403 || activityRes.status === 403) {
+      if (!tenantsRes.ok || !usersRes.ok || !activityRes.ok || !loggingRes.ok) {
+        if (tenantsRes.status === 403 || usersRes.status === 403 || activityRes.status === 403 || loggingRes.status === 403) {
           setUnauthorized(true);
           setLoading(false);
           return;
@@ -230,6 +245,7 @@ export default function SuperAdminPage() {
       const tenantsData = await tenantsRes.json();
       const usersData = await usersRes.json();
       const activityData = await activityRes.json();
+      const loggingData = await loggingRes.json();
 
       setTenants(tenantsData || []);
       setTenantEdits(
@@ -259,6 +275,19 @@ export default function SuperAdminPage() {
       );
       setActivity({
         logs: activityData.logs || [],
+      });
+      setTrafficLogging(loggingData);
+      setTrafficLoggingForm({
+        mode: loggingData.mode || TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY,
+        allowedSampleRate: loggingData.allowedSampleRate || 200,
+        storeAllowedRawLogs: loggingData.storeAllowedRawLogs === true,
+        allowedRawLogSampleRate: loggingData.allowedRawLogSampleRate || 100,
+        investigationHours: 0,
+        investigationMode: loggingData.investigation?.mode || TRAFFIC_LOGGING_MODES.SAMPLED,
+        investigationAllowedSampleRate: loggingData.investigation?.allowedSampleRate || 20,
+        investigationStoreAllowedRawLogs: loggingData.investigation?.storeAllowedRawLogs === true,
+        investigationAllowedRawLogSampleRate:
+          loggingData.investigation?.allowedRawLogSampleRate || 20,
       });
       setStats(activityData.stats || {
         totalTenants: tenantsData?.length || 0,
@@ -460,6 +489,43 @@ export default function SuperAdminPage() {
       showToast('Failed to remove managed access.', 'error');
     } finally {
       setRemovingUserId('');
+    }
+  };
+
+  const handleTrafficLoggingChange = (field, value) => {
+    setTrafficLoggingForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSaveTrafficLogging = async (e) => {
+    e.preventDefault();
+    setSavingTrafficLogging(true);
+    try {
+      const response = await fetch('/api/admin/logging', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(trafficLoggingForm),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || 'Failed to update traffic logging.', 'error');
+        return;
+      }
+
+      setTrafficLogging(payload);
+      setTrafficLoggingForm((prev) => ({
+        ...prev,
+        investigationHours: 0,
+      }));
+      showToast('Traffic logging policy updated successfully.');
+    } catch (error) {
+      console.error('Error updating traffic logging:', error);
+      showToast('Failed to update traffic logging.', 'error');
+    } finally {
+      setSavingTrafficLogging(false);
     }
   };
 
@@ -674,6 +740,151 @@ export default function SuperAdminPage() {
               </>
             )}
           </div>
+        )}
+
+        {activeTab === 'overview' && !loading && (
+          <section className="rounded-[28px] border border-slate-200 bg-[linear-gradient(160deg,#ffffff_0%,#f8fbff_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Traffic Visibility</p>
+                <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Normal Traffic Logging Policy</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  Keep normal traffic on rollups only by default, switch to low sampling when needed, and launch temporary investigation windows that expire automatically.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
+                  Effective: {trafficLogging?.effectiveMode || trafficLogging?.mode || TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY}
+                </span>
+                {trafficLogging?.investigationActive ? (
+                  <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700">
+                    Investigation active
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-4">
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Baseline mode</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">{trafficLogging?.mode || TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Allowed sample</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">1 / {trafficLogging?.allowedSampleRate || 200}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Raw allowed logs</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">{trafficLogging?.storeAllowedRawLogs ? 'Enabled' : 'Off'}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Investigation until</p>
+                <p className="mt-2 text-lg font-semibold text-slate-950">
+                  {trafficLogging?.investigation?.enabledUntil
+                    ? new Date(trafficLogging.investigation.enabledUntil).toLocaleString()
+                    : 'Inactive'}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveTrafficLogging} className="mt-6 grid grid-cols-1 gap-4 rounded-[24px] border border-slate-200 bg-white/80 p-5 shadow-sm lg:grid-cols-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Baseline mode</label>
+                <select
+                  value={trafficLoggingForm.mode}
+                  onChange={(e) => handleTrafficLoggingChange('mode', e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY}>Rollups only</option>
+                  <option value={TRAFFIC_LOGGING_MODES.SAMPLED}>Sampled</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Allowed sample rate</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={trafficLoggingForm.allowedSampleRate}
+                  onChange={(e) => handleTrafficLoggingChange('allowedSampleRate', e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Allowed raw sample rate</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={trafficLoggingForm.allowedRawLogSampleRate}
+                  onChange={(e) => handleTrafficLoggingChange('allowedRawLogSampleRate', e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={trafficLoggingForm.storeAllowedRawLogs}
+                  onChange={(e) => handleTrafficLoggingChange('storeAllowedRawLogs', e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Store raw allowed logs
+              </label>
+
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Investigation hours</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="72"
+                  value={trafficLoggingForm.investigationHours}
+                  onChange={(e) => handleTrafficLoggingChange('investigationHours', e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Investigation mode</label>
+                <select
+                  value={trafficLoggingForm.investigationMode}
+                  onChange={(e) => handleTrafficLoggingChange('investigationMode', e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY}>Rollups only</option>
+                  <option value={TRAFFIC_LOGGING_MODES.SAMPLED}>Sampled</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Investigation sample rate</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={trafficLoggingForm.investigationAllowedSampleRate}
+                  onChange={(e) => handleTrafficLoggingChange('investigationAllowedSampleRate', e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={trafficLoggingForm.investigationStoreAllowedRawLogs}
+                  onChange={(e) => handleTrafficLoggingChange('investigationStoreAllowedRawLogs', e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                Investigation raw logs
+              </label>
+
+              <div className="lg:col-span-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-sm text-slate-600">
+                  Recommended default: <span className="font-semibold text-slate-900">rollups only</span>. Use short-lived sampled investigations when deeper normal-traffic visibility is needed.
+                </p>
+                <button
+                  type="submit"
+                  disabled={savingTrafficLogging}
+                  className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {savingTrafficLogging ? 'Saving...' : 'Save Logging Policy'}
+                </button>
+              </div>
+            </form>
+          </section>
         )}
 
         {activeTab === 'tenants' && (
