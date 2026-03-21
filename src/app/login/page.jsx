@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { 
   signInWithEmailAndPassword, 
   signInWithRedirect,
@@ -18,6 +18,7 @@ function LoginPageContent() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const loginInitRef = useRef(false);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -110,16 +111,39 @@ function LoginPageContent() {
 
     return verifyResponse.json();
   };
+
+  const hasAuthTokenCookie = () => {
+    if (typeof document === 'undefined') return false;
+    return document.cookie
+      .split(';')
+      .some((cookie) => cookie.trim().startsWith('authToken='));
+  };
   
   useEffect(() => {
+    if (loginInitRef.current) return;
+    loginInitRef.current = true;
+
     const initializeLogin = async () => {
       try {
         const redirectResult = await getRedirectResult(auth);
         if (redirectResult?.user) {
-          const userData = await completeManagedSession(redirectResult.user);
-          console.log('Session verified for user:', userData.email, 'Role:', userData.role);
-          const redirect = searchParams.get('redirect') || '/dashboard';
-          router.push(redirect);
+          try {
+            const userData = await completeManagedSession(redirectResult.user);
+            console.log('Session verified for user:', userData.email, 'Role:', userData.role);
+            const redirect = searchParams.get('redirect') || '/dashboard';
+            router.push(redirect);
+            return;
+          } catch (redirectAuthError) {
+            console.error('Redirect sign-in verification error:', redirectAuthError);
+            showToast(
+              redirectAuthError?.message ||
+                'Unable to verify managed access after Google sign-in.'
+            );
+            return;
+          }
+        }
+
+        if (!hasAuthTokenCookie()) {
           return;
         }
 
