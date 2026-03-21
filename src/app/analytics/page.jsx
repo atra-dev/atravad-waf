@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 
@@ -48,11 +48,15 @@ export default function AnalyticsPage() {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-96">
-          <LoadingSpinner size="lg" />
+        <div className="space-y-6">
+          <AppLoadingState
+            variant="panel"
+            title="Loading attack analytics"
+            message="Compiling attack trends, severity patterns, and high-risk source intelligence."
+          />
         </div>
       </Layout>
     );
@@ -83,6 +87,14 @@ export default function AnalyticsPage() {
           </select>
         </div>
 
+        {loading ? (
+          <AppLoadingState
+            variant="panel"
+            title="Loading attack analytics"
+            message="Compiling attack trends, severity patterns, and high-risk source intelligence."
+          />
+        ) : (
+          <>
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -227,6 +239,8 @@ export default function AnalyticsPage() {
             <p className="text-sm text-gray-500 text-center py-8">No trend data available</p>
           )}
         </div>
+          </>
+        )}
       </div>
     </Layout>
   );

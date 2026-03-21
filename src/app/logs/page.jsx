@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import GeographicAnalytics from '@/components/GeographicAnalytics';
 import TrafficAnalytics from '@/components/TrafficAnalytics';
-import TenantPlanBanner from '@/components/TenantPlanBanner';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
@@ -53,7 +53,6 @@ export default function LogsPage() {
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
   const [tenantName, setTenantName] = useState('');
-  const [tenantData, setTenantData] = useState(null);
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
@@ -153,7 +152,6 @@ export default function LogsPage() {
       
       setHasTenant(userHasTenant);
       setTenantName(tenant?.name || '');
-      setTenantData(tenant?.id ? tenant : null);
       
       if (userHasTenant) {
         await Promise.all([fetchLogs(), fetchSites()]);
@@ -163,7 +161,6 @@ export default function LogsPage() {
     } catch (error) {
       console.error('Error checking tenant:', error);
       setHasTenant(false);
-      setTenantData(null);
       setLoading(false);
     }
   };
@@ -183,7 +180,6 @@ export default function LogsPage() {
         const tenantData = await response.json();
         setHasTenant(true);
         setTenantName(tenantData.name);
-        setTenantData(tenantData);
         setShowTenantForm(false);
         setTenantFormData({ name: '' });
         await Promise.all([fetchLogs(), fetchSites()]);
@@ -515,6 +511,13 @@ export default function LogsPage() {
   return (
     <Layout>
       <div className="space-y-6">
+        {authLoading ? (
+          <AppLoadingState
+            title="Loading security logs"
+            message="Authenticating access and preparing your managed event stream."
+          />
+        ) : (
+          <>
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Security Logs & Analytics</h1>
@@ -550,24 +553,6 @@ export default function LogsPage() {
             )}
           </div>
         </div>
-
-        {tenantData ? (
-          <TenantPlanBanner
-            tenant={tenantData}
-            resources={[
-              {
-                label: 'Sites',
-                current: tenantData?.usage?.currentApps || sites.length,
-                limit: tenantData?.limits?.maxApps || 0,
-              },
-              {
-                label: 'Users',
-                current: tenantData?.usage?.currentUsers || 0,
-                limit: tenantData?.limits?.maxUsers || 0,
-              },
-            ]}
-          />
-        ) : null}
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -687,9 +672,11 @@ export default function LogsPage() {
           </div>
 
           {authLoading || loading ? (
-            <div className="flex items-center justify-center py-12">
-              <LoadingSpinner size="lg" />
-            </div>
+            <AppLoadingState
+              variant="panel"
+              title="Loading event timeline"
+              message="Compiling the latest WAF decisions, severities, and request activity."
+            />
           ) : logs.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -803,9 +790,11 @@ export default function LogsPage() {
         {activeTab === 'geographic' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             {authLoading || loading ? (
-              <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" />
-              </div>
+              <AppLoadingState
+                variant="panel"
+                title="Loading geographic analytics"
+                message="Mapping requests and blocked events across source locations."
+              />
             ) : (
               <GeographicAnalytics analytics={analyticsData} />
             )}
@@ -815,9 +804,11 @@ export default function LogsPage() {
         {activeTab === 'traffic' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             {authLoading || loading ? (
-              <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" />
-              </div>
+              <AppLoadingState
+                variant="panel"
+                title="Loading traffic analytics"
+                message="Building the traffic view for requests, attack volume, and decision patterns."
+              />
             ) : (
               <TrafficAnalytics analytics={analyticsData} />
             )}
@@ -896,6 +887,8 @@ export default function LogsPage() {
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </Layout>

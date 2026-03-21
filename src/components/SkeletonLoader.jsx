@@ -1,40 +1,40 @@
 export default function SkeletonLoader({ variant = 'default', className = '' }) {
   const variants = {
     stat: (
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 ${className}`}>
+      <div className={`rounded-[28px] border border-slate-200/80 bg-[linear-gradient(160deg,#ffffff_0%,#f8fbff_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)] ${className}`}>
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className="h-4 bg-gray-200 rounded w-24 mb-3 animate-pulse"></div>
-            <div className="h-8 bg-gray-200 rounded w-16 mb-2 animate-pulse"></div>
-            <div className="h-3 bg-gray-200 rounded w-32 animate-pulse"></div>
+            <div className="mb-3 h-3 w-24 animate-pulse rounded-full bg-slate-200"></div>
+            <div className="mb-3 h-9 w-20 animate-pulse rounded-2xl bg-slate-200"></div>
+            <div className="h-3 w-32 animate-pulse rounded-full bg-slate-200"></div>
           </div>
-          <div className="w-12 h-12 bg-gray-200 rounded-lg animate-pulse"></div>
+          <div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-200"></div>
         </div>
       </div>
     ),
     table: (
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${className}`}>
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="h-6 bg-gray-200 rounded w-32 animate-pulse"></div>
+      <div className={`overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.06)] ${className}`}>
+        <div className="border-b border-slate-200 px-6 py-4">
+          <div className="h-6 w-32 animate-pulse rounded-full bg-slate-200"></div>
         </div>
         <div className="p-6 space-y-4">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex items-center space-x-4">
-              <div className="h-4 bg-gray-200 rounded flex-1 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+              <div className="h-4 flex-1 animate-pulse rounded-full bg-slate-200"></div>
+              <div className="h-4 w-20 animate-pulse rounded-full bg-slate-200"></div>
+              <div className="h-4 w-20 animate-pulse rounded-full bg-slate-200"></div>
+              <div className="h-4 w-24 animate-pulse rounded-full bg-slate-200"></div>
             </div>
           ))}
         </div>
       </div>
     ),
     card: (
-      <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 ${className}`}>
-        <div className="h-6 bg-gray-200 rounded w-32 mb-4 animate-pulse"></div>
+      <div className={`rounded-[28px] border border-slate-200/80 bg-[linear-gradient(160deg,#ffffff_0%,#f8fbff_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)] ${className}`}>
+        <div className="mb-4 h-6 w-32 animate-pulse rounded-full bg-slate-200"></div>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse"></div>
+            <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-100"></div>
           ))}
         </div>
       </div>
@@ -42,17 +42,17 @@ export default function SkeletonLoader({ variant = 'default', className = '' }) 
     header: (
       <div className={`${className}`}>
         <div className="flex items-center space-x-3 mb-2">
-          <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse"></div>
+          <div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-200"></div>
           <div>
-            <div className="h-8 bg-gray-200 rounded w-48 mb-2 animate-pulse"></div>
-            <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
+            <div className="mb-2 h-8 w-48 animate-pulse rounded-full bg-slate-200"></div>
+            <div className="h-4 w-64 animate-pulse rounded-full bg-slate-200"></div>
           </div>
         </div>
       </div>
     ),
     default: (
       <div className={`animate-pulse ${className}`}>
-        <div className="h-4 bg-gray-200 rounded"></div>
+        <div className="h-4 rounded-full bg-slate-200"></div>
       </div>
     ),
   };

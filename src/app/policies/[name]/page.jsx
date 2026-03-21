@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import ConfirmationModal from '../ConfirmationModal';
 import FeedbackModal from '../FeedbackModal';
@@ -104,19 +105,17 @@ export default function PolicyVersionsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="text-gray-500">Loading...</div>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
       <div className="space-y-6">
+        {loading ? (
+          <AppLoadingState
+            variant="panel"
+            title="Loading policy versions"
+            message="Preparing version history, rollback details, and the latest managed policy state."
+          />
+        ) : (
+          <>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{policyName}</h1>
           <p className="mt-1 text-sm text-gray-500">Policy Versions</p>
@@ -211,6 +210,8 @@ export default function PolicyVersionsPage() {
             </div>
           ) : null}
         </div>
+          </>
+        )}
       </div>
 
       <ConfirmationModal

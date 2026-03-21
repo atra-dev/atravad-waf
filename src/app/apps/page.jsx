@@ -3,10 +3,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
+import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { isValidPemCertificate, isValidPemPrivateKey } from '@/lib/ssl-utils';
-import TenantPlanBanner from '@/components/TenantPlanBanner';
 
 // Icon Components
 const GlobeIcon = ({ className }) => (
@@ -180,7 +180,6 @@ export default function AppsPage() {
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
   const [tenantName, setTenantName] = useState('');
-  const [tenantData, setTenantData] = useState(null);
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
@@ -211,7 +210,6 @@ export default function AppsPage() {
       
       setHasTenant(userHasTenant);
       setTenantName(tenant?.name || '');
-      setTenantData(tenant?.id ? tenant : null);
       
       // Only fetch apps and policies if user has a tenant
       if (userHasTenant) {
@@ -220,7 +218,6 @@ export default function AppsPage() {
     } catch (error) {
       console.error('Error checking tenant:', error);
       setHasTenant(false);
-      setTenantData(null);
     } finally {
       setLoading(false);
   }
@@ -246,7 +243,6 @@ const getTrafficBarHeight = (value, maxValue) => {
         const tenantData = await response.json();
         setHasTenant(true);
         setTenantName(tenantData.name);
-        setTenantData(tenantData);
         setShowTenantForm(false);
         setTenantFormData({ name: '' });
         // Now fetch apps and policies
@@ -654,18 +650,8 @@ const getTrafficBarHeight = (value, maxValue) => {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-96">
-          <LoadingSpinner size="lg" />
-        </div>
-      </Layout>
-    );
-  }
-
   // If user doesn't have a tenant, show managed onboarding notice
-  if (!hasTenant) {
+  if (!loading && !hasTenant) {
     return (
       <Layout>
         <div className="space-y-6">
@@ -702,6 +688,14 @@ const getTrafficBarHeight = (value, maxValue) => {
   return (
     <Layout>
       <div className="space-y-6">
+        {loading ? (
+          <AppLoadingState
+            variant="panel"
+            title="Loading protected sites"
+            message="Syncing your websites, origin configuration, certificates, and policy assignments."
+          />
+        ) : (
+          <>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -718,29 +712,6 @@ const getTrafficBarHeight = (value, maxValue) => {
             </button>
           </div>
         </div>
-
-        {tenantData ? (
-          <TenantPlanBanner
-            tenant={tenantData}
-            resources={[
-              {
-                label: 'Sites',
-                current: tenantData?.usage?.currentApps || apps.length,
-                limit: tenantData?.limits?.maxApps || 0,
-              },
-              {
-                label: 'Policies',
-                current: tenantData?.usage?.currentPolicies || policies.length,
-                limit: tenantData?.limits?.maxPolicies || 0,
-              },
-              {
-                label: 'Users',
-                current: tenantData?.usage?.currentUsers || 0,
-                limit: tenantData?.limits?.maxUsers || 0,
-              },
-            ]}
-          />
-        ) : null}
 
         {/* Search Bar */}
         <div className="flex items-center gap-4">
@@ -1023,8 +994,6 @@ const getTrafficBarHeight = (value, maxValue) => {
             </table>
           </div>
         )}
-      </div>
-
       {/* Settings dropdown portal - renders outside table/card so it is not clipped */}
       {typeof document !== 'undefined' &&
         document.body &&
@@ -2067,6 +2036,9 @@ const getTrafficBarHeight = (value, maxValue) => {
           </div>
         </div>
       )}
+          </>
+        )}
+      </div>
     </Layout>
   );
 }

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import StatCard from '@/components/StatCard';
-import TenantPlanBanner from '@/components/TenantPlanBanner';
 
 // Icons
 const TenantIcon = ({ className }) => (
@@ -39,7 +38,6 @@ export default function DashboardPage() {
     appCount: 0,
     policyCount: 0,
     hasTenant: false,
-    tenant: null,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,7 +95,6 @@ export default function DashboardPage() {
         appCount: appsArray.length,
         policyCount: uniquePolicies.size,
         hasTenant,
-        tenant: tenant?.id ? tenant : null,
       });
 
       // Show tenant creation banner if user doesn't have a tenant
@@ -117,7 +114,6 @@ export default function DashboardPage() {
         appCount: 0,
         policyCount: 0,
         hasTenant: false,
-        tenant: null,
       });
     } finally {
       setLoading(false);
@@ -161,16 +157,6 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-96">
-          <LoadingSpinner size="lg" />
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
       <div className="space-y-8">
@@ -191,7 +177,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Managed onboarding notice */}
-        {!data.hasTenant && (
+        {!loading && !data.hasTenant && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
             <div className="flex items-start gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
@@ -211,30 +197,8 @@ export default function DashboardPage() {
         )}
 
         {/* Stats Grid - Only show if user has a tenant */}
-        {data.hasTenant && (
+        {!loading && data.hasTenant && (
           <>
-            {data.tenant ? (
-              <TenantPlanBanner
-                tenant={data.tenant}
-                resources={[
-                  {
-                    label: 'Sites',
-                    current: data.tenant?.usage?.currentApps || data.appCount,
-                    limit: data.tenant?.limits?.maxApps || 0,
-                  },
-                  {
-                    label: 'Policies',
-                    current: data.tenant?.usage?.currentPolicies || data.policyCount,
-                    limit: data.tenant?.limits?.maxPolicies || 0,
-                  },
-                  {
-                    label: 'Users',
-                    current: data.tenant?.usage?.currentUsers || 0,
-                    limit: data.tenant?.limits?.maxUsers || 0,
-                  },
-                ]}
-              />
-            ) : null}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <StatCard
                 title="Organization"

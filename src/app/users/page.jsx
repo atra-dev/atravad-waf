@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { auth } from '@/lib/firebase';
 
 export default function TenantUsersPage() {
@@ -83,9 +83,11 @@ export default function TenantUsersPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <LoadingSpinner size="lg" />
-          </div>
+          <AppLoadingState
+            variant="panel"
+            title="Loading tenant users"
+            message="Preparing managed access, user roles, and organization members."
+          />
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">

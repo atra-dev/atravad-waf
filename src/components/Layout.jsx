@@ -69,6 +69,12 @@ const UsersIcon = ({ className }) => (
   </svg>
 );
 
+const SubscriptionIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a5 5 0 00-10 0v2m-2 0h14a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7a2 2 0 012-2zm7 4h.01" />
+  </svg>
+);
+
 
 export default function Layout({ children }) {
   const pathname = usePathname();
@@ -205,6 +211,7 @@ export default function Layout({ children }) {
     { href: '/policies', label: 'Security Policies', icon: PoliciesIcon, requiresRole: true },
     { href: '/logs', label: 'Security Logs', icon: LogsIcon, requiresRole: true },
     { href: '/analytics', label: 'Analytics', icon: AnalyticsIcon, requiresRole: true },
+    { href: '/subscription', label: 'Subscription', icon: SubscriptionIcon, requiresRole: true },
     { href: '/users', label: 'User Management', icon: UsersIcon, requiresAdmin: true },
     { href: '/admin', label: 'Super Admin', icon: SuperAdminIcon, requiresSuperAdmin: true, separator: true },
   ], []);

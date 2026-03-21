@@ -4,10 +4,31 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
-import StatCard from '@/components/StatCard';
 import { getPlanOptions } from '@/lib/plans';
 
 const PLAN_OPTIONS = getPlanOptions();
+const ADMIN_TABS = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    description: 'Commercial summary',
+  },
+  {
+    id: 'tenants',
+    label: 'Tenants',
+    description: 'Plans and provisioning',
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    description: 'Managed access',
+  },
+  {
+    id: 'activity',
+    label: 'Activity',
+    description: 'Operational timeline',
+  },
+];
 
 // Icons
 const TenantIcon = ({ className }) => (
@@ -51,6 +72,61 @@ const StatusBadge = ({ status, className = '' }) => {
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text} ${className}`}>
       <span className={`w-2 h-2 ${config.dot} rounded-full mr-2`}></span>
       {status}
+    </span>
+  );
+};
+
+const CommercialStatusBadge = ({ status }) => {
+  const normalized = String(status || 'active').toLowerCase();
+  const toneMap = {
+    active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    trialing: 'border-sky-200 bg-sky-50 text-sky-700',
+    past_due: 'border-amber-200 bg-amber-50 text-amber-700',
+    suspended: 'border-red-200 bg-red-50 text-red-700',
+  };
+  const label = normalized.replace(/_/g, ' ');
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneMap[normalized] || toneMap.active}`}>
+      {label}
+    </span>
+  );
+};
+
+const PlanBadge = ({ planName }) => (
+  <span className="inline-flex rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-700">
+    {planName}
+  </span>
+);
+
+const PremiumStatCard = ({ title, value, subtitle, icon: Icon }) => (
+  <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-[linear-gradient(160deg,#ffffff_0%,#f8fbff_100%)] p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{title}</p>
+        <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+        <p className="mt-2 text-sm text-slate-600">{subtitle}</p>
+      </div>
+      <div className="rounded-2xl border border-white/80 bg-white/80 p-3 text-slate-700 shadow-sm">
+        <Icon className="h-6 w-6" />
+      </div>
+    </div>
+  </div>
+);
+
+const SeverityBadge = ({ severity }) => {
+  const normalized = String(severity || 'info').toLowerCase();
+  const toneMap = {
+    critical: 'border-red-200 bg-red-50 text-red-700',
+    high: 'border-orange-200 bg-orange-50 text-orange-700',
+    medium: 'border-amber-200 bg-amber-50 text-amber-700',
+    low: 'border-slate-200 bg-slate-100 text-slate-700',
+    info: 'border-sky-200 bg-sky-50 text-sky-700',
+  };
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${toneMap[normalized] || toneMap.info}`}>
+      {normalized}
     </span>
   );
 };
@@ -477,42 +553,53 @@ export default function SuperAdminPage() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+            <PremiumStatCard
               title="Total Tenants"
               value={stats.totalTenants || tenants.length}
               icon={TenantIcon}
-              subtitle="Organizations"
+              subtitle="Managed organizations"
             />
-            <StatCard
+            <PremiumStatCard
               title="Total Users"
               value={stats.totalUsers || users.length}
               icon={UsersIcon}
-              subtitle="Platform users"
+              subtitle="Platform operators and client users"
             />
-            <StatCard
+            <PremiumStatCard
               title="Total Sites"
               value={stats.totalApps || tenants.reduce((sum, t) => sum + (t.appCount || 0), 0)}
               icon={AppsIcon}
-              subtitle="Protected sites"
+              subtitle="Protected websites and applications"
+            />
+            <PremiumStatCard
+              title="Total Policies"
+              value={stats.totalPolicies || tenants.reduce((sum, t) => sum + (t.policyCount || 0), 0)}
+              icon={ActivityIcon}
+              subtitle="Active managed protection rules"
             />
           </div>
         )}
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            {['overview', 'tenants', 'users', 'activity'].map((tab) => (
+        <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f7fbff_60%,#f4faf8_100%)] p-3 shadow-[0_16px_45px_rgba(15,23,42,0.06)]">
+          <nav className="grid grid-cols-1 gap-2 md:grid-cols-4">
+            {ADMIN_TABS.map((tab) => (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
                 className={`${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize`}
+                  activeTab === tab.id
+                    ? 'border-slate-950 bg-slate-950 text-white shadow-[0_16px_35px_rgba(15,23,42,0.16)]'
+                    : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900'
+                } rounded-[22px] border px-4 py-4 text-left transition`}
               >
-                {tab}
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] opacity-70">
+                  {tab.label}
+                </span>
+                <span className="mt-2 block text-sm font-medium">
+                  {tab.description}
+                </span>
               </button>
             ))}
           </nav>
@@ -528,15 +615,23 @@ export default function SuperAdminPage() {
               </>
             ) : (
               <>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Tenants</h3>
+                <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(160deg,#ffffff_0%,#f8fbff_100%)] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+                  <div className="mb-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Tenant Portfolio</p>
+                    <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Recent Tenants</h3>
+                    <p className="mt-2 text-sm text-slate-600">The latest managed accounts provisioned across your commercial footprint.</p>
+                  </div>
                   <div className="space-y-3">
                     {tenants.slice(0, 5).map((tenant) => (
-                  <div key={tenant.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={tenant.id} className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
                     <div className="flex-1">
-                      <p className="font-medium text-gray-900">{tenant.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {tenant.plan?.name || tenant.planId || 'essential'} • {tenant.userCount || 0} users • {tenant.appCount || 0} sites • {tenant.policyCount || 0} policies
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-gray-900">{tenant.name}</p>
+                        <PlanBadge planName={tenant.plan?.name || tenant.planId || 'essential'} />
+                        <CommercialStatusBadge status={tenant.subscriptionStatus} />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        {tenant.userCount || 0} users • {tenant.appCount || 0} sites • {tenant.policyCount || 0} policies
                       </p>
                     </div>
                     <StatusBadge status="online" />
@@ -553,21 +648,31 @@ export default function SuperAdminPage() {
               </div>
             </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+                <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(150deg,#081226_0%,#0f1e3a_52%,#12304f_100%)] p-6 text-white shadow-[0_20px_70px_rgba(8,18,38,0.26)]">
+                  <div className="mb-5 flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Operational Feed</p>
+                      <h3 className="mt-2 text-xl font-semibold tracking-tight">Recent Activity</h3>
+                      <p className="mt-2 text-sm text-slate-300">Live operational events across tenants, surfaced in the same commercial console language.</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/10 p-3 text-cyan-100">
+                      <ActivityIcon className="h-6 w-6" />
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     {activity.logs.slice(0, 5).map((log) => (
-                      <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-gray-900">{log.message || 'Log Entry'}</p>
-                          <p className="text-xs text-gray-500">
+                      <div key={log.id} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-white">{log.message || 'Log Entry'}</p>
+                          <p className="mt-2 text-xs text-slate-300">
                             {log.tenant?.name || 'Unknown tenant'} • {new Date(log.timestamp).toLocaleString()}
                           </p>
                         </div>
+                        <SeverityBadge severity={log.severity} />
                       </div>
                     ))}
                     {activity.logs.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No recent activity</p>
+                      <p className="py-4 text-center text-sm text-slate-300">No recent activity</p>
                     )}
                   </div>
                 </div>
@@ -581,126 +686,155 @@ export default function SuperAdminPage() {
             {loading ? (
               <SkeletonLoader variant="table" />
             ) : (
-              <div className="space-y-4">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Create Tenant</h3>
-                  <p className="mt-1 text-sm text-gray-500">Provision a managed tenant, attach a commercial plan, and optionally assign an existing user as its admin.</p>
-                  <form onSubmit={handleCreateTenant} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-4">
-                    <input
-                      type="text"
-                      value={tenantForm.name}
-                      onChange={(e) => setTenantForm((prev) => ({ ...prev, name: e.target.value }))}
-                      placeholder="Tenant name"
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                    <input
-                      type="email"
-                      value={tenantForm.assignUserEmail}
-                      onChange={(e) => setTenantForm((prev) => ({ ...prev, assignUserEmail: e.target.value }))}
-                      placeholder="Assign user email (optional)"
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <select
-                      value={tenantForm.planId}
-                      onChange={(e) => setTenantForm((prev) => ({ ...prev, planId: e.target.value }))}
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {PLAN_OPTIONS.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name} ({plan.price})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      disabled={creatingTenant || !tenantForm.name.trim()}
-                      className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {creatingTenant ? 'Creating...' : 'Create Tenant'}
-                    </button>
-                  </form>
-                </div>
+              <div className="space-y-6">
+                <section className="overflow-hidden rounded-[30px] border border-slate-200/80 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6ff_55%,#f5fbf8_100%)] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
+                  <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                      <div className="max-w-3xl">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Commercial Provisioning</p>
+                        <h3 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Tenant Subscription Control</h3>
+                        <p className="mt-3 text-sm leading-7 text-slate-600">
+                          Provision managed tenants, attach commercial plans, and keep subscription status aligned with operational capacity before customers feel any limit pressure.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 sm:w-auto">
+                        <div className="rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-sm">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Tenants</p>
+                          <p className="mt-2 text-2xl font-semibold text-slate-950">{tenants.length}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-sm">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Plans</p>
+                          <p className="mt-2 text-2xl font-semibold text-slate-950">{PLAN_OPTIONS.length}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-sm">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Active</p>
+                          <p className="mt-2 text-2xl font-semibold text-slate-950">
+                            {tenants.filter((tenant) => (tenant.subscriptionStatus || 'active') === 'active').length}
+                          </p>
+                        </div>
+                        <SeverityBadge severity={log.severity} />
+                      </div>
+                    </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900">All Tenants</h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sites</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {tenants.map((tenant) => (
-                          <tr key={tenant.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-gray-900">{tenant.name}</div>
-                              <div className="text-sm text-gray-500">{tenant.id}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.userCount || 0}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.appCount || 0}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.policyCount || 0}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <select
-                                value={tenantEdits[tenant.id]?.planId || tenant.planId || 'essential'}
-                                onChange={(e) => handleTenantEditChange(tenant.id, 'planId', e.target.value)}
-                                className="min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                {PLAN_OPTIONS.map((plan) => (
-                                  <option key={plan.id} value={plan.id}>
-                                    {plan.name} ({plan.price})
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <select
-                                value={tenantEdits[tenant.id]?.subscriptionStatus || tenant.subscriptionStatus || 'active'}
-                                onChange={(e) => handleTenantEditChange(tenant.id, 'subscriptionStatus', e.target.value)}
-                                className="min-w-[150px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="active">active</option>
-                                <option value="trialing">trialing</option>
-                                <option value="past_due">past_due</option>
-                                <option value="suspended">suspended</option>
-                              </select>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <button
-                                type="button"
-                                onClick={() => handleSaveTenant(tenant.id)}
-                                disabled={savingTenantId === tenant.id}
-                                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                              >
-                                {savingTenantId === tenant.id ? 'Saving...' : 'Save'}
-                              </button>
-                            </td>
-                          </tr>
+                    <form onSubmit={handleCreateTenant} className="grid grid-cols-1 gap-4 rounded-[26px] border border-white/70 bg-white/80 p-5 shadow-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(240px,0.9fr)_180px]">
+                      <input
+                        type="text"
+                        value={tenantForm.name}
+                        onChange={(e) => setTenantForm((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Tenant name"
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <input
+                        type="email"
+                        value={tenantForm.assignUserEmail}
+                        onChange={(e) => setTenantForm((prev) => ({ ...prev, assignUserEmail: e.target.value }))}
+                        placeholder="Assign user email (optional)"
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <select
+                        value={tenantForm.planId}
+                        onChange={(e) => setTenantForm((prev) => ({ ...prev, planId: e.target.value }))}
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {PLAN_OPTIONS.map((plan) => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.name} ({plan.price})
+                          </option>
                         ))}
-                        {tenants.length === 0 && (
-                          <tr>
-                            <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
-                              No tenants found
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                      </select>
+                      <button
+                        type="submit"
+                        disabled={creatingTenant || !tenantForm.name.trim()}
+                        className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {creatingTenant ? 'Creating...' : 'Create Tenant'}
+                      </button>
+                    </form>
                   </div>
-                </div>
+                </section>
+
+                <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">Commercial Accounts</p>
+                      <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">All Tenants</h3>
+                    </div>
+                    <p className="text-sm text-slate-500">Plan assignment remains controlled by the super admin team.</p>
+                  </div>
+
+                  <div className="mt-6 space-y-4">
+                    {tenants.map((tenant) => (
+                      <article key={tenant.id} className="rounded-[26px] border border-slate-200 bg-[linear-gradient(145deg,#ffffff_0%,#f8fbff_100%)] p-5 shadow-sm">
+                        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="text-xl font-semibold tracking-tight text-slate-950">{tenant.name}</h4>
+                              <PlanBadge planName={tenant.plan?.name || tenant.planId || 'essential'} />
+                              <CommercialStatusBadge status={tenant.subscriptionStatus} />
+                            </div>
+                            <p className="mt-2 text-sm text-slate-500">{tenant.id}</p>
+                            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                              <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Users</p>
+                                <p className="mt-2 text-2xl font-semibold text-slate-950">{tenant.userCount || 0}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Sites</p>
+                                <p className="mt-2 text-2xl font-semibold text-slate-950">{tenant.appCount || 0}</p>
+                              </div>
+                              <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Policies</p>
+                                <p className="mt-2 text-2xl font-semibold text-slate-950">{tenant.policyCount || 0}</p>
+                              </div>
+                            </div>
+                            <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
+                              Created {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
+                            </p>
+                          </div>
+
+                          <div className="grid w-full gap-3 xl:w-[380px]">
+                            <select
+                              value={tenantEdits[tenant.id]?.planId || tenant.planId || 'essential'}
+                              onChange={(e) => handleTenantEditChange(tenant.id, 'planId', e.target.value)}
+                              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              {PLAN_OPTIONS.map((plan) => (
+                                <option key={plan.id} value={plan.id}>
+                                  {plan.name} ({plan.price})
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              value={tenantEdits[tenant.id]?.subscriptionStatus || tenant.subscriptionStatus || 'active'}
+                              onChange={(e) => handleTenantEditChange(tenant.id, 'subscriptionStatus', e.target.value)}
+                              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="active">active</option>
+                              <option value="trialing">trialing</option>
+                              <option value="past_due">past_due</option>
+                              <option value="suspended">suspended</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveTenant(tenant.id)}
+                              disabled={savingTenantId === tenant.id}
+                              className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                            >
+                              {savingTenantId === tenant.id ? 'Saving...' : 'Save Subscription Changes'}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+
+                    {tenants.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center text-sm text-slate-500">
+                        No tenants found
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
               </div>
             )}
           </>
@@ -970,31 +1104,47 @@ export default function SuperAdminPage() {
             ) : (
               <div className="space-y-6">
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Logs</h3>
-              <div className="space-y-3">
+            <section className="overflow-hidden rounded-[30px] border border-slate-200/80 bg-[linear-gradient(145deg,#f8fbff_0%,#eef6ff_55%,#f5fbf8_100%)] p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-3xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">Operations Timeline</p>
+                  <h3 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Recent Activity Stream</h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    Review the latest tenant-impacting events, triage signals by severity, and keep the operational picture aligned with your commercial commitments.
+                  </p>
+                </div>
+                <div className="rounded-[24px] border border-white/70 bg-white/75 px-5 py-4 shadow-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Events surfaced</p>
+                  <p className="mt-2 text-3xl font-semibold text-slate-950">{activity.logs.length}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-3">
                 {activity.logs.slice(0, 10).map((log) => (
-                  <div key={log.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{log.message || 'Log Entry'}</p>
-                      <p className="text-sm text-gray-500">
+                  <div key={log.id} className="flex flex-col gap-4 rounded-[24px] border border-white/75 bg-white/80 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <SeverityBadge severity={log.severity} />
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          {log.tenant?.name || 'Unknown tenant'}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-base font-semibold text-slate-950">{log.message || 'Log Entry'}</p>
+                      <p className="mt-2 text-sm text-slate-500">
                         Tenant: {log.tenant?.name || 'Unknown'} • {new Date(log.timestamp).toLocaleString()}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      log.severity === 'critical' ? 'bg-red-100 text-red-800' :
-                      log.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {log.severity || 'info'}
-                    </span>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Source</p>
+                      <p className="mt-2 text-sm font-medium text-slate-700">Activity Log</p>
+                    </div>
                   </div>
                 ))}
                 {activity.logs.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">No logs found</p>
+                  <p className="py-10 text-center text-sm text-slate-500">No logs found</p>
                 )}
               </div>
-            </div>
+            </section>
               </div>
             )}
           </>
