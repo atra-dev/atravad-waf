@@ -225,6 +225,41 @@ function normalizePolicyConfig(policy) {
     : (policy || {});
 }
 
+function getRequestPathname(req) {
+  const rawUrl = String(req?.url || '');
+  try {
+    return new URL(rawUrl, 'https://atravad-waf.local').pathname || '/';
+  } catch {
+    return rawUrl.split('?')[0] || '/';
+  }
+}
+
+function getFallbackExcludedRuleIds(req, policy) {
+  const normalizedPolicy = normalizePolicyConfig(policy);
+  const exceptions = Array.isArray(normalizedPolicy.exceptions) ? normalizedPolicy.exceptions : [];
+  if (exceptions.length === 0) return new Set();
+
+  const pathname = getRequestPathname(req);
+  const excludedRuleIds = new Set();
+
+  for (const exception of exceptions) {
+    const path = String(exception?.path || '').trim();
+    if (!path) continue;
+
+    const escapedPath = path.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    const matcher = new RegExp(`^${escapedPath}`);
+    if (!matcher.test(pathname)) continue;
+
+    const ruleIds = Array.isArray(exception?.ruleIds) ? exception.ruleIds : [];
+    for (const ruleId of ruleIds) {
+      const normalizedRuleId = String(ruleId || '').trim();
+      if (normalizedRuleId) excludedRuleIds.add(normalizedRuleId);
+    }
+  }
+
+  return excludedRuleIds;
+}
+
 function decodeVariants(value, maxDepth = 3) {
   const variants = new Set();
   let current = String(value ?? '');
@@ -318,6 +353,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
   const strictMode = policy?.includeOWASPCRS !== false;
   const inputs = collectInspectionInputs(req, bodyBuffer);
   const matchedRules = [];
+  const excludedRuleIds = getFallbackExcludedRuleIds(req, policy);
 
   const ipCheck = fallbackIpAccessCheck(req, policy);
   if (ipCheck.blocked) {
@@ -426,6 +462,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
 
   for (const rule of ruleChecks) {
     if (!rule.enabled) continue;
+    if (excludedRuleIds.has(String(rule.id))) continue;
     const match = matchInspectionRule(inputs, rule.regexes);
     if (!match) continue;
 
