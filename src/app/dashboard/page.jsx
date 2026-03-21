@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import StatCard from '@/components/StatCard';
+import TenantPlanBanner from '@/components/TenantPlanBanner';
 
 // Icons
 const TenantIcon = ({ className }) => (
@@ -37,6 +39,7 @@ export default function DashboardPage() {
     appCount: 0,
     policyCount: 0,
     hasTenant: false,
+    tenant: null,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -94,6 +97,7 @@ export default function DashboardPage() {
         appCount: appsArray.length,
         policyCount: uniquePolicies.size,
         hasTenant,
+        tenant: tenant?.id ? tenant : null,
       });
 
       // Show tenant creation banner if user doesn't have a tenant
@@ -113,6 +117,7 @@ export default function DashboardPage() {
         appCount: 0,
         policyCount: 0,
         hasTenant: false,
+        tenant: null,
       });
     } finally {
       setLoading(false);
@@ -208,6 +213,28 @@ export default function DashboardPage() {
         {/* Stats Grid - Only show if user has a tenant */}
         {data.hasTenant && (
           <>
+            {data.tenant ? (
+              <TenantPlanBanner
+                tenant={data.tenant}
+                resources={[
+                  {
+                    label: 'Sites',
+                    current: data.tenant?.usage?.currentApps || data.appCount,
+                    limit: data.tenant?.limits?.maxApps || 0,
+                  },
+                  {
+                    label: 'Policies',
+                    current: data.tenant?.usage?.currentPolicies || data.policyCount,
+                    limit: data.tenant?.limits?.maxPolicies || 0,
+                  },
+                  {
+                    label: 'Users',
+                    current: data.tenant?.usage?.currentUsers || 0,
+                    limit: data.tenant?.limits?.maxUsers || 0,
+                  },
+                ]}
+              />
+            ) : null}
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               <StatCard
                 title="Organization"
@@ -234,7 +261,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                 <div className="space-y-3">
-                  <a
+                  <Link
                     href="/policies"
                     className="flex items-center justify-between p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group"
                   >
@@ -250,8 +277,8 @@ export default function DashboardPage() {
                     <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </a>
-                  <a
+                  </Link>
+                  <Link
                     href="/apps"
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                   >
@@ -267,7 +294,7 @@ export default function DashboardPage() {
                     <svg className="h-5 w-5 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </a>
+                  </Link>
                 </div>
               </div>
 

@@ -95,47 +95,50 @@ const deploymentSteps = [
 const pricingPlans = [
   {
     name: 'Managed Essential',
-    price: '$249',
-    cadence: '/yr',
-    description: 'For smaller websites that need fully managed WAF protection without building an in-house security team.',
+    price: '$79',
+    cadence: '/mo',
+    description: 'For smaller MSMEs that need managed WAF protection, guided onboarding, and predictable baseline coverage.',
     highlight: false,
     features: [
       '1 protected website or application',
-      'Managed WAF monitoring and policy handling',
-      '24/7 cyber defense operations center oversight',
+      'Managed WAF monitoring with scheduled support',
+      '7-day logs and 30-day analytics retention',
       'Managed SSL and domain onboarding support',
       'Threat blocking with core analytics visibility',
-      'Email and scheduled support assistance',
+      'Email support during business hours',
+      '$790 billed annually',
     ],
   },
   {
     name: 'Managed Professional',
-    price: '$399',
-    cadence: '/yr',
-    description: 'For growing businesses that need stronger managed protection, faster handling, and deeper security visibility.',
+    price: '$179',
+    cadence: '/mo',
+    description: 'For growing businesses that need stronger managed protection, deeper analytics, and regular policy tuning.',
     highlight: true,
     features: [
       '1 protected website or application',
-      '24/7 cyber defense operations center management',
+      'Priority managed WAF operations',
       'Managed bot mitigation, geo controls, and rate limiting',
       'Virtual patching and tuned policy adjustments',
-      'Extended analytics and threat visibility',
+      '30-day logs and 90-day analytics retention',
       'Priority support and faster response handling',
+      '$1,790 billed annually',
     ],
   },
   {
     name: 'Managed Business',
-    price: '$649',
-    cadence: '/yr',
-    description: 'For business-critical applications that require higher-touch managed defense and stronger operational coverage.',
+    price: '$399',
+    cadence: '/mo',
+    description: 'For business-critical applications that require higher-touch managed defense, faster escalation, and stronger operational coverage.',
     highlight: false,
     features: [
-      '1 protected website or application',
+      'Up to 3 protected websites or applications',
       '24/7 managed WAF operations and escalation handling',
       'Advanced threat controls with hands-on tuning',
-      'Longer analytics retention and richer reporting',
+      '90-day logs and 180-day analytics retention',
       'Priority support with faster response targets',
       'Commercial-grade onboarding and service guidance',
+      '$3,990 billed annually',
     ],
   },
   {
@@ -524,7 +527,7 @@ export default function Home() {
                         : 'bg-slate-950 text-white hover:bg-slate-800'
                     }`}
                   >
-                    {plan.name === 'Multi-Site & Custom' ? 'Talk to sales' : 'Get started'}
+                    {plan.name === 'Managed Multi-Site & Custom' ? 'Talk to sales' : 'Get started'}
                   </Link>
                 </div>
               </article>

@@ -5,6 +5,9 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import StatCard from '@/components/StatCard';
+import { getPlanOptions } from '@/lib/plans';
+
+const PLAN_OPTIONS = getPlanOptions();
 
 // Icons
 const TenantIcon = ({ className }) => (
@@ -69,7 +72,7 @@ export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState(null);
   const [selectedTenantFilter, setSelectedTenantFilter] = useState('all');
-  const [tenantForm, setTenantForm] = useState({ name: '', assignUserEmail: '' });
+  const [tenantForm, setTenantForm] = useState({ name: '', assignUserEmail: '', planId: 'essential' });
   const [userForm, setUserForm] = useState({
     email: '',
     password: '',
@@ -80,8 +83,10 @@ export default function SuperAdminPage() {
   const [creatingTenant, setCreatingTenant] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [savingUserId, setSavingUserId] = useState('');
+  const [savingTenantId, setSavingTenantId] = useState('');
   const [removingUserId, setRemovingUserId] = useState('');
   const [userEdits, setUserEdits] = useState({});
+  const [tenantEdits, setTenantEdits] = useState({});
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -156,6 +161,17 @@ export default function SuperAdminPage() {
       const activityData = await activityRes.json();
 
       setTenants(tenantsData || []);
+      setTenantEdits(
+        Object.fromEntries(
+          (tenantsData || []).map((tenant) => [
+            tenant.id,
+            {
+              planId: tenant.planId || 'essential',
+              subscriptionStatus: tenant.subscriptionStatus || 'active',
+            },
+          ])
+        )
+      );
       setUsers(usersData || []);
       setUserEdits(
         Object.fromEntries(
@@ -198,6 +214,7 @@ export default function SuperAdminPage() {
         body: JSON.stringify({
           name: tenantForm.name,
           assignUserEmail: tenantForm.assignUserEmail || undefined,
+          planId: tenantForm.planId,
         }),
       });
 
@@ -207,7 +224,7 @@ export default function SuperAdminPage() {
         return;
       }
 
-      setTenantForm({ name: '', assignUserEmail: '' });
+      setTenantForm({ name: '', assignUserEmail: '', planId: 'essential' });
       await fetchData(true);
       showToast('Tenant created successfully.');
     } catch (err) {
@@ -215,6 +232,48 @@ export default function SuperAdminPage() {
       showToast('Failed to create tenant.', 'error');
     } finally {
       setCreatingTenant(false);
+    }
+  };
+
+  const handleTenantEditChange = (tenantId, field, value) => {
+    setTenantEdits((prev) => ({
+      ...prev,
+      [tenantId]: {
+        ...(prev[tenantId] || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleSaveTenant = async (tenantId) => {
+    const pendingEdit = tenantEdits[tenantId];
+    if (!pendingEdit) return;
+
+    setSavingTenantId(tenantId);
+    try {
+      const response = await fetch('/api/admin/tenants', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          planId: pendingEdit.planId,
+          subscriptionStatus: pendingEdit.subscriptionStatus,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showToast(payload.error || 'Failed to update tenant subscription', 'error');
+        return;
+      }
+
+      await fetchData(true);
+      showToast('Tenant subscription updated successfully.');
+    } catch (error) {
+      console.error('Error updating tenant subscription:', error);
+      showToast('Failed to update tenant subscription.', 'error');
+    } finally {
+      setSavingTenantId('');
     }
   };
 
@@ -477,7 +536,7 @@ export default function SuperAdminPage() {
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">{tenant.name}</p>
                       <p className="text-xs text-gray-500">
-                        {tenant.userCount || 0} users • {tenant.appCount || 0} sites • {tenant.policyCount || 0} policies
+                        {tenant.plan?.name || tenant.planId || 'essential'} • {tenant.userCount || 0} users • {tenant.appCount || 0} sites • {tenant.policyCount || 0} policies
                       </p>
                     </div>
                     <StatusBadge status="online" />
@@ -525,8 +584,8 @@ export default function SuperAdminPage() {
               <div className="space-y-4">
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h3 className="text-lg font-semibold text-gray-900">Create Tenant</h3>
-                  <p className="mt-1 text-sm text-gray-500">Provision a managed tenant and optionally assign an existing user as its admin.</p>
-                  <form onSubmit={handleCreateTenant} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <p className="mt-1 text-sm text-gray-500">Provision a managed tenant, attach a commercial plan, and optionally assign an existing user as its admin.</p>
+                  <form onSubmit={handleCreateTenant} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-4">
                     <input
                       type="text"
                       value={tenantForm.name}
@@ -542,6 +601,17 @@ export default function SuperAdminPage() {
                       placeholder="Assign user email (optional)"
                       className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <select
+                      value={tenantForm.planId}
+                      onChange={(e) => setTenantForm((prev) => ({ ...prev, planId: e.target.value }))}
+                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {PLAN_OPTIONS.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name} ({plan.price})
+                        </option>
+                      ))}
+                    </select>
                     <button
                       type="submit"
                       disabled={creatingTenant || !tenantForm.name.trim()}
@@ -564,7 +634,10 @@ export default function SuperAdminPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sites</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policies</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -577,14 +650,49 @@ export default function SuperAdminPage() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.userCount || 0}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.appCount || 0}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{tenant.policyCount || 0}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <select
+                                value={tenantEdits[tenant.id]?.planId || tenant.planId || 'essential'}
+                                onChange={(e) => handleTenantEditChange(tenant.id, 'planId', e.target.value)}
+                                className="min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {PLAN_OPTIONS.map((plan) => (
+                                  <option key={plan.id} value={plan.id}>
+                                    {plan.name} ({plan.price})
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <select
+                                value={tenantEdits[tenant.id]?.subscriptionStatus || tenant.subscriptionStatus || 'active'}
+                                onChange={(e) => handleTenantEditChange(tenant.id, 'subscriptionStatus', e.target.value)}
+                                className="min-w-[150px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="active">active</option>
+                                <option value="trialing">trialing</option>
+                                <option value="past_due">past_due</option>
+                                <option value="suspended">suspended</option>
+                              </select>
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveTenant(tenant.id)}
+                                disabled={savingTenantId === tenant.id}
+                                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                {savingTenantId === tenant.id ? 'Saving...' : 'Save'}
+                              </button>
                             </td>
                           </tr>
                         ))}
                         {tenants.length === 0 && (
                           <tr>
-                            <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                            <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
                               No tenants found
                             </td>
                           </tr>

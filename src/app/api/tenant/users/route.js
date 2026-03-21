@@ -3,6 +3,7 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getUserRole, ROLES } from '@/lib/rbac';
 import { normalizeEmail } from '@/lib/user-utils';
+import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 function generateTemporaryPassword() {
   return `Tmp!${Math.random().toString(36).slice(2, 10)}9Z`;
@@ -107,6 +108,20 @@ export async function POST(request) {
     const body = await request.json();
     const { email, role } = body;
 
+    const userLimit = await getTenantLimitStatus(adminDb, tenantName, 'maxUsers');
+    if (!userLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Plan limit reached: ${userLimit.current} of ${userLimit.limit} managed users used`,
+          code: 'PLAN_LIMIT_MAX_USERS',
+          limit: userLimit.limit,
+          current: userLimit.current,
+          planId: userLimit.tenant?.planId || null,
+        },
+        { status: 403 }
+      );
+    }
+
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return NextResponse.json(
         { error: 'Valid email is required' },
@@ -165,6 +180,7 @@ export async function POST(request) {
     };
 
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
+    invalidateTenantSubscriptionCache(tenantName);
 
     return NextResponse.json(
       {
@@ -340,6 +356,7 @@ export async function DELETE(request) {
     }
 
     await adminDb.collection('users').doc(normalizedEmail).delete();
+    invalidateTenantSubscriptionCache(tenantName);
 
     return NextResponse.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {

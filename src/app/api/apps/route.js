@@ -8,6 +8,11 @@ import { normalizeOriginConfig } from '@/lib/origin-utils';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 import { hydrateAppActivation } from '@/lib/activation-utils';
 import { normalizeDomainInput } from '@/lib/domain-utils';
+import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
+import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+
+const APPS_CACHE_TTL_MS = 60000;
+const TRAFFIC_STATS_WINDOW_HOURS = 24;
 
 function normalizeLogSource(value) {
   return normalizeDomainInput(typeof value === 'string' ? value : '');
@@ -36,16 +41,20 @@ function deriveLogDecision(log) {
 }
 
 async function getTenantTrafficStats(tenantName) {
-  const logsSnapshot = await adminDb
-    .collection('logs')
+  const windowStartIso = new Date(
+    Date.now() - TRAFFIC_STATS_WINDOW_HOURS * 60 * 60 * 1000
+  ).toISOString();
+  const rollupsSnapshot = await adminDb
+    .collection('log_rollups_hourly')
     .where('tenantName', '==', tenantName)
+    .where('bucketStartIso', '>=', windowStartIso)
     .get();
 
   const statsBySource = new Map();
 
-  for (const doc of logsSnapshot.docs) {
-    const log = doc.data();
-    const source = normalizeLogSource(log?.source || log?.nodeId);
+  for (const doc of rollupsSnapshot.docs) {
+    const rollup = doc.data();
+    const source = normalizeLogSource(rollup?.siteNormalized);
     if (!source) continue;
 
     const existing = statsBySource.get(source) || {
@@ -55,17 +64,19 @@ async function getTenantTrafficStats(tenantName) {
       lastSeenAt: null,
     };
 
-    const decision = deriveLogDecision(log);
-    if (decision === 'allowed' || decision === 'websocket_allowed') {
-      existing.allowed += 1;
-    } else {
-      existing.blocked += 1;
-    }
+    const totals = rollup?.totals || {};
+    const allowed = Number(totals.allowed || 0);
+    const wafBlocked = Number(totals.wafBlocked || 0);
+    const originDenied = Number(totals.originDenied || 0);
+    const total = Number(totals.total || allowed + wafBlocked + originDenied || 0);
+    existing.allowed += allowed;
+    existing.blocked += wafBlocked + originDenied;
+    existing.total += total;
 
-    existing.total += 1;
-    if (log?.timestamp) {
-      if (!existing.lastSeenAt || new Date(log.timestamp).getTime() > new Date(existing.lastSeenAt).getTime()) {
-        existing.lastSeenAt = log.timestamp;
+    const lastSeenAt = rollup?.updatedAt || rollup?.bucketStartIso || null;
+    if (lastSeenAt) {
+      if (!existing.lastSeenAt || new Date(lastSeenAt).getTime() > new Date(existing.lastSeenAt).getTime()) {
+        existing.lastSeenAt = lastSeenAt;
       }
     }
 
@@ -73,6 +84,13 @@ async function getTenantTrafficStats(tenantName) {
   }
 
   return statsBySource;
+}
+
+function invalidateTenantAppCaches(tenantName) {
+  invalidateServerCache(`apps:${tenantName}:`);
+  invalidateServerCache(`policies:${tenantName}:`);
+  invalidateServerCache(`analytics:${tenantName}:`);
+  invalidateTenantSubscriptionCache(tenantName);
 }
 
 function sanitizeAppForClient(app) {
@@ -128,6 +146,20 @@ export async function POST(request) {
     const tenantName = await getTenantName(user);
     if (!tenantName) {
       return NextResponse.json({ error: 'No tenant assigned' }, { status: 400 });
+    }
+
+    const appLimit = await getTenantLimitStatus(adminDb, tenantName, 'maxApps');
+    if (!appLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Plan limit reached: ${appLimit.current} of ${appLimit.limit} protected site slots used`,
+          code: 'PLAN_LIMIT_MAX_APPS',
+          limit: appLimit.limit,
+          current: appLimit.current,
+          planId: appLimit.tenant?.planId || null,
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
@@ -225,6 +257,8 @@ export async function POST(request) {
       createdBy: user.uid,
     });
 
+    invalidateTenantAppCaches(tenantName);
+
     return NextResponse.json({
       id: appRef.id,
       ...sanitizeAppForClient({
@@ -272,28 +306,34 @@ export async function GET(request) {
       return NextResponse.json([]);
     }
 
-    const [appsSnapshot, statsBySource] = await Promise.all([
-      adminDb
-        .collection('applications')
-        .where('tenantName', '==', tenantName)
-        .get(),
-      getTenantTrafficStats(tenantName),
-    ]);
+    const apps = await getOrSetServerCache(
+      `apps:${tenantName}:list`,
+      async () => {
+        const [appsSnapshot, statsBySource] = await Promise.all([
+          adminDb
+            .collection('applications')
+            .where('tenantName', '==', tenantName)
+            .get(),
+          getTenantTrafficStats(tenantName),
+        ]);
 
-    const apps = await Promise.all(appsSnapshot.docs.map(async (doc) => {
-      const app = await hydrateAppActivation({
-        id: doc.id,
-        ...doc.data(),
-      });
-      const stats = statsBySource.get(normalizeDomainInput(app.domain)) || null;
-      return sanitizeAppForClient({
-        ...app,
-        statsBlocked: stats?.blocked ?? 0,
-        statsAllowed: stats?.allowed ?? 0,
-        statsTotal: stats?.total ?? 0,
-        statsLastSeenAt: stats?.lastSeenAt ?? null,
-      });
-    }));
+        return Promise.all(appsSnapshot.docs.map(async (doc) => {
+          const app = await hydrateAppActivation({
+            id: doc.id,
+            ...doc.data(),
+          });
+          const stats = statsBySource.get(normalizeDomainInput(app.domain)) || null;
+          return sanitizeAppForClient({
+            ...app,
+            statsBlocked: stats?.blocked ?? 0,
+            statsAllowed: stats?.allowed ?? 0,
+            statsTotal: stats?.total ?? 0,
+            statsLastSeenAt: stats?.lastSeenAt ?? null,
+          });
+        }));
+      },
+      { ttlMs: APPS_CACHE_TTL_MS }
+    );
 
     return NextResponse.json(apps);
   } catch (error) {

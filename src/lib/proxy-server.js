@@ -858,6 +858,12 @@ export class ProxyWAFServer {
     this.httpServer = null;
     this.httpsServer = null;
     this.healthCheckIntervals = new Map();
+    this.applicationRefreshInterval = null;
+    this.applicationRefreshInFlight = null;
+    this.applicationRefreshIntervalMs = parsePositiveInt(
+      options.applicationRefreshIntervalMs ?? process.env.ATRAVAD_APP_REFRESH_INTERVAL_SEC,
+      60,
+    ) * 1000;
     this.tenantName = options.tenantName || null;
     // Multi-tenant: support single name or comma-separated list (Firestore 'in' max 10)
     this.tenantNames = this.tenantName
@@ -947,11 +953,10 @@ export class ProxyWAFServer {
       "headlesschrome",
     ]).map((value) => value.toLowerCase());
 
-    // Load applications from Firestore
-    this.loadApplications();
-
-    // Listen for real-time updates
-    this.setupRealtimeListener();
+    // Load applications from Firestore and refresh on a fixed interval to avoid
+    // long-lived Firestore subscriptions that scale poorly with tenant growth.
+    void this.loadApplications();
+    this.setupApplicationRefresh();
   }
 
   shouldLogRequest(pathname, blocked, statusCode) {
@@ -1261,13 +1266,16 @@ export class ProxyWAFServer {
         appsSnapshot = await adminDb.collection("applications").get();
       }
 
+      const nextApplications = new Map();
+      const activeOriginUrls = new Set();
+
       for (const doc of appsSnapshot.docs) {
         const app = { id: doc.id, ...doc.data() };
         if (app.domain) {
           const normalizedDomain = normalizeDomainInput(app.domain);
           if (normalizedDomain) {
             app.domain = normalizedDomain;
-            this.applications.set(normalizedDomain, app);
+            nextApplications.set(normalizedDomain, app);
             console.log(`Loaded application: ${normalizedDomain}`);
           }
           this.loadCertificateForApplication(app);
@@ -1278,11 +1286,29 @@ export class ProxyWAFServer {
           // Start health checks for origins
           if (app.origins && Array.isArray(app.origins)) {
             app.origins.forEach((origin) => {
+              if (origin?.url) {
+                activeOriginUrls.add(origin.url);
+              }
               this.startHealthCheck(origin);
             });
           }
         }
       }
+
+      for (const [originUrl, intervalId] of this.healthCheckIntervals.entries()) {
+        if (activeOriginUrls.has(originUrl)) continue;
+        clearInterval(intervalId);
+        this.healthCheckIntervals.delete(originUrl);
+        this.originHealth.delete(originUrl);
+      }
+
+      for (const domain of this.applications.keys()) {
+        if (!nextApplications.has(domain)) {
+          this.certStore.remove(domain);
+        }
+      }
+
+      this.applications = nextApplications;
 
       console.log(`Loaded ${this.applications.size} application(s)`);
 
@@ -1321,85 +1347,19 @@ export class ProxyWAFServer {
     }
   }
 
-  /**
-   * Setup real-time listener for application changes (tenant-scoped when tenantName is set)
-   */
-  setupRealtimeListener() {
-    if (!adminDb) return;
+  setupApplicationRefresh() {
+    if (!adminDb || this.applicationRefreshIntervalMs <= 0) return;
 
-    const tenantNames = this.tenantNames;
-    let applicationsRef;
-    if (tenantNames?.length === 1) {
-      applicationsRef = adminDb
-        .collection("applications")
-        .where("tenantName", "==", tenantNames[0]);
-    } else if (tenantNames?.length > 1) {
-      applicationsRef = adminDb
-        .collection("applications")
-        .where("tenantName", "in", tenantNames);
-    } else {
-      applicationsRef = adminDb.collection("applications");
-    }
-
-    applicationsRef.onSnapshot((snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        const app = { id: change.doc.id, ...change.doc.data() };
-
-        if (change.type === "added" || change.type === "modified") {
-          if (app.domain) {
-            const normalizedDomain = normalizeDomainInput(app.domain);
-            if (!normalizedDomain) return;
-            app.domain = normalizedDomain;
-            this.applications.set(normalizedDomain, app);
-            console.log(`Application updated: ${normalizedDomain}`);
-            this.loadCertificateForApplication(app);
-
-            if (
-              this.letsEncryptEnabled &&
-              !app.ssl?.customCert &&
-              app.ssl?.autoProvision &&
-              !this.provisioningInProgress.has(normalizedDomain) &&
-              !this.certStore.hasValidCert(normalizedDomain)
-            ) {
-              this.provisioningInProgress.add(normalizedDomain);
-              this.ensureManagedCertificate(app)
-                .then((ok) => {
-                  if (ok)
-                    console.log(
-                      `Let's Encrypt: provisioned certificate for ${normalizedDomain}`,
-                    );
-                })
-                .catch((err) =>
-                  console.warn(
-                    `Let's Encrypt: provision failed for ${normalizedDomain}`,
-                    err.message,
-                  ),
-                )
-                .finally(() => this.provisioningInProgress.delete(normalizedDomain));
-            }
-
-            // Load policy if assigned
-            this.loadPolicyForApplication(app).catch((error) => {
-              console.error(`Error loading policy for ${app.domain}:`, error);
-            });
-
-            // Start health checks for origins
-            if (app.origins && Array.isArray(app.origins)) {
-              app.origins.forEach((origin) => {
-                this.startHealthCheck(origin);
-              });
-            }
-          }
-        } else if (change.type === "removed") {
-          const normalizedDomain = normalizeDomainInput(app.domain);
-          if (normalizedDomain) {
-            this.applications.delete(normalizedDomain);
-            this.certStore.remove(normalizedDomain);
-          }
-          console.log(`Application removed: ${normalizedDomain || app.domain}`);
-        }
-      });
-    });
+    this.applicationRefreshInterval = setInterval(() => {
+      if (this.applicationRefreshInFlight) return;
+      this.applicationRefreshInFlight = this.loadApplications()
+        .catch((error) => {
+          console.error("Error refreshing applications:", error);
+        })
+        .finally(() => {
+          this.applicationRefreshInFlight = null;
+        });
+    }, this.applicationRefreshIntervalMs);
   }
 
   /**
@@ -2352,6 +2312,11 @@ export class ProxyWAFServer {
    * Stop the proxy server
    */
   stop() {
+    if (this.applicationRefreshInterval) {
+      clearInterval(this.applicationRefreshInterval);
+      this.applicationRefreshInterval = null;
+    }
+
     // Stop health checks
     this.healthCheckIntervals.forEach((intervalId) => {
       clearInterval(intervalId);

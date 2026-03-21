@@ -10,6 +10,7 @@ import PolicyEditor from './PolicyEditor';
 import ConfirmationModal from './ConfirmationModal';
 import FeedbackModal from './FeedbackModal';
 import { getDefaultPolicyFormData } from './policy-form-utils';
+import TenantPlanBanner from '@/components/TenantPlanBanner';
 
 const BuildingIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -29,6 +30,7 @@ export function PoliciesPageContent({
   const [showForm, setShowForm] = useState(editorOnly);
   const [hasTenant, setHasTenant] = useState(false);
   const [tenantName, setTenantName] = useState('');
+  const [tenantData, setTenantData] = useState(null);
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
@@ -100,6 +102,7 @@ export function PoliciesPageContent({
 
       setHasTenant(userHasTenant);
       setTenantName(tenant?.name || '');
+      setTenantData(tenant?.id ? tenant : null);
 
       if (userHasTenant) {
         await Promise.all([fetchPolicies(), fetchApps()]);
@@ -107,6 +110,7 @@ export function PoliciesPageContent({
     } catch (error) {
       console.error('Error checking tenant:', error);
       setHasTenant(false);
+      setTenantData(null);
     } finally {
       setLoading(false);
     }
@@ -136,6 +140,7 @@ export function PoliciesPageContent({
       const tenantData = await response.json();
       setHasTenant(true);
       setTenantName(tenantData.name);
+      setTenantData(tenantData);
       setShowTenantForm(false);
       setTenantFormData({ name: '' });
       await Promise.all([fetchPolicies(), fetchApps()]);
@@ -575,6 +580,29 @@ export function PoliciesPageContent({
             </Link>
           ) : null}
         </div>
+
+        {tenantData ? (
+          <TenantPlanBanner
+            tenant={tenantData}
+            resources={[
+              {
+                label: 'Policies',
+                current: tenantData?.usage?.currentPolicies || policyCount,
+                limit: tenantData?.limits?.maxPolicies || 0,
+              },
+              {
+                label: 'Sites',
+                current: tenantData?.usage?.currentApps || apps.length,
+                limit: tenantData?.limits?.maxApps || 0,
+              },
+              {
+                label: 'Users',
+                current: tenantData?.usage?.currentUsers || 0,
+                limit: tenantData?.limits?.maxUsers || 0,
+              },
+            ]}
+          />
+        ) : null}
 
         {!editorOnly ? (
           <PoliciesList

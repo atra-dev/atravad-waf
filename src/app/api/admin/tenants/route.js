@@ -3,6 +3,8 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getCurrentUser } from '@/lib/api-helpers';
 import { getUserRole, isSuperAdmin } from '@/lib/rbac';
 import { normalizeTenantName, normalizeEmail } from '@/lib/user-utils';
+import { createTenantSubscription, getPlanOptions, normalizePlanId, SUBSCRIPTION_STATUSES } from '@/lib/plans';
+import { getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 /**
  * GET /api/admin/tenants
@@ -31,41 +33,21 @@ export async function GET(request) {
       );
     }
 
-    // Get all tenants
     const tenantsSnapshot = await adminDb.collection('tenants').get();
-    const tenants = tenantsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    // Get user counts for each tenant
-    const tenantsWithStats = await Promise.all(
-      tenants.map(async (tenant) => {
-        const usersSnapshot = await adminDb
-          .collection('users')
-          .where('tenantName', '==', tenant.id)
-          .get();
-        
-        const appsSnapshot = await adminDb
-          .collection('applications')
-          .where('tenantName', '==', tenant.id)
-          .get();
-        
-        const policiesSnapshot = await adminDb
-          .collection('policies')
-          .where('tenantName', '==', tenant.id)
-          .get();
-
-        return {
-          ...tenant,
-          userCount: usersSnapshot.size,
-          appCount: appsSnapshot.size,
-          policyCount: policiesSnapshot.size,
-        };
-      })
+    const tenants = await Promise.all(
+      tenantsSnapshot.docs.map((doc) => getTenantSummary(adminDb, doc.id))
     );
 
-    return NextResponse.json(tenantsWithStats);
+    return NextResponse.json(
+      tenants
+        .filter(Boolean)
+        .map((tenant) => ({
+          ...tenant,
+          userCount: tenant.usage?.currentUsers || 0,
+          appCount: tenant.usage?.currentApps || 0,
+          policyCount: tenant.usage?.currentPolicies || 0,
+        }))
+    );
   } catch (error) {
     console.error('Error fetching all tenants:', error);
     return NextResponse.json(
@@ -78,7 +60,7 @@ export async function GET(request) {
 /**
  * POST /api/admin/tenants
  * Create a tenant and optionally assign an existing managed user (Super Admin only)
- * Body: { name, assignUserEmail? }
+ * Body: { name, assignUserEmail?, planId?, subscriptionStatus?, billingCycle? }
  */
 export async function POST(request) {
   try {
@@ -105,6 +87,9 @@ export async function POST(request) {
     const body = await request.json();
     const rawName = typeof body?.name === 'string' ? body.name.trim() : '';
     const assignUserEmail = typeof body?.assignUserEmail === 'string' ? normalizeEmail(body.assignUserEmail) : null;
+    const planId = normalizePlanId(body?.planId);
+    const subscriptionStatus = body?.subscriptionStatus || SUBSCRIPTION_STATUSES.ACTIVE;
+    const billingCycle = body?.billingCycle || 'annual';
 
     if (!rawName) {
       return NextResponse.json(
@@ -130,8 +115,17 @@ export async function POST(request) {
     }
 
     const now = new Date().toISOString();
+    const subscription = createTenantSubscription(planId, {
+      subscriptionStatus,
+      billingCycle,
+    });
     await adminDb.collection('tenants').doc(tenantId).set({
       name: rawName,
+      planId: subscription.planId,
+      subscriptionStatus: subscription.subscriptionStatus,
+      billingCycle: subscription.billingCycle,
+      limits: subscription.limits,
+      features: subscription.features,
       createdAt: now,
       createdBy: user.uid,
       createdByEmail: user.email,
@@ -163,10 +157,15 @@ export async function POST(request) {
       });
     }
 
+    invalidateTenantSubscriptionCache(tenantId);
+
     return NextResponse.json(
       {
         id: tenantId,
         name: rawName,
+        planId: subscription.planId,
+        subscriptionStatus: subscription.subscriptionStatus,
+        billingCycle: subscription.billingCycle,
         assignedUserEmail: assignUserEmail,
         createdAt: now,
       },
@@ -174,6 +173,86 @@ export async function POST(request) {
     );
   } catch (error) {
     console.error('Error creating tenant:', error);
+    return NextResponse.json(
+      { error: 'Internal server error', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT /api/admin/tenants
+ * Update tenant subscription details (Super Admin only)
+ * Body: { tenantId, planId, subscriptionStatus?, billingCycle? }
+ */
+export async function PUT(request) {
+  try {
+    if (!adminDb) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized' },
+        { status: 500 }
+      );
+    }
+
+    const user = await getCurrentUser(request);
+    if (!user || !user.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userRole = await getUserRole(adminDb, user.email);
+    if (!isSuperAdmin(userRole)) {
+      return NextResponse.json(
+        { error: 'Forbidden: Super Admin access required' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const tenantId = normalizeTenantName(body?.tenantId);
+    if (!tenantId) {
+      return NextResponse.json(
+        { error: 'Tenant ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const tenantRef = adminDb.collection('tenants').doc(tenantId);
+    const tenantDoc = await tenantRef.get();
+    if (!tenantDoc.exists) {
+      return NextResponse.json(
+        { error: 'Tenant not found' },
+        { status: 404 }
+      );
+    }
+
+    const tenantData = tenantDoc.data() || {};
+    const subscription = createTenantSubscription(body?.planId || tenantData.planId, {
+      subscriptionStatus: body?.subscriptionStatus || tenantData.subscriptionStatus,
+      billingCycle: body?.billingCycle || tenantData.billingCycle,
+      limits: tenantData.limits,
+      features: tenantData.features,
+    });
+    const now = new Date().toISOString();
+
+    await tenantRef.update({
+      planId: subscription.planId,
+      subscriptionStatus: subscription.subscriptionStatus,
+      billingCycle: subscription.billingCycle,
+      limits: subscription.limits,
+      features: subscription.features,
+      updatedAt: now,
+      updatedBy: user.uid,
+      updatedByEmail: user.email,
+    });
+
+    invalidateTenantSubscriptionCache(tenantId);
+    const tenant = await getTenantSummary(adminDb, tenantId);
+    return NextResponse.json({
+      ...tenant,
+      planOptions: getPlanOptions(),
+    });
+  } catch (error) {
+    console.error('Error updating tenant subscription:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

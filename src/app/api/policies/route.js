@@ -3,6 +3,10 @@ import { adminDb } from '@/lib/firebase-admin';
 import { generateModSecurityConfig, validateModSecurityConfig } from '@/lib/modsecurity';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
+import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
+import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+
+const POLICIES_CACHE_TTL_MS = 60000;
 
 async function getTenantApplicationsById(tenantName) {
   const snapshot = await adminDb
@@ -19,6 +23,13 @@ async function getTenantApplicationsById(tenantName) {
 
 function getApplicationLabel(app) {
   return app?.domain || app?.name || app?.id || null;
+}
+
+function invalidateTenantPolicyCaches(tenantName) {
+  invalidateServerCache(`policies:${tenantName}:`);
+  invalidateServerCache(`apps:${tenantName}:`);
+  invalidateServerCache(`analytics:${tenantName}:`);
+  invalidateTenantSubscriptionCache(tenantName);
 }
 
 export async function POST(request) {
@@ -47,6 +58,20 @@ export async function POST(request) {
     const tenantName = await getTenantName(user);
     if (!tenantName) {
       return NextResponse.json({ error: 'No tenant assigned' }, { status: 400 });
+    }
+
+    const policyLimit = await getTenantLimitStatus(adminDb, tenantName, 'maxPolicies');
+    if (!policyLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Plan limit reached: ${policyLimit.current} of ${policyLimit.limit} policies used`,
+          code: 'PLAN_LIMIT_MAX_POLICIES',
+          limit: policyLimit.limit,
+          current: policyLimit.current,
+          planId: policyLimit.tenant?.planId || null,
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
@@ -233,6 +258,8 @@ export async function POST(request) {
       await updateBatch.commit();
     }
 
+    invalidateTenantPolicyCaches(tenantName);
+
     return NextResponse.json({
       id: policyRef.id,
       name,
@@ -276,66 +303,71 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const name = searchParams.get('name');
 
-    let query = adminDb
-      .collection('policies')
-      .where('tenantName', '==', tenantName);
+    const policies = await getOrSetServerCache(
+      `policies:${tenantName}:${name || 'all'}`,
+      async () => {
+        let query = adminDb
+          .collection('policies')
+          .where('tenantName', '==', tenantName);
 
-    if (name) {
-      query = query.where('name', '==', name);
-    }
+        if (name) {
+          query = query.where('name', '==', name);
+        }
 
-    // Fetch without orderBy to avoid index requirement, then sort in memory
-    const policiesSnapshot = await query.get();
+        const [policiesSnapshot, appsById] = await Promise.all([
+          query.get(),
+          getTenantApplicationsById(tenantName),
+        ]);
+        const appsByPolicyId = new Map();
 
-    const appsById = await getTenantApplicationsById(tenantName);
-    const appsByPolicyId = new Map();
+        for (const app of appsById.values()) {
+          if (!app?.policyId) continue;
+          const existingApps = appsByPolicyId.get(app.policyId) || [];
+          existingApps.push(app);
+          appsByPolicyId.set(app.policyId, existingApps);
+        }
 
-    for (const app of appsById.values()) {
-      if (!app?.policyId) continue;
-      const existingApps = appsByPolicyId.get(app.policyId) || [];
-      existingApps.push(app);
-      appsByPolicyId.set(app.policyId, existingApps);
-    }
+        return policiesSnapshot.docs
+          .map((doc) => {
+            const data = doc.data();
+            const explicitApps = [
+              ...(Array.isArray(data.applicationIds)
+                ? data.applicationIds.map((id) => appsById.get(id)).filter(Boolean)
+                : []),
+              ...(data.applicationId ? [appsById.get(data.applicationId)].filter(Boolean) : []),
+            ];
+            const reverseMatchedApps = appsByPolicyId.get(doc.id) || [];
+            const assignedApps = [
+              ...explicitApps,
+              ...reverseMatchedApps,
+            ].filter(Boolean);
+            const uniqueAssignedApps = Array.from(
+              new Map(assignedApps.map((app) => [app.id, app])).values()
+            );
+            const applicationNames = uniqueAssignedApps
+              .map((app) => getApplicationLabel(app))
+              .filter(Boolean);
+            const applicationIds = uniqueAssignedApps
+              .map((app) => app.id)
+              .filter(Boolean);
 
-    const policies = policiesSnapshot.docs
-      .map((doc) => {
-        const data = doc.data();
-        const explicitApps = [
-          ...(Array.isArray(data.applicationIds)
-            ? data.applicationIds.map((id) => appsById.get(id)).filter(Boolean)
-            : []),
-          ...(data.applicationId ? [appsById.get(data.applicationId)].filter(Boolean) : []),
-        ];
-        const reverseMatchedApps = appsByPolicyId.get(doc.id) || [];
-        const assignedApps = [
-          ...explicitApps,
-          ...reverseMatchedApps,
-        ].filter(Boolean);
-        const uniqueAssignedApps = Array.from(
-          new Map(assignedApps.map((app) => [app.id, app])).values()
-        );
-        const applicationNames = uniqueAssignedApps
-          .map((app) => getApplicationLabel(app))
-          .filter(Boolean);
-        const applicationIds = uniqueAssignedApps
-          .map((app) => app.id)
-          .filter(Boolean);
-
-        return {
-          id: doc.id,
-          ...data,
-          applicationId: data.applicationId || applicationIds[0] || null,
-          applicationIds,
-          applicationName: applicationNames[0] || null,
-          applicationNames,
-        };
-      })
-      .sort((a, b) => {
-        // Sort by createdAt descending (newest first)
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      });
+            return {
+              id: doc.id,
+              ...data,
+              applicationId: data.applicationId || applicationIds[0] || null,
+              applicationIds,
+              applicationName: applicationNames[0] || null,
+              applicationNames,
+            };
+          })
+          .sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+          });
+      },
+      { ttlMs: POLICIES_CACHE_TTL_MS }
+    );
 
     return NextResponse.json(policies);
   } catch (error) {
@@ -417,6 +449,7 @@ export async function DELETE(request) {
       batch.delete(doc.ref);
     });
     await batch.commit();
+    invalidateTenantPolicyCaches(tenantName);
 
     return NextResponse.json({
       success: true,

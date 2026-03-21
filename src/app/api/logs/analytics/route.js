@@ -5,6 +5,10 @@ import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { classifyAttack, getDecisionKey } from '@/lib/log-analytics';
+import { getOrSetServerCache } from '@/lib/server-cache';
+import { getTenantSummary } from '@/lib/tenant-subscription';
+
+const ANALYTICS_CACHE_TTL_MS = 30000;
 
 function addCount(map, key, amount) {
   if (!key || !Number.isFinite(amount) || amount === 0) return;
@@ -318,53 +322,71 @@ export async function GET(request) {
       return NextResponse.json(createEmptyAnalytics());
     }
 
+    const tenant = await getTenantSummary(adminDb, tenantName);
+
     const { searchParams } = new URL(request.url);
     const hoursParam = Number.parseInt(searchParams.get('hours') || '24', 10);
-    const hours = Number.isFinite(hoursParam) ? Math.min(Math.max(hoursParam, 1), 24 * 30) : 24;
+    const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
+    const hours = Number.isFinite(hoursParam)
+      ? Math.min(Math.max(hoursParam, 1), maxLookbackHours)
+      : Math.min(24, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const severity = normalizeSeverity(searchParams.get('severity'));
     const decision = String(searchParams.get('decision') || '').trim().toLowerCase();
 
-    // For the 24-hour dashboard views, compute analytics from the raw logs
-    // collection so the counts match the logs table exactly.
-    if (hours <= 24) {
-      let query = adminDb
-        .collection('logs')
-        .where('tenantName', '==', tenantName)
-        .where('timestamp', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString());
+    const cacheKey = [
+      'analytics',
+      tenantName,
+      hours,
+      site || 'all-sites',
+      severity || 'all-severity',
+      decision || 'all-decisions',
+    ].join(':');
 
-      if (site) {
-        query = query.where('siteNormalized', '==', site);
-      }
-      if (severity) {
-        query = query.where('severityNormalized', '==', severity);
-      }
-      if (decision) {
-        query = query.where('decision', '==', decision);
-      }
+    const analytics = await getOrSetServerCache(
+      cacheKey,
+      async () => {
+        if (severity || decision) {
+          let rawQuery = adminDb
+            .collection('logs')
+            .where('tenantName', '==', tenantName)
+            .where('timestamp', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString());
 
-      const snapshot = await query.orderBy('timestamp', 'desc').get();
-      const logs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+          if (site) {
+            rawQuery = rawQuery.where('siteNormalized', '==', site);
+          }
+          if (severity) {
+            rawQuery = rawQuery.where('severityNormalized', '==', severity);
+          }
+          if (decision) {
+            rawQuery = rawQuery.where('decision', '==', decision);
+          }
 
-      return NextResponse.json(aggregateRawLogs(logs));
-    }
+          const snapshot = await rawQuery.orderBy('timestamp', 'desc').get();
+          const logs = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          return aggregateRawLogs(logs);
+        }
 
-    let query = adminDb
-      .collection('log_rollups_hourly')
-      .where('tenantName', '==', tenantName)
-      .where('bucketStartIso', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString())
-      .orderBy('bucketStartIso', 'asc');
+        let query = adminDb
+          .collection('log_rollups_hourly')
+          .where('tenantName', '==', tenantName)
+          .where('bucketStartIso', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString())
+          .orderBy('bucketStartIso', 'asc');
 
-    if (site) {
-      query = query.where('siteNormalized', '==', site);
-    }
+        if (site) {
+          query = query.where('siteNormalized', '==', site);
+        }
 
-    const snapshot = await query.get();
-    const docs = snapshot.docs.map((doc) => doc.data());
-    return NextResponse.json(aggregateRollups(docs));
+        const snapshot = await query.get();
+        return aggregateRollups(snapshot.docs.map((doc) => doc.data()));
+      },
+      { ttlMs: ANALYTICS_CACHE_TTL_MS }
+    );
+
+    return NextResponse.json(analytics);
   } catch (error) {
     console.error('Error fetching log analytics:', error);
     return NextResponse.json(

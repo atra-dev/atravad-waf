@@ -8,6 +8,7 @@ import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { persistSecurityLog } from '@/lib/log-storage';
+import { getTenantSummary } from '@/lib/tenant-subscription';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 
@@ -188,6 +189,8 @@ export async function GET(request) {
       return NextResponse.json({ logs: [] });
     }
 
+    const tenant = await getTenantSummary(adminDb, tenantName);
+
     const { searchParams } = new URL(request.url);
     const level = normalizeLevel(searchParams.get('level'));
     const severity = normalizeSeverity(searchParams.get('severity'));
@@ -203,7 +206,10 @@ export async function GET(request) {
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
     const cursor = String(searchParams.get('cursor') || '').trim();
     const hoursParam = Number.parseInt(searchParams.get('hours') || '24', 10);
-    const hours = Number.isFinite(hoursParam) ? Math.min(Math.max(hoursParam, 1), 24) : 24;
+    const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
+    const hours = Number.isFinite(hoursParam)
+      ? Math.min(Math.max(hoursParam, 1), maxLookbackHours)
+      : Math.min(24, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
@@ -255,6 +261,7 @@ export async function GET(request) {
       hasMore,
       pageSize,
       nextCursor,
+      maxLookbackHours,
     });
   } catch (error) {
     console.error('Error fetching logs:', error);

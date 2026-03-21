@@ -6,6 +6,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import GeographicAnalytics from '@/components/GeographicAnalytics';
 import TrafficAnalytics from '@/components/TrafficAnalytics';
+import TenantPlanBanner from '@/components/TenantPlanBanner';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
@@ -52,6 +53,7 @@ export default function LogsPage() {
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
   const [tenantName, setTenantName] = useState('');
+  const [tenantData, setTenantData] = useState(null);
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
@@ -151,6 +153,7 @@ export default function LogsPage() {
       
       setHasTenant(userHasTenant);
       setTenantName(tenant?.name || '');
+      setTenantData(tenant?.id ? tenant : null);
       
       if (userHasTenant) {
         await Promise.all([fetchLogs(), fetchSites()]);
@@ -160,6 +163,7 @@ export default function LogsPage() {
     } catch (error) {
       console.error('Error checking tenant:', error);
       setHasTenant(false);
+      setTenantData(null);
       setLoading(false);
     }
   };
@@ -179,6 +183,7 @@ export default function LogsPage() {
         const tenantData = await response.json();
         setHasTenant(true);
         setTenantName(tenantData.name);
+        setTenantData(tenantData);
         setShowTenantForm(false);
         setTenantFormData({ name: '' });
         await Promise.all([fetchLogs(), fetchSites()]);
@@ -545,6 +550,24 @@ export default function LogsPage() {
             )}
           </div>
         </div>
+
+        {tenantData ? (
+          <TenantPlanBanner
+            tenant={tenantData}
+            resources={[
+              {
+                label: 'Sites',
+                current: tenantData?.usage?.currentApps || sites.length,
+                limit: tenantData?.limits?.maxApps || 0,
+              },
+              {
+                label: 'Users',
+                current: tenantData?.usage?.currentUsers || 0,
+                limit: tenantData?.limits?.maxUsers || 0,
+              },
+            ]}
+          />
+        ) : null}
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">

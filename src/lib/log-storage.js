@@ -2,9 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { normalizeDomainInput } from './domain-utils.js';
 import { normalizeIpAddress } from './ip-utils.js';
 import { classifyAttack, getDecisionKey } from './log-analytics.js';
-
-const RAW_LOG_TTL_HOURS = 24;
-const HOURLY_ROLLUP_TTL_DAYS = 30;
+import { getTenantSummary } from './tenant-subscription.js';
 
 function normalizeSeverity(severity) {
   const value = String(severity || '').trim().toLowerCase();
@@ -50,7 +48,7 @@ function setValue(target, path, value) {
   cursor[path[path.length - 1]] = value;
 }
 
-function buildRollupUpdate(log) {
+function buildRollupUpdate(log, retentionDays) {
   const decision = getDecisionKey(log);
   const severity = normalizeSeverity(log.severity);
   const method = String(log.method || log.request?.method || 'UNKNOWN').toUpperCase();
@@ -69,7 +67,7 @@ function buildRollupUpdate(log) {
       normalizeDomainInput(log.site || log.source || log.request?.host || '') || null,
     bucketStart: getHourBucketParts(log.timestamp).bucketStart,
     bucketStartIso: getHourBucketParts(log.timestamp).bucketStartIso,
-    expiresAt: new Date(Date.now() + HOURLY_ROLLUP_TTL_DAYS * 24 * 60 * 60 * 1000),
+    expiresAt: new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000),
     updatedAt: new Date().toISOString(),
   };
 
@@ -110,6 +108,9 @@ function buildRollupUpdate(log) {
 export async function persistSecurityLog(adminDb, rawLog) {
   if (!adminDb || !rawLog?.tenantName) return null;
 
+  const tenant = await getTenantSummary(adminDb, rawLog.tenantName);
+  const logRetentionDays = Number(tenant?.limits?.logRetentionDays || 7);
+  const analyticsRetentionDays = Number(tenant?.limits?.analyticsRetentionDays || 30);
   const timestamp = rawLog.timestamp || new Date().toISOString();
   const site =
     normalizeDomainInput(rawLog.source || rawLog.request?.host || rawLog.request?.hostname || '') ||
@@ -125,7 +126,7 @@ export async function persistSecurityLog(adminDb, rawLog) {
     decision,
     site,
     siteNormalized: site,
-    expiresAt: new Date(Date.now() + RAW_LOG_TTL_HOURS * 60 * 60 * 1000),
+    expiresAt: new Date(Date.now() + logRetentionDays * 24 * 60 * 60 * 1000),
   };
 
   const batch = adminDb.batch();
@@ -135,7 +136,7 @@ export async function persistSecurityLog(adminDb, rawLog) {
   const rollupRef = adminDb
     .collection('log_rollups_hourly')
     .doc(`${rawLog.tenantName}_${bucketKey}`);
-  batch.set(rollupRef, buildRollupUpdate(entry), { merge: true });
+  batch.set(rollupRef, buildRollupUpdate(entry, analyticsRetentionDays), { merge: true });
 
   await batch.commit();
   return { id: logRef.id, ...entry };

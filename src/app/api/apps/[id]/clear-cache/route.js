@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
+import { invalidateServerCache } from '@/lib/server-cache';
 
 export async function POST(request, { params }) {
   try {
@@ -54,6 +55,8 @@ export async function POST(request, { params }) {
     };
 
     await appRef.update(updateData);
+    invalidateServerCache(`apps:${tenantName}:`);
+    invalidateServerCache(`policies:${tenantName}:`);
 
     return NextResponse.json({
       success: true,

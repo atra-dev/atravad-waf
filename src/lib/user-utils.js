@@ -3,6 +3,10 @@
  * Handles email normalization and user document lookups
  */
 
+import { getOrSetServerCache, invalidateServerCache } from './server-cache.js';
+
+const USER_CACHE_TTL_MS = 30000;
+
 /**
  * Normalize email for use as document ID
  * - Lowercase
@@ -50,9 +54,15 @@ export async function getUserByEmail(adminDb, email) {
   if (!normalizedEmail) return null;
   
   try {
-    const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
-    if (!userDoc.exists) return null;
-    return { id: userDoc.id, ...userDoc.data() };
+    return await getOrSetServerCache(
+      `user:${normalizedEmail}`,
+      async () => {
+        const userDoc = await adminDb.collection('users').doc(normalizedEmail).get();
+        if (!userDoc.exists) return null;
+        return { id: userDoc.id, ...userDoc.data() };
+      },
+      { ttlMs: USER_CACHE_TTL_MS }
+    );
   } catch (error) {
     console.error('Error getting user by email:', error);
     return null;
@@ -120,6 +130,7 @@ export async function createOrGetUser(adminDb, user) {
       
       transaction.set(userRef, userData);
       
+      invalidateServerCache(`user:${normalizedEmail}`);
       return {
         id: normalizedEmail,
         ...userData,

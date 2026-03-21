@@ -5,6 +5,7 @@ import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { normalizeOriginConfig } from '@/lib/origin-utils';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 import { hydrateAppActivation } from '@/lib/activation-utils';
+import { invalidateServerCache } from '@/lib/server-cache';
 
 function sanitizeAppForClient(app) {
   const { tlsManaged, ssl, origins, ...safeApp } = app || {};
@@ -31,6 +32,15 @@ function sanitizeAppForClient(app) {
     ssl: sanitizedSsl,
     origins: sanitizedOrigins,
   };
+}
+
+function invalidateTenantAppCaches(tenantName, appId) {
+  invalidateServerCache(`apps:${tenantName}:`);
+  invalidateServerCache(`policies:${tenantName}:`);
+  invalidateServerCache(`analytics:${tenantName}:`);
+  if (appId) {
+    invalidateServerCache(`app:${tenantName}:${appId}`);
+  }
 }
 
 /**
@@ -234,6 +244,8 @@ export async function PATCH(request, { params }) {
       ...sanitizeAppForClient(updatedDoc.data()),
     });
 
+    invalidateTenantAppCaches(tenantName, id);
+
     return NextResponse.json(updatedApp);
   } catch (error) {
     console.error('Error updating application:', error);
@@ -292,6 +304,7 @@ export async function DELETE(request, { params }) {
     }
 
     await appRef.delete();
+    invalidateTenantAppCaches(tenantName, id);
 
     return NextResponse.json({ 
       success: true, 

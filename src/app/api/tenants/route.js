@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getUserByEmail, normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
 import { getUserRole, isSuperAdmin } from '@/lib/rbac';
+import { createTenantSubscription, normalizePlanId, SUBSCRIPTION_STATUSES } from '@/lib/plans';
+import { getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 // Helper to get current user from token
 async function getCurrentUser(request) {
@@ -46,6 +48,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const { name, assignUserEmail } = body;
+    const planId = normalizePlanId(body?.planId);
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -70,8 +73,17 @@ export async function POST(request) {
     }
 
     // Create tenant in Firestore using normalized name as document ID
+    const subscription = createTenantSubscription(planId, {
+      subscriptionStatus: body?.subscriptionStatus || SUBSCRIPTION_STATUSES.ACTIVE,
+      billingCycle: body?.billingCycle || 'annual',
+    });
     await adminDb.collection('tenants').doc(normalizedTenantName).set({
       name, // Store original name for display
+      planId: subscription.planId,
+      subscriptionStatus: subscription.subscriptionStatus,
+      billingCycle: subscription.billingCycle,
+      limits: subscription.limits,
+      features: subscription.features,
       createdAt: new Date().toISOString(),
       createdBy: user.uid, // Store UID for reference
       createdByEmail: user.email, // Also store email
@@ -103,7 +115,8 @@ export async function POST(request) {
       });
     }
 
-    return NextResponse.json({ id: normalizedTenantName, name });
+    invalidateTenantSubscriptionCache(normalizedTenantName);
+    return NextResponse.json({ id: normalizedTenantName, name, planId: subscription.planId });
   } catch (error) {
     console.error('Error creating tenant:', error);
     return NextResponse.json(
@@ -131,11 +144,10 @@ export async function GET(request) {
     const userRole = await getUserRole(adminDb, user.email);
     if (isSuperAdmin(userRole)) {
       const tenantsSnapshot = await adminDb.collection('tenants').get();
-      const tenants = tenantsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return NextResponse.json(tenants);
+      const tenants = await Promise.all(
+        tenantsSnapshot.docs.map((doc) => getTenantSummary(adminDb, doc.id))
+      );
+      return NextResponse.json(tenants.filter(Boolean));
     }
 
     const existingUser = await getUserByEmail(adminDb, user.email);
@@ -149,15 +161,12 @@ export async function GET(request) {
       return NextResponse.json({ error: 'No tenant assigned' }, { status: 404 });
     }
 
-    const tenantDoc = await adminDb.collection('tenants').doc(tenantName).get();
-    if (!tenantDoc.exists) {
+    const tenant = await getTenantSummary(adminDb, tenantName);
+    if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      id: tenantDoc.id,
-      ...tenantDoc.data(),
-    });
+    return NextResponse.json(tenant);
   } catch (error) {
     console.error('Error fetching tenant:', error);
     return NextResponse.json(

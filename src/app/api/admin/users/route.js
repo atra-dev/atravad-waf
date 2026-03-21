@@ -3,6 +3,7 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { getCurrentUser } from '@/lib/api-helpers';
 import { getUserRole, isSuperAdmin, ROLES } from '@/lib/rbac';
 import { normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
+import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 /**
  * GET /api/admin/users
@@ -160,6 +161,20 @@ export async function POST(request) {
       );
     }
 
+    const userLimit = await getTenantLimitStatus(adminDb, normalizedTenantName, 'maxUsers');
+    if (!userLimit.allowed) {
+      return NextResponse.json(
+        {
+          error: `Plan limit reached: ${userLimit.current} of ${userLimit.limit} managed users used`,
+          code: 'PLAN_LIMIT_MAX_USERS',
+          limit: userLimit.limit,
+          current: userLimit.current,
+          planId: userLimit.tenant?.planId || null,
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if user already exists
     const existingUserDoc = await adminDb.collection('users').doc(normalizedEmail).get();
     if (existingUserDoc.exists) {
@@ -213,6 +228,7 @@ export async function POST(request) {
     };
 
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
+    invalidateTenantSubscriptionCache(normalizedTenantName);
 
     // Get tenant info for response
     const tenantData = {
@@ -337,6 +353,22 @@ export async function PUT(request) {
           );
         }
 
+        if (normalizedTenantName !== userData.tenantName) {
+          const userLimit = await getTenantLimitStatus(adminDb, normalizedTenantName, 'maxUsers');
+          if (!userLimit.allowed) {
+            return NextResponse.json(
+              {
+                error: `Plan limit reached: ${userLimit.current} of ${userLimit.limit} managed users used`,
+                code: 'PLAN_LIMIT_MAX_USERS',
+                limit: userLimit.limit,
+                current: userLimit.current,
+                planId: userLimit.tenant?.planId || null,
+              },
+              { status: 403 }
+            );
+          }
+        }
+
         updateData.tenantName = normalizedTenantName;
       }
     }
@@ -404,6 +436,12 @@ export async function PUT(request) {
     // Get updated user data
     const updatedUserDoc = await adminDb.collection('users').doc(normalizedEmail).get();
     const updatedUserData = updatedUserDoc.data();
+    if (userData.tenantName) {
+      invalidateTenantSubscriptionCache(userData.tenantName);
+    }
+    if (updatedUserData.tenantName) {
+      invalidateTenantSubscriptionCache(updatedUserData.tenantName);
+    }
 
     // Get tenant info if exists
     let tenantData = null;
@@ -522,6 +560,9 @@ export async function DELETE(request) {
 
     // Delete from Firestore
     await adminDb.collection('users').doc(normalizedEmail).delete();
+    if (userData.tenantName) {
+      invalidateTenantSubscriptionCache(userData.tenantName);
+    }
 
     return NextResponse.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {
