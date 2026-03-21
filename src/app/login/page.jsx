@@ -3,8 +3,9 @@
 import { Suspense, useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
-  signInWithPopup,
-  GoogleAuthProvider 
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -84,11 +85,44 @@ function LoginPageContent() {
     }
     return 'Your account could not be verified for managed access.';
   };
+
+  const completeManagedSession = async (firebaseUser) => {
+    const token = await firebaseUser.getIdToken();
+    const maxAge = 3600;
+    const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const secureFlag = isProduction ? '; Secure' : '';
+
+    document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const verifyResponse = await fetch('/api/users/me', {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    });
+
+    if (!verifyResponse.ok) {
+      const errorData = await verifyResponse.json().catch(() => ({}));
+      console.error('Session verification failed:', verifyResponse.status, errorData);
+      document.cookie = 'authToken=; path=/; max-age=0';
+      throw new Error(getFriendlySessionError(errorData));
+    }
+
+    return verifyResponse.json();
+  };
   
-  // Check if user is already authenticated
   useEffect(() => {
-    const checkAuth = async () => {
+    const initializeLogin = async () => {
       try {
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult?.user) {
+          const userData = await completeManagedSession(redirectResult.user);
+          console.log('Session verified for user:', userData.email, 'Role:', userData.role);
+          const redirect = searchParams.get('redirect') || '/dashboard';
+          router.push(redirect);
+          return;
+        }
+
         const response = await fetch('/api/users/me', {
           method: 'GET',
           credentials: 'include',
@@ -98,21 +132,22 @@ function LoginPageContent() {
         if (response.ok) {
           const user = await response.json();
           if (user && user.email) {
-            // User is authenticated, redirect to dashboard or redirect URL
             const redirect = searchParams.get('redirect') || '/dashboard';
             router.push(redirect);
           }
         }
       } catch (error) {
-        // Not authenticated, stay on login page
         console.log('User not authenticated');
       }
     };
     
-    checkAuth();
+    initializeLogin();
   }, [router, searchParams]);
 
   const googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({
+    prompt: 'select_account',
+  });
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -122,46 +157,11 @@ function LoginPageContent() {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userData = await completeManagedSession(userCredential.user);
+      console.log('Session verified for user:', userData.email, 'Role:', userData.role);
 
-      const token = await userCredential.user.getIdToken();
-      
-      // Set auth token in cookie with secure settings
-      const maxAge = 3600; // 1 hour
-      const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
-      const secureFlag = isProduction ? '; Secure' : '';
-      document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
-      
-      // Small delay to ensure cookie is set before verification
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Verify session by calling /api/users/me
-      try {
-        const verifyResponse = await fetch('/api/users/me', {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-        });
-        
-        if (!verifyResponse.ok) {
-          const errorData = await verifyResponse.json().catch(() => ({}));
-          console.error('Session verification failed:', verifyResponse.status, errorData);
-          throw new Error(getFriendlySessionError(errorData));
-        }
-        
-        const userData = await verifyResponse.json();
-        console.log('Session verified for user:', userData.email, 'Role:', userData.role);
-        
-        // User document will be auto-created by Layout component or on first API call
-        // Transaction prevents duplicates, so it's safe to call multiple times
-        
-        // Redirect to original destination or dashboard
-        const redirect = searchParams.get('redirect') || '/dashboard';
-        router.push(redirect);
-      } catch (verifyError) {
-        console.error('Session verification error:', verifyError);
-        showToast(verifyError.message || 'Unable to verify managed access.');
-        document.cookie = 'authToken=; path=/; max-age=0';
-      }
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      router.push(redirect);
     } catch (err) {
       showToast(getFriendlyAuthError(err, 'email'));
     } finally {
@@ -174,46 +174,8 @@ function LoginPageContent() {
     setLoadingGoogle(true);
 
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
-      
-      // Set auth token in cookie with secure settings
-      const maxAge = 3600; // 1 hour
-      const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
-      const secureFlag = isProduction ? '; Secure' : '';
-      document.cookie = `authToken=${token}; path=/; max-age=${maxAge}; SameSite=Lax${secureFlag}`;
-      
-      // Small delay to ensure cookie is set before verification
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Verify session by calling /api/users/me
-      try {
-        const verifyResponse = await fetch('/api/users/me', {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-        });
-        
-        if (!verifyResponse.ok) {
-          const errorData = await verifyResponse.json().catch(() => ({}));
-          console.error('Session verification failed:', verifyResponse.status, errorData);
-          throw new Error(getFriendlySessionError(errorData));
-        }
-        
-        const userData = await verifyResponse.json();
-        console.log('Session verified for user:', userData.email, 'Role:', userData.role);
-        
-        // User document will be auto-created by Layout component or on first API call
-        // Transaction prevents duplicates, so it's safe to call multiple times
-        
-        // Redirect to original destination or dashboard
-        const redirect = searchParams.get('redirect') || '/dashboard';
-        router.push(redirect);
-      } catch (verifyError) {
-        console.error('Session verification error:', verifyError);
-        showToast(verifyError.message || 'Unable to verify managed access.');
-        document.cookie = 'authToken=; path=/; max-age=0';
-      }
+      await signInWithRedirect(auth, googleProvider);
+      return;
     } catch (err) {
       showToast(getFriendlyAuthError(err, 'google'));
     } finally {
