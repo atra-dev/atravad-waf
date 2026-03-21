@@ -522,7 +522,7 @@ export default function LogsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Security Logs & Analytics</h1>
             <p className="mt-2 text-sm text-gray-600">
-              View and analyze security events, blocked attacks, and geographic traffic patterns
+              View and analyze security events, blocked attacks, and rollup-based traffic patterns
             </p>
             {tenantName && <p className="mt-1 text-xs text-gray-500">Organization: <span className="font-medium text-gray-700">{tenantName}</span></p>}
           </div>
@@ -604,6 +604,10 @@ export default function LogsPage() {
         {/* Tab Content */}
         {activeTab === 'logs' && (
           <>
+            <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
+              Raw logs prioritize blocked, denied, and error events. Allowed traffic remains visible in <span className="font-semibold">Geographic</span> and <span className="font-semibold">Traffic Analytics</span> through hourly rollups, while full allowed-request history may be sampled or unavailable outside investigation windows.
+            </div>
+
             {/* Filters */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
@@ -759,7 +763,7 @@ export default function LogsPage() {
               </div>
               <div className="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <p className="text-sm text-gray-600">
-                  Showing up to {logs.length} recent events from the last 24 hours
+                  Showing up to {logs.length} recent raw events from the last 24 hours
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button

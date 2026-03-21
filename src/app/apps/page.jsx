@@ -713,6 +713,10 @@ const getTrafficBarHeight = (value, maxValue) => {
           </div>
         </div>
 
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
+          Allowed and blocked traffic totals on this page come from hourly rollups, so they remain available even when full raw allowed-request logs are reduced to protect quota.
+        </div>
+
         {/* Search Bar */}
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">

@@ -73,7 +73,7 @@ export default function AnalyticsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Attack Analytics</h1>
             <p className="mt-2 text-sm text-gray-600">
-              Visualize attack trends, patterns, and security metrics
+              Visualize blocked and denied traffic trends, attack patterns, and security metrics
             </p>
           </div>
           <select
@@ -95,6 +95,10 @@ export default function AnalyticsPage() {
           />
         ) : (
           <>
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
+          This view is attack-focused. Normal allowed traffic remains available through rollup-based traffic analytics and site traffic summaries rather than full raw request history.
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
