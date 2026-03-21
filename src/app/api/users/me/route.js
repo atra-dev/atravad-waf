@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { getUserByEmail, normalizeEmail } from '@/lib/user-utils';
+import { getUserByEmail, getUserByUid, normalizeEmail } from '@/lib/user-utils';
 import { getCurrentUser } from '@/lib/api-helpers';
 
 function isAllowedSignInProvider(expectedAuthProvider, actualSignInProvider) {
@@ -15,6 +15,46 @@ function normalizeAuthProviderFromSignIn(signInProvider) {
   if (signInProvider === 'google.com') return 'google';
   if (signInProvider === 'password' || signInProvider === 'custom') return 'password';
   return null;
+}
+
+async function migrateLegacyUserByUid(firebaseUser) {
+  if (!adminDb || !firebaseUser?.uid || !firebaseUser?.email) {
+    return null;
+  }
+
+  const legacyUserData = await getUserByUid(adminDb, firebaseUser.uid);
+  if (!legacyUserData) {
+    return null;
+  }
+
+  const normalizedEmail = normalizeEmail(firebaseUser.email);
+  const now = new Date().toISOString();
+  const migratedUserData = {
+    ...legacyUserData,
+    email: normalizedEmail,
+    uid: firebaseUser.uid,
+    updatedAt: now,
+  };
+
+  await adminDb.runTransaction(async (transaction) => {
+    const emailRef = adminDb.collection('users').doc(normalizedEmail);
+    const emailDoc = await transaction.get(emailRef);
+
+    if (!emailDoc.exists) {
+      transaction.set(emailRef, migratedUserData);
+    } else {
+      transaction.set(emailRef, migratedUserData, { merge: true });
+    }
+
+    if (legacyUserData.id && legacyUserData.id !== normalizedEmail) {
+      transaction.delete(adminDb.collection('users').doc(legacyUserData.id));
+    }
+  });
+
+  return {
+    id: normalizedEmail,
+    ...migratedUserData,
+  };
 }
 
 /**
@@ -45,6 +85,9 @@ export async function GET(request) {
     let userData;
     try {
       userData = await getUserByEmail(adminDb, user.email);
+      if (!userData) {
+        userData = await migrateLegacyUserByUid(user);
+      }
     } catch (dbError) {
       console.error('Error fetching user document:', dbError?.message || dbError);
       return NextResponse.json(
@@ -142,6 +185,9 @@ export async function POST(request) {
     const { role, tenantName } = body;
 
     let userData = await getUserByEmail(adminDb, user.email);
+    if (!userData) {
+      userData = await migrateLegacyUserByUid(user);
+    }
     if (!userData) {
       return NextResponse.json(
         { error: 'Access denied: account is not provisioned by ATRAVA Defense' },
