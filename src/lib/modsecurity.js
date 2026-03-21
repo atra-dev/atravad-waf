@@ -582,10 +582,10 @@ function generateCSRFRules(ruleIdBase) {
 function generateSessionFixationRules(ruleIdBase) {
   let rules = '# Session Fixation Protection Rules\n';
   
-  // Block suspicious session identifiers only when they arrive as cookies.
-  // Inspecting all args/arg names causes false positives for legitimate APIs
-  // that use fields such as sessionId or token-related JSON payloads.
-  rules += `SecRule REQUEST_COOKIES|REQUEST_COOKIES_NAMES "@rx (?i)(?:session(?:id|_id|id_)?|jsessionid|phpsessid|aspsessionid)" \\
+  // Block only known session identifier cookie names.
+  // Generic names containing "session" such as "atra_session" are valid in many
+  // apps and should not be treated as fixation attempts by themselves.
+  rules += `SecRule REQUEST_COOKIES_NAMES "@rx (?i)^(?:sessionid|session_id|jsessionid|phpsessid|aspsessionid|asp\\.net_sessionid)$" \\
     "id:${ruleIdBase},phase:2,block,msg:'Session Fixation: Suspicious Session ID Pattern Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'WARNING',\\
