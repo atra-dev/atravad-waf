@@ -6,6 +6,8 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
+  onAuthStateChanged,
+  signOut,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -19,6 +21,7 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const loginInitRef = useRef(false);
+  const sessionFinalizeRef = useRef(false);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -112,6 +115,30 @@ function LoginPageContent() {
     return verifyResponse.json();
   };
 
+  const finalizeGoogleSession = async (firebaseUser, fallbackMessage) => {
+    if (!firebaseUser || sessionFinalizeRef.current) return false;
+
+    sessionFinalizeRef.current = true;
+    try {
+      const userData = await completeManagedSession(firebaseUser);
+      console.log('Session verified for user:', userData.email, 'Role:', userData.role);
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      router.push(redirect);
+      return true;
+    } catch (error) {
+      console.error('Google sign-in verification error:', error);
+      try {
+        await signOut(auth);
+      } catch (signOutError) {
+        console.error('Error clearing failed Google session:', signOutError);
+      }
+      document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
+      showToast(error?.message || fallbackMessage);
+      sessionFinalizeRef.current = false;
+      return false;
+    }
+  };
+
   const hasAuthTokenCookie = () => {
     if (typeof document === 'undefined') return false;
     return document.cookie
@@ -127,18 +154,21 @@ function LoginPageContent() {
       try {
         const redirectResult = await getRedirectResult(auth);
         if (redirectResult?.user) {
-          try {
-            const userData = await completeManagedSession(redirectResult.user);
-            console.log('Session verified for user:', userData.email, 'Role:', userData.role);
-            const redirect = searchParams.get('redirect') || '/dashboard';
-            router.push(redirect);
+          const finalized = await finalizeGoogleSession(
+            redirectResult.user,
+            'Unable to verify managed access after Google sign-in.'
+          );
+          if (finalized) {
             return;
-          } catch (redirectAuthError) {
-            console.error('Redirect sign-in verification error:', redirectAuthError);
-            showToast(
-              redirectAuthError?.message ||
-                'Unable to verify managed access after Google sign-in.'
-            );
+          }
+        }
+
+        if (auth.currentUser) {
+          const finalized = await finalizeGoogleSession(
+            auth.currentUser,
+            'Unable to verify your restored Google session.'
+          );
+          if (finalized) {
             return;
           }
         }
@@ -166,6 +196,16 @@ function LoginPageContent() {
     };
     
     initializeLogin();
+
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) return;
+      await finalizeGoogleSession(
+        firebaseUser,
+        'Unable to verify managed access after Google sign-in.'
+      );
+    });
+
+    return () => unsubscribe();
   }, [router, searchParams]);
 
   const googleProvider = new GoogleAuthProvider();
