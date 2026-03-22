@@ -14,7 +14,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
   "font-src 'self' data:",
-  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com ${firebaseAuthOrigin} https://accounts.google.com https://apis.google.com`,
+  `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com ${firebaseAuthOrigin} https://accounts.google.com https://apis.google.com https://cdn.jsdelivr.net`,
   "worker-src 'self' blob:",
   "manifest-src 'self'",
   `frame-src 'self' ${firebaseAuthOrigin} https://accounts.google.com https://apis.google.com`,
