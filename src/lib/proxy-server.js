@@ -217,14 +217,14 @@ function renderCustomNotFoundHtml(host, path) {
         <span class="waf">WAF: ${ATRAVAD_WAF_NAME}</span>
       </div>
       <h1>Resource Not Found</h1>
-      <p>The requested URL does not exist on this protected endpoint, or the host is not mapped to an active ATRAVAD application.</p>
+      <p>The requested URL does not exist on this protected endpoint, or the host is not mapped to an active ATRAVA Defense application.</p>
 
       <div class="meta">
         <div class="meta-row"><span class="meta-label">Host</span> <code>${safeHost}</code></div>
         <div class="meta-row"><span class="meta-label">Path</span> <code>${safePath}</code></div>
       </div>
 
-      <p class="hint"><strong>Tip:</strong> Verify DNS routing, host header, and application domain configuration in ATRAVAD.</p>
+      <p class="hint"><strong>Tip:</strong> Verify DNS routing, host header, and application domain configuration in ATRAVA Defense.</p>
     </section>
   </main>
 </body>
