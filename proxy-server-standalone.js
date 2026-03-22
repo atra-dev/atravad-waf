@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * ATRAVAD Proxy WAF Standalone Server
+ * ATRAVA Defense Standalone Server
  *
  * Data-center ready, multi-tenant WAF edge. Loads sites from Firestore by tenant.
  * Add site → point DNS → SSL → done.
@@ -77,7 +77,7 @@ const TENANT_NAME = config['tenant-name'] ?? process.env.ATRAVAD_TENANT_NAME ?? 
 const HTTP_PORT = parseInt(config['http-port'] || process.env.ATRAVAD_HTTP_PORT || '80', 10);
 const HTTPS_PORT = parseInt(config['https-port'] || process.env.ATRAVAD_HTTPS_PORT || '443', 10);
 
-console.log('ATRAVAD Proxy WAF Standalone Server');
+console.log('ATRAVA Defense Standalone Server');
 console.log('====================================');
 console.log(`Tenant: ${TENANT_NAME !== null && TENANT_NAME !== '' ? TENANT_NAME : '(all tenants)'}`);
 console.log(`HTTP Port: ${HTTP_PORT}`);

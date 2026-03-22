@@ -40,6 +40,8 @@ try {
 }
 
 const BODY_BUFFER_TIMEOUT_MS = 10000;
+const PUBLIC_WAF_NAME = "ATRAVA Defense";
+const PUBLIC_WAF_SERVICE_ID = "atrava-defense";
 
 function sanitizeOutboundHeaders(headers = {}) {
   const nextHeaders = { ...headers };
@@ -86,7 +88,7 @@ function renderCustomNotFoundHtml(host, path) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>404 Not Found | ATRAVAD-WAF</title>
+  <title>404 Not Found | ATRAVA Defense</title>
   <style>
     :root {
       color-scheme: light;
@@ -233,7 +235,7 @@ function renderCustomNotFoundHtml(host, path) {
     <section class="card">
       <div class="top">
         <span class="status">HTTP 404</span>
-        <span class="waf">WAF: ${ATRAVAD_WAF_NAME}</span>
+        <span class="waf">WAF: ${PUBLIC_WAF_NAME}</span>
       </div>
       <h1>Resource Not Found</h1>
       <p>The requested URL does not exist on this protected endpoint, or the host is not mapped to an active ATRAVAD application.</p>
@@ -392,13 +394,13 @@ function renderBlockedHtml({
   const safeBrowser = escapeHtml(browser || "unknown");
   const safeBlockId = escapeHtml(blockId || "WAF-403");
   const safeTime = escapeHtml(timestamp || new Date().toISOString());
-  const safeServerId = escapeHtml(serverId || "atravad-waf");
+  const safeServerId = escapeHtml(serverId || PUBLIC_WAF_SERVICE_ID);
   const normalizedBlockType = String(blockType || "waf").toLowerCase();
   const isGeoBlocked = normalizedBlockType === "geo";
-  const pageTitle = isGeoBlocked ? "403 Geographic Access Restricted | ATRAVAD-WAF" : "403 Access Blocked | ATRAVAD-WAF";
+  const pageTitle = isGeoBlocked ? "403 Geographic Access Restricted | ATRAVA Defense" : "403 Access Blocked | ATRAVA Defense";
   const heroTitle = isGeoBlocked
-    ? "Geographic Access Restricted - ATRAVAD-WAF"
-    : `Access Denied - ${ATRAVAD_WAF_NAME}`;
+    ? "Geographic Access Restricted - ATRAVA Defense"
+    : `Access Denied - ${PUBLIC_WAF_NAME}`;
   const introMessage = isGeoBlocked
     ? `Access from your country or region is not allowed by this site's security policy. If you believe this is a mistake, contact the site owner or
         <a href="mailto:support@atravad.com?subject=Geo%20Access%20Blocked%20Support%20Request">open a support ticket</a>
@@ -1463,7 +1465,7 @@ export class ProxyWAFServer {
         method: "GET",
         timeout,
         headers: {
-          "User-Agent": "ATRAVAD-WAF-HealthCheck/1.0",
+          "User-Agent": "ATRAVA-Defense-HealthCheck/1.0",
         },
       };
 
@@ -1560,7 +1562,7 @@ export class ProxyWAFServer {
         res.end(
           JSON.stringify({
             status: "ok",
-            service: "atravad-waf",
+            service: PUBLIC_WAF_SERVICE_ID,
             tenant: this.tenantName || "all",
             tenants: this.tenantNames?.length ? this.tenantNames.length : null,
             applications: this.applications.size,
@@ -2258,7 +2260,7 @@ export class ProxyWAFServer {
 
     this.httpServer.listen(this.port, () => {
       console.log(
-        `ATRAVAD Proxy WAF HTTP server listening on port ${this.port}`,
+        `${PUBLIC_WAF_NAME} HTTP server listening on port ${this.port}`,
       );
     });
 
@@ -2346,7 +2348,7 @@ export class ProxyWAFServer {
 
     this.httpsServer.listen(this.httpsPort, () => {
       console.log(
-        `ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
+        `${PUBLIC_WAF_NAME} HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
       );
     });
 
@@ -2366,7 +2368,7 @@ export class ProxyWAFServer {
     } else if (this.letsEncryptEnabled && this._getDefaultSecureContext()) {
       this.startHttpsServer();
     }
-    console.log("ATRAVAD Proxy WAF server started");
+    console.log(`${PUBLIC_WAF_NAME} server started`);
   }
 
   /**
@@ -2392,7 +2394,7 @@ export class ProxyWAFServer {
       this.httpsServer.close();
     }
 
-    console.log("ATRAVAD Proxy WAF server stopped");
+    console.log(`${PUBLIC_WAF_NAME} server stopped`);
   }
 }
 
