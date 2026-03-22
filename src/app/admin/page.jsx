@@ -918,7 +918,6 @@ export default function SuperAdminPage() {
                             {tenants.filter((tenant) => (tenant.subscriptionStatus || 'active') === 'active').length}
                           </p>
                         </div>
-                        <SeverityBadge severity={log.severity} />
                       </div>
                     </div>
 
