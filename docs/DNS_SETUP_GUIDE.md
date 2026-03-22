@@ -111,7 +111,7 @@ After updating DNS, wait for propagation (usually 5-60 minutes):
 Once DNS has propagated:
 
 1. **Visit your website**: `https://example.com`
-2. **Check response headers** - You should see ATRAVAD WAF headers (e.g. `X-ATRAVAD-WAF: enabled`)
+2. **Check response headers** - Confirm the response does not expose `X-WAF`, `X-Firewall`, `X-ATRAVAD-WAF`, or a WAF-added `Server` header
 
 3. **Test protection** - Try accessing:
    ```
@@ -320,7 +320,7 @@ After DNS change, monitor:
 4. **Test**:
    ```bash
    curl -I https://example.com
-   # Should see X-ATRAVAD-WAF header
+   # Should not see X-WAF, X-Firewall, X-ATRAVAD-WAF, or a WAF-added Server header
    ```
 
 5. **Verify protection**:

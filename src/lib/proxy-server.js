@@ -40,16 +40,42 @@ try {
 }
 
 const BODY_BUFFER_TIMEOUT_MS = 10000;
-const ATRAVAD_WAF_NAME = "ATRAVAD-WAF";
 
-function withWafFingerprintHeaders(headers = {}) {
-  return {
-    ...headers,
-    Server: ATRAVAD_WAF_NAME,
-    "X-WAF": ATRAVAD_WAF_NAME,
-    "X-Firewall": ATRAVAD_WAF_NAME,
-    "X-ATRAVAD-WAF": ATRAVAD_WAF_NAME,
-  };
+function sanitizeOutboundHeaders(headers = {}) {
+  const nextHeaders = { ...headers };
+
+  delete nextHeaders.server;
+  delete nextHeaders.Server;
+  delete nextHeaders["x-waf"];
+  delete nextHeaders["X-WAF"];
+  delete nextHeaders["x-firewall"];
+  delete nextHeaders["X-Firewall"];
+  for (const headerName of Object.keys(nextHeaders)) {
+    if (headerName.toLowerCase().startsWith("x-atravad-")) {
+      delete nextHeaders[headerName];
+    }
+  }
+
+  const varyHeader = nextHeaders.Vary || nextHeaders.vary;
+  if (varyHeader) {
+    const cleanedVary = String(varyHeader)
+      .split(",")
+      .map((value) => value.trim())
+      .filter(
+        (value) => value && value.toLowerCase() !== "x-atravad-geo-country",
+      )
+      .join(", ");
+
+    if (cleanedVary) {
+      if (nextHeaders.Vary !== undefined) nextHeaders.Vary = cleanedVary;
+      if (nextHeaders.vary !== undefined) nextHeaders.vary = cleanedVary;
+    } else {
+      delete nextHeaders.Vary;
+      delete nextHeaders.vary;
+    }
+  }
+
+  return nextHeaders;
 }
 
 function renderCustomNotFoundHtml(host, path) {
@@ -228,7 +254,7 @@ function sendCustomNotFound(res, { host, path } = {}) {
   const body = renderCustomNotFoundHtml(host, path);
   res.writeHead(
     404,
-    withWafFingerprintHeaders({
+    sanitizeOutboundHeaders({
       "Content-Type": "text/html; charset=utf-8",
       "Content-Length": Buffer.byteLength(body),
       "Cache-Control": "no-store",
@@ -326,12 +352,10 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
   nextHeaders.Expires = "0";
   nextHeaders["Surrogate-Control"] = "no-store";
   nextHeaders["CDN-Cache-Control"] = "no-store";
-  nextHeaders["X-ATRAVAD-Document-Cache"] = "bypass";
   nextHeaders.Vary = mergeVaryHeader(nextHeaders.Vary || nextHeaders.vary, [
     "Accept",
     "Accept-Encoding",
     "X-Geo-Country",
-    "X-ATRAVAD-Geo-Country",
     "CF-IPCountry",
     "X-Vercel-IP-Country",
   ]);
@@ -545,14 +569,9 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
     Expires: "0",
     "Surrogate-Control": "no-store",
     "CDN-Cache-Control": "no-store",
-    Vary: "Accept, Accept-Encoding, X-Geo-Country, X-ATRAVAD-Geo-Country, CF-IPCountry, X-Vercel-IP-Country",
+    Vary: "Accept, Accept-Encoding, X-Geo-Country, CF-IPCountry, X-Vercel-IP-Country",
   };
-  const headers = withWafFingerprintHeaders({
-    "X-ATRAVAD-Blocked": "true",
-    "X-ATRAVAD-Reason": reason || "Security rule violation",
-    "X-ATRAVAD-Client-IP": clientIp || "unknown",
-    "X-ATRAVAD-Proxy-IP": proxyIp || "unknown",
-    ...(isGeoBlocked ? { "X-ATRAVAD-Geo-Blocked": "true" } : {}),
+  const headers = sanitizeOutboundHeaders({
     ...(isGeoBlocked
       ? { "Clear-Site-Data": "\"cache\", \"storage\", \"cookies\"" }
       : {}),
@@ -663,6 +682,21 @@ function buildOriginRequestOptions(clientReq, origin) {
   delete headers["host"];
   delete headers["transfer-encoding"];
   delete headers["upgrade"];
+  delete headers["forwarded"];
+  delete headers["Forwarded"];
+  delete headers["x-forwarded-for"];
+  delete headers["X-Forwarded-For"];
+  delete headers["x-forwarded-proto"];
+  delete headers["X-Forwarded-Proto"];
+  delete headers["x-forwarded-host"];
+  delete headers["X-Forwarded-Host"];
+  delete headers["x-real-ip"];
+  delete headers["X-Real-IP"];
+  for (const headerName of Object.keys(headers)) {
+    if (headerName.toLowerCase().startsWith("x-atravad-")) {
+      delete headers[headerName];
+    }
+  }
 
   headers["host"] = upstreamHostHeader;
   headers["x-forwarded-for"] = buildForwardedForHeader({
@@ -672,16 +706,10 @@ function buildOriginRequestOptions(clientReq, origin) {
   headers["x-forwarded-proto"] = clientReq.secure ? "https" : "http";
   if (clientIpInfo.clientIp) {
     headers["x-real-ip"] = clientIpInfo.clientIp;
-    headers["x-atravad-client-ip"] = clientIpInfo.clientIp;
-  }
-  if (clientIpInfo.proxyIp) {
-    headers["x-atravad-proxy-ip"] = clientIpInfo.proxyIp;
   }
   if (incomingHostHeader) {
     headers["x-forwarded-host"] = incomingHostHeader;
   }
-  headers["x-atravad-origin-url"] = originUrlObj.toString();
-  headers["x-atravad-upstream-host"] = upstreamHostHeader;
 
   if (origin?.authHeader?.name && origin?.authHeader?.value) {
     headers[origin.authHeader.name] = origin.authHeader.value;
@@ -1527,7 +1555,7 @@ export class ProxyWAFServer {
       if (pathname === "/health" || pathname === "/_atravad/health") {
         res.writeHead(
           200,
-          withWafFingerprintHeaders({ "Content-Type": "application/json" }),
+          sanitizeOutboundHeaders({ "Content-Type": "application/json" }),
         );
         res.end(
           JSON.stringify({
@@ -1545,7 +1573,7 @@ export class ProxyWAFServer {
       if (!host) {
         res.writeHead(
           400,
-          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
         );
         res.end("Missing Host header");
         return;
@@ -1562,7 +1590,7 @@ export class ProxyWAFServer {
         if (keyAuthorization) {
           res.writeHead(
             200,
-            withWafFingerprintHeaders({
+            sanitizeOutboundHeaders({
               "Content-Type": "text/plain; charset=utf-8",
             }),
           );
@@ -1581,7 +1609,7 @@ export class ProxyWAFServer {
       if (!origin || !origin.url) {
         res.writeHead(
           503,
-          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
         );
         res.end("No origin server configured");
         return;
@@ -1604,7 +1632,7 @@ export class ProxyWAFServer {
           if (!res.headersSent) {
             res.writeHead(
               413,
-              withWafFingerprintHeaders({ "Content-Type": "application/json" }),
+              sanitizeOutboundHeaders({ "Content-Type": "application/json" }),
             );
             res.end(
               JSON.stringify({ error: "Request body too large or timeout" }),
@@ -1717,7 +1745,7 @@ export class ProxyWAFServer {
       if (!res.headersSent) {
         res.writeHead(
           500,
-          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
         );
         res.end("Internal server error");
       }
@@ -2030,7 +2058,7 @@ export class ProxyWAFServer {
                 if (!clientRes.headersSent) {
                   clientRes.writeHead(502, {
                     "Content-Type": "application/json",
-                    ...withWafFingerprintHeaders(),
+                    ...sanitizeOutboundHeaders(),
                   });
                   clientRes.end(
                     JSON.stringify({
@@ -2069,7 +2097,7 @@ export class ProxyWAFServer {
               );
               clientRes.writeHead(
                 proxyRes.statusCode,
-                withWafFingerprintHeaders(forwardedHeaders),
+                sanitizeOutboundHeaders(forwardedHeaders),
               );
               clientRes.end(body);
             }
@@ -2095,7 +2123,7 @@ export class ProxyWAFServer {
             if (!clientRes.headersSent) {
               clientRes.writeHead(
                 502,
-                withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+                sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
               );
               clientRes.end("Bad Gateway");
             }
@@ -2123,7 +2151,7 @@ export class ProxyWAFServer {
                 );
                 clientRes.writeHead(
                   proxyRes.statusCode,
-                  withWafFingerprintHeaders(forwardedHeaders),
+                  sanitizeOutboundHeaders(forwardedHeaders),
                 );
               }
               clientRes.end(body);
@@ -2149,7 +2177,7 @@ export class ProxyWAFServer {
               if (!clientRes.headersSent) {
                 clientRes.writeHead(
                   502,
-                  withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+                  sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
                 );
                 clientRes.end("Bad Gateway");
               }
@@ -2164,7 +2192,7 @@ export class ProxyWAFServer {
               );
               clientRes.writeHead(
                 proxyRes.statusCode,
-                withWafFingerprintHeaders(forwardedHeaders),
+                sanitizeOutboundHeaders(forwardedHeaders),
               );
             }
             proxyRes.pipe(clientRes);
@@ -2192,7 +2220,7 @@ export class ProxyWAFServer {
         if (!clientRes.headersSent) {
           clientRes.writeHead(
             502,
-            withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+            sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
           );
           clientRes.end("Bad Gateway: Origin server error");
         }
@@ -2209,7 +2237,7 @@ export class ProxyWAFServer {
       if (!clientRes.headersSent) {
         clientRes.writeHead(
           502,
-          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
+          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
         );
         clientRes.end("Bad Gateway");
       }
