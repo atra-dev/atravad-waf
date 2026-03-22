@@ -1,5 +1,5 @@
 /**
- * ATRAVAD Proxy WAF Server
+ * ATRAVA Defense Proxy Server
  *
  * Modern reverse proxy WAF (Sucuri-style):
  * - SSL/TLS termination, domain-based routing
@@ -55,7 +55,7 @@ function withWafFingerprintHeaders(headers = {}) {
     Server: ATRAVAD_WAF_NAME,
     "X-WAF": ATRAVAD_WAF_NAME,
     "X-Firewall": ATRAVAD_WAF_NAME,
-    "X-ATRAVA Defense": ATRAVAD_WAF_NAME,
+    "X-ATRAVA-Defense": ATRAVAD_WAF_NAME,
   };
 }
 
@@ -384,7 +384,7 @@ function renderBlockedHtml({
   const safeBrowser = escapeHtml(browser || "unknown");
   const safeBlockId = escapeHtml(blockId || "WAF-403");
   const safeTime = escapeHtml(timestamp || new Date().toISOString());
-  const safeServerId = escapeHtml(serverId || "atravad-waf");
+  const safeServerId = escapeHtml(serverId || "atrava-defense");
   const normalizedBlockType = String(blockType || "waf").toLowerCase();
   const isGeoBlocked = normalizedBlockType === "geo";
   const pageTitle = isGeoBlocked
@@ -675,6 +675,10 @@ function getClientIpInfo(req) {
   });
 }
 
+function isSecureRequest(req) {
+  return Boolean(req?.secure || req?.socket?.encrypted);
+}
+
 function buildOriginRequestOptions(clientReq, origin) {
   const originUrl = origin?.url;
   const originUrlObj = new URL(originUrl);
@@ -697,7 +701,7 @@ function buildOriginRequestOptions(clientReq, origin) {
     headers: clientReq.headers,
     remoteAddress: clientReq.socket?.remoteAddress,
   });
-  headers["x-forwarded-proto"] = clientReq.secure ? "https" : "http";
+  headers["x-forwarded-proto"] = isSecureRequest(clientReq) ? "https" : "http";
   if (clientIpInfo.clientIp) {
     headers["x-real-ip"] = clientIpInfo.clientIp;
     headers["x-atravad-client-ip"] = clientIpInfo.clientIp;
@@ -1593,6 +1597,7 @@ export class ProxyWAFServer {
    */
   async handleRequest(req, res) {
     try {
+      req.secure = isSecureRequest(req);
       const pathname = req.url?.split("?")[0] || "/";
 
       // Health check for load balancers and data-center orchestration (any Host)
@@ -1604,7 +1609,7 @@ export class ProxyWAFServer {
         res.end(
           JSON.stringify({
             status: "ok",
-            service: "atravad-waf",
+            service: "atrava-defense",
             tenant: this.tenantName || "all",
             tenants: this.tenantNames?.length ? this.tenantNames.length : null,
             applications: this.applications.size,
@@ -2359,7 +2364,7 @@ export class ProxyWAFServer {
 
     this.httpServer.listen(this.port, () => {
       console.log(
-        `ATRAVAD Proxy WAF HTTP server listening on port ${this.port}`,
+        `ATRAVA Defense HTTP server listening on port ${this.port}`,
       );
     });
 
@@ -2447,7 +2452,7 @@ export class ProxyWAFServer {
 
     this.httpsServer.listen(this.httpsPort, () => {
       console.log(
-        `ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
+        `ATRAVA Defense HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
       );
     });
 
@@ -2467,7 +2472,7 @@ export class ProxyWAFServer {
     } else if (this.letsEncryptEnabled && this._getDefaultSecureContext()) {
       this.startHttpsServer();
     }
-    console.log("ATRAVAD Proxy WAF server started");
+    console.log("ATRAVA Defense server started");
   }
 
   /**
@@ -2493,7 +2498,7 @@ export class ProxyWAFServer {
       this.httpsServer.close();
     }
 
-    console.log("ATRAVAD Proxy WAF server stopped");
+    console.log("ATRAVA Defense server stopped");
   }
 }
 
