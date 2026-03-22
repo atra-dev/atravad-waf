@@ -25,11 +25,18 @@ import {
 } from "./letsencrypt.js";
 import { normalizeDomainInput } from "./domain-utils.js";
 import { geolocateIpCached } from "./geolocation.js";
-import { buildForwardedForHeader, normalizeIpAddress, resolveClientIp } from "./ip-utils.js";
+import {
+  buildForwardedForHeader,
+  normalizeIpAddress,
+  resolveClientIp,
+} from "./ip-utils.js";
 import { deriveRuleId } from "./log-rule-utils.js";
 import { persistSecurityLog } from "./log-storage.js";
 import { getDefaultOriginServername } from "./origin-utils.js";
-import { getTrafficLoggingConfig, shouldCaptureAllowedTraffic } from "./traffic-logging.js";
+import {
+  getTrafficLoggingConfig,
+  shouldCaptureAllowedTraffic,
+} from "./traffic-logging.js";
 
 const requireMod = createRequire(import.meta.url);
 let selfsigned = null;
@@ -40,44 +47,16 @@ try {
 }
 
 const BODY_BUFFER_TIMEOUT_MS = 10000;
-const PUBLIC_WAF_NAME = "ATRAVA Defense";
-const PUBLIC_WAF_SERVICE_ID = "atrava-defense";
+const ATRAVAD_WAF_NAME = "ATRAVA Defense";
 
-function sanitizeOutboundHeaders(headers = {}) {
-  const nextHeaders = { ...headers };
-
-  delete nextHeaders.server;
-  delete nextHeaders.Server;
-  delete nextHeaders["x-waf"];
-  delete nextHeaders["X-WAF"];
-  delete nextHeaders["x-firewall"];
-  delete nextHeaders["X-Firewall"];
-  for (const headerName of Object.keys(nextHeaders)) {
-    if (headerName.toLowerCase().startsWith("x-atravad-")) {
-      delete nextHeaders[headerName];
-    }
-  }
-
-  const varyHeader = nextHeaders.Vary || nextHeaders.vary;
-  if (varyHeader) {
-    const cleanedVary = String(varyHeader)
-      .split(",")
-      .map((value) => value.trim())
-      .filter(
-        (value) => value && value.toLowerCase() !== "x-atravad-geo-country",
-      )
-      .join(", ");
-
-    if (cleanedVary) {
-      if (nextHeaders.Vary !== undefined) nextHeaders.Vary = cleanedVary;
-      if (nextHeaders.vary !== undefined) nextHeaders.vary = cleanedVary;
-    } else {
-      delete nextHeaders.Vary;
-      delete nextHeaders.vary;
-    }
-  }
-
-  return nextHeaders;
+function withWafFingerprintHeaders(headers = {}) {
+  return {
+    ...headers,
+    Server: ATRAVAD_WAF_NAME,
+    "X-WAF": ATRAVAD_WAF_NAME,
+    "X-Firewall": ATRAVAD_WAF_NAME,
+    "X-ATRAVA Defense": ATRAVAD_WAF_NAME,
+  };
 }
 
 function renderCustomNotFoundHtml(host, path) {
@@ -235,7 +214,7 @@ function renderCustomNotFoundHtml(host, path) {
     <section class="card">
       <div class="top">
         <span class="status">HTTP 404</span>
-        <span class="waf">WAF: ${PUBLIC_WAF_NAME}</span>
+        <span class="waf">WAF: ${ATRAVAD_WAF_NAME}</span>
       </div>
       <h1>Resource Not Found</h1>
       <p>The requested URL does not exist on this protected endpoint, or the host is not mapped to an active ATRAVAD application.</p>
@@ -256,7 +235,7 @@ function sendCustomNotFound(res, { host, path } = {}) {
   const body = renderCustomNotFoundHtml(host, path);
   res.writeHead(
     404,
-    sanitizeOutboundHeaders({
+    withWafFingerprintHeaders({
       "Content-Type": "text/html; charset=utf-8",
       "Content-Length": Buffer.byteLength(body),
       "Cache-Control": "no-store",
@@ -269,16 +248,23 @@ function shouldReturnJsonBlockedResponse(req) {
   const pathname = req?.url?.split("?")[0] || "/";
   if (pathname.startsWith("/api/")) return true;
   const accept = String(req?.headers?.accept || "").toLowerCase();
-  if (accept.includes("application/json") && !accept.includes("text/html")) return true;
+  if (accept.includes("application/json") && !accept.includes("text/html"))
+    return true;
   return false;
 }
 
 function getBlockedReasonType(reason = "") {
   const rawReason = String(reason || "");
-  if (/ip.*block|blacklist|not\s+whitelist|ip access control/i.test(rawReason)) {
+  if (
+    /ip.*block|blacklist|not\s+whitelist|ip access control/i.test(rawReason)
+  ) {
     return "ip";
   }
-  if (/geographic blocking|blocked country|non-allowed country|geo-blocking/i.test(rawReason)) {
+  if (
+    /geographic blocking|blocked country|non-allowed country|geo-blocking/i.test(
+      rawReason,
+    )
+  ) {
     return "geo";
   }
   return "waf";
@@ -329,7 +315,9 @@ function isHtmlNavigationRequest(req) {
 
 function isProtectedHtmlDocumentResponse(req, headers = {}) {
   if (!isHtmlNavigationRequest(req)) return false;
-  const contentType = String(headers?.["content-type"] || headers?.["Content-Type"] || "").toLowerCase();
+  const contentType = String(
+    headers?.["content-type"] || headers?.["Content-Type"] || "",
+  ).toLowerCase();
   return !contentType || contentType.includes("text/html");
 }
 
@@ -354,10 +342,12 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
   nextHeaders.Expires = "0";
   nextHeaders["Surrogate-Control"] = "no-store";
   nextHeaders["CDN-Cache-Control"] = "no-store";
+  nextHeaders["X-ATRAVAD-Document-Cache"] = "bypass";
   nextHeaders.Vary = mergeVaryHeader(nextHeaders.Vary || nextHeaders.vary, [
     "Accept",
     "Accept-Encoding",
     "X-Geo-Country",
+    "X-ATRAVAD-Geo-Country",
     "CF-IPCountry",
     "X-Vercel-IP-Country",
   ]);
@@ -394,13 +384,15 @@ function renderBlockedHtml({
   const safeBrowser = escapeHtml(browser || "unknown");
   const safeBlockId = escapeHtml(blockId || "WAF-403");
   const safeTime = escapeHtml(timestamp || new Date().toISOString());
-  const safeServerId = escapeHtml(serverId || PUBLIC_WAF_SERVICE_ID);
+  const safeServerId = escapeHtml(serverId || "atravad-waf");
   const normalizedBlockType = String(blockType || "waf").toLowerCase();
   const isGeoBlocked = normalizedBlockType === "geo";
-  const pageTitle = isGeoBlocked ? "403 Geographic Access Restricted | ATRAVA Defense" : "403 Access Blocked | ATRAVA Defense";
+  const pageTitle = isGeoBlocked
+    ? "403 Geographic Access Restricted | ATRAVA Defense"
+    : "403 Access Blocked | ATRAVA Defense";
   const heroTitle = isGeoBlocked
     ? "Geographic Access Restricted - ATRAVA Defense"
-    : `Access Denied - ${PUBLIC_WAF_NAME}`;
+    : `Access Denied - ${ATRAVAD_WAF_NAME}`;
   const introMessage = isGeoBlocked
     ? `Access from your country or region is not allowed by this site's security policy. If you believe this is a mistake, contact the site owner or
         <a href="mailto:support@atravad.com?subject=Geo%20Access%20Blocked%20Support%20Request">open a support ticket</a>
@@ -556,7 +548,11 @@ function renderBlockedHtml({
 </html>`;
 }
 
-function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwardedFor, reason, matchedRules } = {}) {
+function sendBlockedResponse(
+  res,
+  req,
+  { host, path, clientIp, proxyIp, forwardedFor, reason, matchedRules } = {},
+) {
   const rawReason = String(reason || "");
   const reasonType = getBlockedReasonType(rawReason);
   const isIpBlocked = reasonType === "ip";
@@ -571,11 +567,16 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
     Expires: "0",
     "Surrogate-Control": "no-store",
     "CDN-Cache-Control": "no-store",
-    Vary: "Accept, Accept-Encoding, X-Geo-Country, CF-IPCountry, X-Vercel-IP-Country",
+    Vary: "Accept, Accept-Encoding, X-Geo-Country, X-ATRAVAD-Geo-Country, CF-IPCountry, X-Vercel-IP-Country",
   };
-  const headers = sanitizeOutboundHeaders({
+  const headers = withWafFingerprintHeaders({
+    "X-ATRAVAD-Blocked": "true",
+    "X-ATRAVAD-Reason": reason || "Security rule violation",
+    "X-ATRAVAD-Client-IP": clientIp || "unknown",
+    "X-ATRAVAD-Proxy-IP": proxyIp || "unknown",
+    ...(isGeoBlocked ? { "X-ATRAVAD-Geo-Blocked": "true" } : {}),
     ...(isGeoBlocked
-      ? { "Clear-Site-Data": "\"cache\", \"storage\", \"cookies\"" }
+      ? { "Clear-Site-Data": '"cache", "storage", "cookies"' }
       : {}),
     ...cacheHeaders,
   });
@@ -595,7 +596,9 @@ function sendBlockedResponse(res, req, { host, path, clientIp, proxyIp, forwarde
     return;
   }
 
-  const blockIdFromRule = topRuleId ? `${blockPrefix}-${topRuleId}` : `${blockPrefix}-403`;
+  const blockIdFromRule = topRuleId
+    ? `${blockPrefix}-${topRuleId}`
+    : `${blockPrefix}-403`;
   const normalizedReason = isIpBlocked
     ? "Your request was not allowed due to IP blocking (not white listed)."
     : isGeoBlocked
@@ -647,11 +650,15 @@ function getHostWithoutPort(hostHeader) {
 }
 
 function isStreamingResponse(proxyRes) {
-  const contentType = String(proxyRes?.headers?.["content-type"] || "").toLowerCase();
+  const contentType = String(
+    proxyRes?.headers?.["content-type"] || "",
+  ).toLowerCase();
   if (contentType.includes("text/event-stream")) return true;
   if (contentType.includes("application/x-ndjson")) return true;
 
-  const cacheControl = String(proxyRes?.headers?.["cache-control"] || "").toLowerCase();
+  const cacheControl = String(
+    proxyRes?.headers?.["cache-control"] || "",
+  ).toLowerCase();
   if (cacheControl.includes("no-transform")) return true;
 
   return false;
@@ -684,21 +691,6 @@ function buildOriginRequestOptions(clientReq, origin) {
   delete headers["host"];
   delete headers["transfer-encoding"];
   delete headers["upgrade"];
-  delete headers["forwarded"];
-  delete headers["Forwarded"];
-  delete headers["x-forwarded-for"];
-  delete headers["X-Forwarded-For"];
-  delete headers["x-forwarded-proto"];
-  delete headers["X-Forwarded-Proto"];
-  delete headers["x-forwarded-host"];
-  delete headers["X-Forwarded-Host"];
-  delete headers["x-real-ip"];
-  delete headers["X-Real-IP"];
-  for (const headerName of Object.keys(headers)) {
-    if (headerName.toLowerCase().startsWith("x-atravad-")) {
-      delete headers[headerName];
-    }
-  }
 
   headers["host"] = upstreamHostHeader;
   headers["x-forwarded-for"] = buildForwardedForHeader({
@@ -708,10 +700,16 @@ function buildOriginRequestOptions(clientReq, origin) {
   headers["x-forwarded-proto"] = clientReq.secure ? "https" : "http";
   if (clientIpInfo.clientIp) {
     headers["x-real-ip"] = clientIpInfo.clientIp;
+    headers["x-atravad-client-ip"] = clientIpInfo.clientIp;
+  }
+  if (clientIpInfo.proxyIp) {
+    headers["x-atravad-proxy-ip"] = clientIpInfo.proxyIp;
   }
   if (incomingHostHeader) {
     headers["x-forwarded-host"] = incomingHostHeader;
   }
+  headers["x-atravad-origin-url"] = originUrlObj.toString();
+  headers["x-atravad-upstream-host"] = upstreamHostHeader;
 
   if (origin?.authHeader?.name && origin?.authHeader?.value) {
     headers[origin.authHeader.name] = origin.authHeader.value;
@@ -753,7 +751,11 @@ function sendUpgradeError(socket, statusCode, message) {
 
 function getWebSocketIdleTimeoutMs(origin) {
   const configured = Number.parseInt(
-    String(origin?.websocketIdleTimeoutSec ?? process.env.WAF_WEBSOCKET_IDLE_TIMEOUT_SEC ?? "900"),
+    String(
+      origin?.websocketIdleTimeoutSec ??
+        process.env.WAF_WEBSOCKET_IDLE_TIMEOUT_SEC ??
+        "900",
+    ),
     10,
   );
   if (!Number.isInteger(configured) || configured < 10) {
@@ -827,9 +829,9 @@ async function buildInspectionRequest(req) {
   const headers = { ...(req?.headers || {}) };
   const hasGeoCountryHeader = Boolean(
     headers["cf-ipcountry"] ||
-      headers["x-vercel-ip-country"] ||
-      headers["x-geo-country"] ||
-      headers["x-atravad-geo-country"],
+    headers["x-vercel-ip-country"] ||
+    headers["x-geo-country"] ||
+    headers["x-atravad-geo-country"],
   );
 
   if (!hasGeoCountryHeader) {
@@ -837,13 +839,18 @@ async function buildInspectionRequest(req) {
     if (clientIp) {
       try {
         const geo = await geolocateIpCached(clientIp);
-        const countryCode = String(geo?.countryCode || "").trim().toUpperCase();
+        const countryCode = String(geo?.countryCode || "")
+          .trim()
+          .toUpperCase();
         if (geo?.success && countryCode) {
           headers["x-geo-country"] = countryCode;
           headers["x-atravad-geo-country"] = countryCode;
         }
       } catch (error) {
-        console.warn("Failed to enrich request with geo country:", error.message);
+        console.warn(
+          "Failed to enrich request with geo country:",
+          error.message,
+        );
       }
     }
   }
@@ -859,7 +866,8 @@ function isHealthPath(pathname) {
 }
 
 function parseBooleanEnv(value, defaultValue = false) {
-  if (value === undefined || value === null || value === "") return defaultValue;
+  if (value === undefined || value === null || value === "")
+    return defaultValue;
   const normalized = String(value).trim().toLowerCase();
   return normalized === "true" || normalized === "1" || normalized === "yes";
 }
@@ -870,7 +878,8 @@ function parsePositiveInt(value, defaultValue) {
 }
 
 function parseCsvList(value, fallback = []) {
-  if (value === undefined || value === null || value === "") return [...fallback];
+  if (value === undefined || value === null || value === "")
+    return [...fallback];
   return String(value)
     .split(",")
     .map((item) => item.trim())
@@ -892,14 +901,18 @@ export class ProxyWAFServer {
     this.healthCheckConfigs = new Map();
     this.applicationRefreshInterval = null;
     this.applicationRefreshInFlight = null;
-    this.applicationRefreshIntervalMs = parsePositiveInt(
-      options.applicationRefreshIntervalMs ?? process.env.ATRAVAD_APP_REFRESH_INTERVAL_SEC,
-      300,
-    ) * 1000;
-    this.policyRefreshIntervalMs = parsePositiveInt(
-      options.policyRefreshIntervalMs ?? process.env.ATRAVAD_POLICY_REFRESH_INTERVAL_SEC,
-      300,
-    ) * 1000;
+    this.applicationRefreshIntervalMs =
+      parsePositiveInt(
+        options.applicationRefreshIntervalMs ??
+          process.env.ATRAVAD_APP_REFRESH_INTERVAL_SEC,
+        300,
+      ) * 1000;
+    this.policyRefreshIntervalMs =
+      parsePositiveInt(
+        options.policyRefreshIntervalMs ??
+          process.env.ATRAVAD_POLICY_REFRESH_INTERVAL_SEC,
+        300,
+      ) * 1000;
     this.policyLastLoadedAt = new Map();
     this.tenantName = options.tenantName || null;
     // Multi-tenant: support single name or comma-separated list (Firestore 'in' max 10)
@@ -921,7 +934,8 @@ export class ProxyWAFServer {
       process.env.CERT_STORE_PERSIST_TO_DISK === "true" ||
       process.env.CERT_STORE_PERSIST_TO_DISK === "1";
     this.certStore =
-      options.certStore || createCertStore({ persistToDisk: persistCertsToDisk });
+      options.certStore ||
+      createCertStore({ persistToDisk: persistCertsToDisk });
     this.getAcmeChallengeResponse =
       options.getAcmeChallengeResponse || getAcmeChallengeResponse;
     this.letsEncryptEnabled =
@@ -948,47 +962,56 @@ export class ProxyWAFServer {
     this.skipLowValuePaths =
       options.skipLowValuePaths ??
       parseBooleanEnv(process.env.WAF_LOG_SKIP_LOW_VALUE_PATHS, true);
-    this.skipPathPrefixes = parseCsvList(process.env.WAF_LOG_SKIP_PATH_PREFIXES, [
-      "/_next/",
-      "/static/",
-      "/assets/",
-      "/favicon.ico",
-      "/robots.txt",
-      "/sitemap.xml",
-      "/manifest.json",
-      "/apple-touch-icon",
-    ]).map((value) => value.toLowerCase());
-    this.skipPathExtensions = parseCsvList(process.env.WAF_LOG_SKIP_PATH_EXTENSIONS, [
-      ".js",
-      ".css",
-      ".map",
-      ".png",
-      ".jpg",
-      ".jpeg",
-      ".gif",
-      ".svg",
-      ".ico",
-      ".webp",
-      ".woff",
-      ".woff2",
-      ".ttf",
-      ".eot",
-    ]).map((value) => value.toLowerCase());
+    this.skipPathPrefixes = parseCsvList(
+      process.env.WAF_LOG_SKIP_PATH_PREFIXES,
+      [
+        "/_next/",
+        "/static/",
+        "/assets/",
+        "/favicon.ico",
+        "/robots.txt",
+        "/sitemap.xml",
+        "/manifest.json",
+        "/apple-touch-icon",
+      ],
+    ).map((value) => value.toLowerCase());
+    this.skipPathExtensions = parseCsvList(
+      process.env.WAF_LOG_SKIP_PATH_EXTENSIONS,
+      [
+        ".js",
+        ".css",
+        ".map",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".svg",
+        ".ico",
+        ".webp",
+        ".woff",
+        ".woff2",
+        ".ttf",
+        ".eot",
+      ],
+    ).map((value) => value.toLowerCase());
     this.skipBotUAs =
       options.skipBotUAs ??
       parseBooleanEnv(process.env.WAF_LOG_SKIP_BOT_UA, true);
-    this.skipBotPatterns = parseCsvList(process.env.WAF_LOG_SKIP_BOT_UA_PATTERNS, [
-      "googlebot",
-      "bingbot",
-      "yandexbot",
-      "duckduckbot",
-      "baiduspider",
-      "slurp",
-      "crawler",
-      "spider",
-      "bot/",
-      "headlesschrome",
-    ]).map((value) => value.toLowerCase());
+    this.skipBotPatterns = parseCsvList(
+      process.env.WAF_LOG_SKIP_BOT_UA_PATTERNS,
+      [
+        "googlebot",
+        "bingbot",
+        "yandexbot",
+        "duckduckbot",
+        "baiduspider",
+        "slurp",
+        "crawler",
+        "spider",
+        "bot/",
+        "headlesschrome",
+      ],
+    ).map((value) => value.toLowerCase());
 
     // Load applications from Firestore and refresh on a fixed interval to avoid
     // long-lived Firestore subscriptions that scale poorly with tenant growth.
@@ -1007,7 +1030,9 @@ export class ProxyWAFServer {
   shouldSkipLowValueRequest(pathname, userAgent = "") {
     if (!this.skipLowValuePaths) return false;
     const normalizedPath = String(pathname || "/").toLowerCase();
-    if (this.skipPathPrefixes.some((prefix) => normalizedPath.startsWith(prefix))) {
+    if (
+      this.skipPathPrefixes.some((prefix) => normalizedPath.startsWith(prefix))
+    ) {
       return true;
     }
     if (this.skipPathExtensions.some((ext) => normalizedPath.endsWith(ext))) {
@@ -1017,10 +1042,19 @@ export class ProxyWAFServer {
     if (!this.skipBotUAs) return false;
     const normalizedUa = String(userAgent || "").toLowerCase();
     if (!normalizedUa) return false;
-    return this.skipBotPatterns.some((pattern) => normalizedUa.includes(pattern));
+    return this.skipBotPatterns.some((pattern) =>
+      normalizedUa.includes(pattern),
+    );
   }
 
-  shouldSkipDuplicateLog({ tenantName, host, uriPath, ruleId, clientIp, statusCode }) {
+  shouldSkipDuplicateLog({
+    tenantName,
+    host,
+    uriPath,
+    ruleId,
+    clientIp,
+    statusCode,
+  }) {
     if (this.logDedupWindowMs <= 0) return false;
     const now = Date.now();
 
@@ -1171,7 +1205,10 @@ export class ProxyWAFServer {
         });
         console.log(`Loaded custom SSL certificate for ${app.domain}`);
       } catch (err) {
-        console.warn(`Failed to load custom SSL for ${app.domain}:`, err.message);
+        console.warn(
+          `Failed to load custom SSL for ${app.domain}:`,
+          err.message,
+        );
       }
       return;
     }
@@ -1232,7 +1269,9 @@ export class ProxyWAFServer {
     const domain = app?.domain;
     if (!domain) return false;
     if (this.certStore.hasValidCert(domain)) return true;
-    const result = await provisionCertificate(domain, { certStore: this.certStore });
+    const result = await provisionCertificate(domain, {
+      certStore: this.certStore,
+    });
     if (!result.success) {
       throw new Error(result.error || "certificate provisioning failed");
     }
@@ -1348,7 +1387,10 @@ export class ProxyWAFServer {
         }
       }
 
-      for (const [originUrl, intervalId] of this.healthCheckIntervals.entries()) {
+      for (const [
+        originUrl,
+        intervalId,
+      ] of this.healthCheckIntervals.entries()) {
         if (activeOriginUrls.has(originUrl)) continue;
         clearInterval(intervalId);
         this.healthCheckIntervals.delete(originUrl);
@@ -1557,12 +1599,12 @@ export class ProxyWAFServer {
       if (pathname === "/health" || pathname === "/_atravad/health") {
         res.writeHead(
           200,
-          sanitizeOutboundHeaders({ "Content-Type": "application/json" }),
+          withWafFingerprintHeaders({ "Content-Type": "application/json" }),
         );
         res.end(
           JSON.stringify({
             status: "ok",
-            service: PUBLIC_WAF_SERVICE_ID,
+            service: "atravad-waf",
             tenant: this.tenantName || "all",
             tenants: this.tenantNames?.length ? this.tenantNames.length : null,
             applications: this.applications.size,
@@ -1575,7 +1617,7 @@ export class ProxyWAFServer {
       if (!host) {
         res.writeHead(
           400,
-          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
         );
         res.end("Missing Host header");
         return;
@@ -1592,7 +1634,7 @@ export class ProxyWAFServer {
         if (keyAuthorization) {
           res.writeHead(
             200,
-            sanitizeOutboundHeaders({
+            withWafFingerprintHeaders({
               "Content-Type": "text/plain; charset=utf-8",
             }),
           );
@@ -1611,7 +1653,7 @@ export class ProxyWAFServer {
       if (!origin || !origin.url) {
         res.writeHead(
           503,
-          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
         );
         res.end("No origin server configured");
         return;
@@ -1634,7 +1676,7 @@ export class ProxyWAFServer {
           if (!res.headersSent) {
             res.writeHead(
               413,
-              sanitizeOutboundHeaders({ "Content-Type": "application/json" }),
+              withWafFingerprintHeaders({ "Content-Type": "application/json" }),
             );
             res.end(
               JSON.stringify({ error: "Request body too large or timeout" }),
@@ -1653,14 +1695,24 @@ export class ProxyWAFServer {
         if (!accessInspection.allowed || accessInspection.blocked) {
           const clientIpInfo = getClientIpInfo(req);
           const topRule = accessInspection.matchedRules?.[0] || null;
-          const topReason = topRule?.message || "Access control policy violation";
-          if (shouldBypassStaticAssetBlocking(req, accessInspection.matchedRules, topReason)) {
-            console.info(`Allowing protected static asset request for ${host}:`, {
-              url: req.url,
-              method: req.method,
-              matchedRules: accessInspection.matchedRules,
-              engine: accessInspection.engine,
-            });
+          const topReason =
+            topRule?.message || "Access control policy violation";
+          if (
+            shouldBypassStaticAssetBlocking(
+              req,
+              accessInspection.matchedRules,
+              topReason,
+            )
+          ) {
+            console.info(
+              `Allowing protected static asset request for ${host}:`,
+              {
+                url: req.url,
+                method: req.method,
+                matchedRules: accessInspection.matchedRules,
+                engine: accessInspection.engine,
+              },
+            );
           } else {
             sendBlockedResponse(res, req, {
               host,
@@ -1687,7 +1739,10 @@ export class ProxyWAFServer {
               statusCode: 403,
               ruleId: topRule?.id || null,
               ruleMessage: topReason || null,
-              response: { statusCode: 403, engine: accessInspection.engine || null },
+              response: {
+                statusCode: 403,
+                engine: accessInspection.engine || null,
+              },
             });
             return;
           }
@@ -1701,13 +1756,22 @@ export class ProxyWAFServer {
           const clientIpInfo = getClientIpInfo(req);
           const topRule = inspection.matchedRules?.[0] || null;
           const topReason = topRule?.message || "Security rule violation";
-          if (shouldBypassStaticAssetBlocking(req, inspection.matchedRules, topReason)) {
-            console.info(`Allowing protected static asset request for ${host}:`, {
-              url: req.url,
-              method: req.method,
-              matchedRules: inspection.matchedRules,
-              engine: inspection.engine,
-            });
+          if (
+            shouldBypassStaticAssetBlocking(
+              req,
+              inspection.matchedRules,
+              topReason,
+            )
+          ) {
+            console.info(
+              `Allowing protected static asset request for ${host}:`,
+              {
+                url: req.url,
+                method: req.method,
+                matchedRules: inspection.matchedRules,
+                engine: inspection.engine,
+              },
+            );
           } else {
             sendBlockedResponse(res, req, {
               host,
@@ -1747,7 +1811,7 @@ export class ProxyWAFServer {
       if (!res.headersSent) {
         res.writeHead(
           500,
-          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
         );
         res.end("Internal server error");
       }
@@ -1757,14 +1821,27 @@ export class ProxyWAFServer {
   async handleUpgrade(clientReq, clientSocket, head, { secure = false } = {}) {
     try {
       clientReq.secure = secure;
-      const upgradeHeader = String(clientReq.headers?.upgrade || "").toLowerCase();
-      const connectionHeader = String(clientReq.headers?.connection || "").toLowerCase();
-      if (upgradeHeader !== "websocket" || !connectionHeader.includes("upgrade")) {
-        sendUpgradeError(clientSocket, 400, "Invalid WebSocket upgrade request");
+      const upgradeHeader = String(
+        clientReq.headers?.upgrade || "",
+      ).toLowerCase();
+      const connectionHeader = String(
+        clientReq.headers?.connection || "",
+      ).toLowerCase();
+      if (
+        upgradeHeader !== "websocket" ||
+        !connectionHeader.includes("upgrade")
+      ) {
+        sendUpgradeError(
+          clientSocket,
+          400,
+          "Invalid WebSocket upgrade request",
+        );
         return;
       }
 
-      const host = normalizeDomainInput(getHostWithoutPort(getRequestHostHeader(clientReq)) || "");
+      const host = normalizeDomainInput(
+        getHostWithoutPort(getRequestHostHeader(clientReq)) || "",
+      );
       if (!host) {
         sendUpgradeError(clientSocket, 400, "Missing Host header");
         return;
@@ -1790,10 +1867,18 @@ export class ProxyWAFServer {
           message: `WebSocket upgrade denied for ${host}: disabled by origin policy`,
           blocked: true,
           statusCode: 403,
-          response: { statusCode: 403, origin: origin.url, protocol: "websocket" },
+          response: {
+            statusCode: 403,
+            origin: origin.url,
+            protocol: "websocket",
+          },
           decision: "websocket_denied",
         });
-        sendUpgradeError(clientSocket, 403, "WebSocket disabled for this origin");
+        sendUpgradeError(
+          clientSocket,
+          403,
+          "WebSocket disabled for this origin",
+        );
         return;
       }
 
@@ -1815,7 +1900,11 @@ export class ProxyWAFServer {
             statusCode: 403,
             ruleId: topRule?.id || null,
             ruleMessage: topRule?.message || null,
-            response: { statusCode: 403, origin: origin.url, protocol: "websocket" },
+            response: {
+              statusCode: 403,
+              origin: origin.url,
+              protocol: "websocket",
+            },
             decision: "websocket_blocked",
           });
           sendUpgradeError(clientSocket, 403, "WebSocket blocked by WAF");
@@ -1838,7 +1927,11 @@ export class ProxyWAFServer {
             statusCode: 403,
             ruleId: topRule?.id || null,
             ruleMessage: topRule?.message || null,
-            response: { statusCode: 403, origin: origin.url, protocol: "websocket" },
+            response: {
+              statusCode: 403,
+              origin: origin.url,
+              protocol: "websocket",
+            },
             decision: "websocket_blocked",
           });
           sendUpgradeError(clientSocket, 403, "WebSocket blocked by WAF");
@@ -1966,7 +2059,11 @@ export class ProxyWAFServer {
           message: `WebSocket proxy request error for ${host}: ${error.message}`,
           blocked: true,
           statusCode: 502,
-          response: { statusCode: 502, origin: origin.url, protocol: "websocket" },
+          response: {
+            statusCode: 502,
+            origin: origin.url,
+            protocol: "websocket",
+          },
           decision: "websocket_proxy_error",
         });
         sendUpgradeError(clientSocket, 502, "Bad Gateway");
@@ -2060,7 +2157,7 @@ export class ProxyWAFServer {
                 if (!clientRes.headersSent) {
                   clientRes.writeHead(502, {
                     "Content-Type": "application/json",
-                    ...sanitizeOutboundHeaders(),
+                    ...withWafFingerprintHeaders(),
                   });
                   clientRes.end(
                     JSON.stringify({
@@ -2084,7 +2181,9 @@ export class ProxyWAFServer {
             } catch (err) {
               console.warn("Response inspection error:", err.message);
             }
-            if (looksLikeNginx404(proxyRes.statusCode, proxyRes.headers, body)) {
+            if (
+              looksLikeNginx404(proxyRes.statusCode, proxyRes.headers, body)
+            ) {
               sendCustomNotFound(clientRes, {
                 host: getHostWithoutPort(incomingHostHeader),
                 path: clientReq.url,
@@ -2099,7 +2198,7 @@ export class ProxyWAFServer {
               );
               clientRes.writeHead(
                 proxyRes.statusCode,
-                sanitizeOutboundHeaders(forwardedHeaders),
+                withWafFingerprintHeaders(forwardedHeaders),
               );
               clientRes.end(body);
             }
@@ -2125,7 +2224,7 @@ export class ProxyWAFServer {
             if (!clientRes.headersSent) {
               clientRes.writeHead(
                 502,
-                sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+                withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
               );
               clientRes.end("Bad Gateway");
             }
@@ -2153,7 +2252,7 @@ export class ProxyWAFServer {
                 );
                 clientRes.writeHead(
                   proxyRes.statusCode,
-                  sanitizeOutboundHeaders(forwardedHeaders),
+                  withWafFingerprintHeaders(forwardedHeaders),
                 );
               }
               clientRes.end(body);
@@ -2179,25 +2278,25 @@ export class ProxyWAFServer {
               if (!clientRes.headersSent) {
                 clientRes.writeHead(
                   502,
-                  sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+                  withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
                 );
                 clientRes.end("Bad Gateway");
               }
             });
             return;
-            }
-            if (!clientRes.headersSent) {
-              const forwardedHeaders = applyProtectedDocumentHeaders(
-                clientReq,
-                proxyRes.headers,
-                app,
-              );
-              clientRes.writeHead(
-                proxyRes.statusCode,
-                sanitizeOutboundHeaders(forwardedHeaders),
-              );
-            }
-            proxyRes.pipe(clientRes);
+          }
+          if (!clientRes.headersSent) {
+            const forwardedHeaders = applyProtectedDocumentHeaders(
+              clientReq,
+              proxyRes.headers,
+              app,
+            );
+            clientRes.writeHead(
+              proxyRes.statusCode,
+              withWafFingerprintHeaders(forwardedHeaders),
+            );
+          }
+          proxyRes.pipe(clientRes);
           logProxyResult({
             statusCode: proxyRes.statusCode,
             level: proxyRes.statusCode >= 500 ? "error" : "info",
@@ -2222,7 +2321,7 @@ export class ProxyWAFServer {
         if (!clientRes.headersSent) {
           clientRes.writeHead(
             502,
-            sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+            withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
           );
           clientRes.end("Bad Gateway: Origin server error");
         }
@@ -2239,7 +2338,7 @@ export class ProxyWAFServer {
       if (!clientRes.headersSent) {
         clientRes.writeHead(
           502,
-          sanitizeOutboundHeaders({ "Content-Type": "text/plain" }),
+          withWafFingerprintHeaders({ "Content-Type": "text/plain" }),
         );
         clientRes.end("Bad Gateway");
       }
@@ -2260,7 +2359,7 @@ export class ProxyWAFServer {
 
     this.httpServer.listen(this.port, () => {
       console.log(
-        `${PUBLIC_WAF_NAME} HTTP server listening on port ${this.port}`,
+        `ATRAVAD Proxy WAF HTTP server listening on port ${this.port}`,
       );
     });
 
@@ -2348,7 +2447,7 @@ export class ProxyWAFServer {
 
     this.httpsServer.listen(this.httpsPort, () => {
       console.log(
-        `${PUBLIC_WAF_NAME} HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
+        `ATRAVAD Proxy WAF HTTPS server listening on port ${this.httpsPort} (SNI + Let's Encrypt)`,
       );
     });
 
@@ -2368,7 +2467,7 @@ export class ProxyWAFServer {
     } else if (this.letsEncryptEnabled && this._getDefaultSecureContext()) {
       this.startHttpsServer();
     }
-    console.log(`${PUBLIC_WAF_NAME} server started`);
+    console.log("ATRAVAD Proxy WAF server started");
   }
 
   /**
@@ -2394,7 +2493,7 @@ export class ProxyWAFServer {
       this.httpsServer.close();
     }
 
-    console.log(`${PUBLIC_WAF_NAME} server stopped`);
+    console.log("ATRAVAD Proxy WAF server stopped");
   }
 }
 
