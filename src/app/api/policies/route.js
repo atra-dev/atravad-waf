@@ -21,6 +21,53 @@ async function getTenantApplicationsById(tenantName) {
   return appsById;
 }
 
+function normalizeLookupValue(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getTenantApplicationLookups(appsById) {
+  const appsByName = new Map();
+  const appsByDomain = new Map();
+
+  for (const app of appsById.values()) {
+    const normalizedName = normalizeLookupValue(app?.name);
+    const normalizedDomain = normalizeLookupValue(app?.domain);
+
+    if (normalizedName && !appsByName.has(normalizedName)) {
+      appsByName.set(normalizedName, app);
+    }
+
+    if (normalizedDomain && !appsByDomain.has(normalizedDomain)) {
+      appsByDomain.set(normalizedDomain, app);
+    }
+  }
+
+  return { appsByName, appsByDomain };
+}
+
+function resolveTenantApplications(selectedValues, appsById, appsByName, appsByDomain) {
+  const resolvedApplications = [];
+  const seenIds = new Set();
+
+  for (const selectedValue of selectedValues) {
+    const normalizedValue = normalizeLookupValue(selectedValue);
+    if (!normalizedValue) continue;
+
+    const matchedApp =
+      appsById.get(selectedValue) ||
+      appsByName.get(normalizedValue) ||
+      appsByDomain.get(normalizedValue) ||
+      null;
+
+    if (!matchedApp || seenIds.has(matchedApp.id)) continue;
+
+    seenIds.add(matchedApp.id);
+    resolvedApplications.push(matchedApp);
+  }
+
+  return resolvedApplications;
+}
+
 function getApplicationLabel(app) {
   return app?.domain || app?.name || app?.id || null;
 }
@@ -208,7 +255,7 @@ export async function POST(request) {
       version = versions[0] + 1;
     }
 
-    const normalizedApplicationIds = [
+    const normalizedApplicationInputs = [
       ...new Set(
         (Array.isArray(applicationIds) ? applicationIds : applicationId ? [applicationId] : [])
           .map((value) => String(value || '').trim())
@@ -216,20 +263,22 @@ export async function POST(request) {
       ),
     ];
 
-    const assignedApplications = [];
-    for (const selectedApplicationId of normalizedApplicationIds) {
-      const appDoc = await adminDb.collection('applications').doc(selectedApplicationId).get();
-      if (!appDoc.exists) {
-        return NextResponse.json({ error: 'One or more selected applications were not found' }, { status: 400 });
-      }
+    const appsById = normalizedApplicationInputs.length > 0
+      ? await getTenantApplicationsById(tenantName)
+      : new Map();
+    const { appsByName, appsByDomain } = getTenantApplicationLookups(appsById);
+    const assignedApplications = resolveTenantApplications(
+      normalizedApplicationInputs,
+      appsById,
+      appsByName,
+      appsByDomain
+    );
 
-      const appData = appDoc.data();
-      if (appData.tenantName !== tenantName) {
-        return NextResponse.json({ error: 'One or more selected applications are outside your tenant' }, { status: 403 });
-      }
-
-      assignedApplications.push({ id: appDoc.id, ...appData });
+    if (assignedApplications.length !== normalizedApplicationInputs.length) {
+      return NextResponse.json({ error: 'One or more selected applications were not found' }, { status: 400 });
     }
+
+    const normalizedApplicationIds = assignedApplications.map((app) => app.id);
 
     const policyRef = await adminDb.collection('policies').add({
       name,
@@ -354,7 +403,7 @@ export async function GET(request) {
             return {
               id: doc.id,
               ...data,
-              applicationId: data.applicationId || applicationIds[0] || null,
+              applicationId: applicationIds[0] || null,
               applicationIds,
               applicationName: applicationNames[0] || null,
               applicationNames,

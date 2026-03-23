@@ -193,14 +193,36 @@ export function PoliciesPageContent({
     const exceptions = Array.isArray(policy.exceptions) ? policy.exceptions : [];
     const virtualPatches = Array.isArray(policy.virtualPatching) ? policy.virtualPatching : [];
     const relatedVersions = policies.filter((item) => item.name === policyVersion.name);
+    const validAppIds = new Set(apps.map((app) => app.id).filter(Boolean));
+    const appLookup = new Map();
+
+    for (const app of apps) {
+      const normalizedName = String(app?.name || '').trim().toLowerCase();
+      const normalizedDomain = String(app?.domain || '').trim().toLowerCase();
+
+      if (normalizedName && !appLookup.has(normalizedName)) {
+        appLookup.set(normalizedName, app.id);
+      }
+
+      if (normalizedDomain && !appLookup.has(normalizedDomain)) {
+        appLookup.set(normalizedDomain, app.id);
+      }
+    }
+
     const selectedApplicationIds = [
       ...new Set(
         relatedVersions.flatMap((item) =>
-          Array.isArray(item.applicationIds) && item.applicationIds.length > 0
+          (Array.isArray(item.applicationIds) && item.applicationIds.length > 0
             ? item.applicationIds
             : item.applicationId
               ? [item.applicationId]
-              : []
+              : [])
+            .map((value) => String(value || '').trim())
+            .map((value) => {
+              if (validAppIds.has(value)) return value;
+              return appLookup.get(value.toLowerCase()) || null;
+            })
+            .filter(Boolean)
         )
       ),
     ];
