@@ -600,9 +600,6 @@ export default function LogsPage() {
         {/* Tab Content */}
         {activeTab === 'logs' && (
           <>
-            <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sm text-sky-900">
-              Raw logs prioritize blocked, denied, error, and suspicious allowed events. Regular allowed traffic remains visible in <span className="font-semibold">Geographic</span> and <span className="font-semibold">Traffic Analytics</span> through hourly rollups, while full allowed-request history may still be sampled or unavailable outside investigation windows.
-            </div>
 
             {/* Filters */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
