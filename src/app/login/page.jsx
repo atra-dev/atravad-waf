@@ -23,6 +23,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const loginInitRef = useRef(false);
   const sessionFinalizeRef = useRef(false);
+  const sessionFinalizePromiseRef = useRef(null);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -119,27 +120,36 @@ function LoginPageContent() {
   };
 
   const finalizeGoogleSession = async (firebaseUser, fallbackMessage) => {
-    if (!firebaseUser || sessionFinalizeRef.current) return false;
+    if (!firebaseUser) return false;
+    if (sessionFinalizePromiseRef.current) {
+      return sessionFinalizePromiseRef.current;
+    }
 
     sessionFinalizeRef.current = true;
-    try {
-      const userData = await completeManagedSession(firebaseUser);
-      console.log('Session verified for user:', userData.email, 'Role:', userData.role);
-      const redirect = searchParams.get('redirect') || '/dashboard';
-      router.push(redirect);
-      return true;
-    } catch (error) {
-      console.error('Google sign-in verification error:', error);
+    sessionFinalizePromiseRef.current = (async () => {
       try {
-        await signOut(auth);
-      } catch (signOutError) {
-        console.error('Error clearing failed Google session:', signOutError);
+        const userData = await completeManagedSession(firebaseUser);
+        console.log('Session verified for user:', userData.email, 'Role:', userData.role);
+        const redirect = searchParams.get('redirect') || '/dashboard';
+        router.push(redirect);
+        return true;
+      } catch (error) {
+        console.error('Google sign-in verification error:', error);
+        try {
+          await signOut(auth);
+        } catch (signOutError) {
+          console.error('Error clearing failed Google session:', signOutError);
+        }
+        document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
+        showToast(error?.message || fallbackMessage);
+        sessionFinalizeRef.current = false;
+        return false;
+      } finally {
+        sessionFinalizePromiseRef.current = null;
       }
-      document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
-      showToast(error?.message || fallbackMessage);
-      sessionFinalizeRef.current = false;
-      return false;
-    }
+    })();
+
+    return sessionFinalizePromiseRef.current;
   };
 
   const hasAuthTokenCookie = () => {
