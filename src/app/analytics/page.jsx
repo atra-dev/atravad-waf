@@ -6,11 +6,27 @@ import Layout from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 
+const ANALYTICS_TIME_ZONE = 'Asia/Manila';
+
 function formatHourLabel(hour) {
   const normalizedHour = Number(hour) || 0;
   const suffix = normalizedHour >= 12 ? 'PM' : 'AM';
   const displayHour = normalizedHour % 12 || 12;
   return `${displayHour} ${suffix}`;
+}
+
+function getHourInTimeZone(value, timeZone = ANALYTICS_TIME_ZONE) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    hour12: false,
+  });
+
+  const hour = Number(formatter.format(date));
+  return Number.isFinite(hour) ? hour : null;
 }
 
 export default function AnalyticsPage() {
@@ -45,7 +61,9 @@ export default function AnalyticsPage() {
         uniqueIPs: new Set((data.topIPs || []).map(([ip]) => normalizeIpAddress(ip))).size,
         severityCounts: data.severityCounts || { critical: 0, high: 0, medium: 0, warning: 0, info: 0 },
         hourlyData: Object.fromEntries(
-          (data.timeSeries || []).map((item) => [new Date(item.time).getHours(), (item.wafBlocked || 0) + (item.originDenied || 0)])
+          (data.timeSeries || [])
+            .map((item) => [getHourInTimeZone(item.time), (item.wafBlocked || 0) + (item.originDenied || 0)])
+            .filter(([hour]) => hour !== null)
         ),
       });
     } catch (error) {
@@ -240,6 +258,9 @@ export default function AnalyticsPage() {
               <h2 className="text-lg font-semibold text-gray-900">Attack Trends by Hour</h2>
               <p className="mt-1 text-sm text-gray-600">
                 See when blocked and denied requests are most concentrated so your team can spot attack windows faster.
+              </p>
+              <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+                Timezone: {ANALYTICS_TIME_ZONE}
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
