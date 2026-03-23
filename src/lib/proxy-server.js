@@ -35,7 +35,6 @@ import { persistSecurityLog } from "./log-storage.js";
 import { getDefaultOriginServername } from "./origin-utils.js";
 import {
   getTrafficLoggingConfig,
-  shouldCaptureAllowedTraffic,
 } from "./traffic-logging.js";
 
 const requireMod = createRequire(import.meta.url);
@@ -1168,9 +1167,6 @@ export class ProxyWAFServer {
         let trafficLoggingConfig = null;
         if (!blocked && entry.decision === "allowed") {
           trafficLoggingConfig = await getTrafficLoggingConfig(adminDb);
-          if (!shouldCaptureAllowedTraffic(trafficLoggingConfig)) {
-            return;
-          }
         }
         if (clientIp) {
           const geo = await geolocateIpCached(clientIp);

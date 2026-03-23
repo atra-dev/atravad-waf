@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -57,7 +57,7 @@ export default function LogsPage() {
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
 
-  const updateFilters = (updater) => {
+  const updateFilters = useCallback((updater) => {
     setFilters((prev) => {
       const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
       return next;
@@ -69,7 +69,7 @@ export default function LogsPage() {
       nextCursor: null,
       cursorHistory: [],
     }));
-  };
+  }, []);
 
   const normalizeSeverity = (severity) => {
     const value = String(severity || '').trim().toLowerCase();
@@ -113,26 +113,115 @@ export default function LogsPage() {
     };
   };
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      checkTenantAndFetchData();
+  const fetchSites = useCallback(async () => {
+    try {
+      const response = await fetch('/api/apps');
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const uniqueSites = [...new Set(
+          data
+            .map((app) => normalizeDomainInput(String(app?.domain || '')))
+            .filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b));
+        setSites(uniqueSites);
+      } else {
+        setSites([]);
+      }
+    } catch (error) {
+      console.error('Error fetching sites:', error);
+      setSites([]);
     }
-  }, [isAuthenticated]);
+  }, []);
 
-  // Fetch logs when page changes
-  useEffect(() => {
-    if (isAuthenticated && hasTenant) {
-      fetchLogs(false, pagination.currentCursor, pagination.page);
+  const fetchLogs = useCallback(async (forceRefresh = false, cursorToFetch = null, pageToFetch = 1) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('pageSize', String(pagination.pageSize || 100));
+      params.append('hours', '24');
+      if (cursorToFetch) params.append('cursor', cursorToFetch);
+      if (filters.site) params.append('site', filters.site);
+      if (filters.severity) params.append('severity', filters.severity);
+      if (filters.action) params.append('decision', filters.action);
+      if (forceRefresh) params.append('_ts', String(Date.now()));
+
+      const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+      const data = await response.json();
+      if (data.logs) {
+        let filteredLogs = data.logs;
+
+        if (filters.severity) {
+          const selectedSeverity = normalizeSeverity(filters.severity);
+          filteredLogs = filteredLogs.filter(
+            (log) => normalizeSeverity(log.severity) === selectedSeverity
+          );
+        }
+        if (filters.site) {
+          const selectedSite = normalizeDomainInput(filters.site);
+          filteredLogs = filteredLogs.filter((log) => {
+            const sourceSite = normalizeDomainInput(String(log.source || ''));
+            const hostSite = normalizeDomainInput(String(log.request?.host || ''));
+            const nodeSite = normalizeDomainInput(String(log.nodeId || ''));
+            return sourceSite === selectedSite || hostSite === selectedSite || nodeSite === selectedSite;
+          });
+        }
+        if (filters.action) {
+          filteredLogs = filteredLogs.filter((log) => {
+            return getDecisionKey(log) === filters.action;
+          });
+        }
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          const normalizedSearchDomain = normalizeDomainInput(filters.search);
+          filteredLogs = filteredLogs.filter(log =>
+            (log.message && log.message.toLowerCase().includes(searchLower)) ||
+            (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
+            (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
+            (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
+            (normalizedSearchDomain && (
+              normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
+              normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
+              normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
+            ))
+          );
+        }
+
+        setLogs(filteredLogs);
+        setPagination((prev) => ({
+          ...prev,
+          page: pageToFetch,
+          pageSize: Number(data.pageSize || prev.pageSize || 100),
+          nextCursor: data.nextCursor || null,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [isAuthenticated, hasTenant, pagination.page, pagination.currentCursor, filters]);
+  }, [filters, pagination.pageSize]);
 
-  useEffect(() => {
-    if (isAuthenticated && hasTenant) {
-      fetchAnalyticsSummary();
+  const fetchAnalyticsSummary = useCallback(async (forceRefresh = false) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('hours', '24');
+      if (filters.site) params.append('site', filters.site);
+      if (filters.severity) params.append('severity', filters.severity);
+      if (filters.action) params.append('decision', filters.action);
+      if (forceRefresh) params.append('_ts', String(Date.now()));
+
+      const response = await fetch(`/api/logs/analytics?${params.toString()}`, { cache: 'no-store' });
+      const data = await response.json();
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Error fetching analytics logs:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [isAuthenticated, hasTenant, filters]);
+  }, [filters]);
 
-  const checkTenantAndFetchData = async () => {
+  const checkTenantAndFetchData = useCallback(async () => {
     try {
       const [tenantRes, userRes] = await Promise.all([
         fetch('/api/tenants/current'),
@@ -163,7 +252,7 @@ export default function LogsPage() {
       setHasTenant(false);
       setLoading(false);
     }
-  };
+  }, [fetchLogs, fetchSites]);
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();
@@ -195,116 +284,23 @@ export default function LogsPage() {
     }
   };
 
-  const fetchSites = async () => {
-    try {
-      const response = await fetch('/api/apps');
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        const uniqueSites = [...new Set(
-          data
-            .map((app) => normalizeDomainInput(String(app?.domain || '')))
-            .filter(Boolean)
-        )].sort((a, b) => a.localeCompare(b));
-        setSites(uniqueSites);
-      } else {
-        setSites([]);
-      }
-    } catch (error) {
-      console.error('Error fetching sites:', error);
-      setSites([]);
+  useEffect(() => {
+    if (isAuthenticated) {
+      checkTenantAndFetchData();
     }
-  };
+  }, [checkTenantAndFetchData, isAuthenticated]);
 
-  const fetchLogs = async (forceRefresh = false, cursorToFetch = null, pageToFetch = 1) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.append('pageSize', String(pagination.pageSize || 100));
-      params.append('hours', '24');
-      if (cursorToFetch) params.append('cursor', cursorToFetch);
-      if (filters.site) params.append('site', filters.site);
-      if (filters.severity) params.append('severity', filters.severity);
-      if (filters.action) params.append('decision', filters.action);
-      if (forceRefresh) params.append('_ts', String(Date.now()));
-
-      const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
-      const data = await response.json();
-      if (data.logs) {
-        let filteredLogs = data.logs;
-
-        // Normalize and filter severity/level client-side so mixed legacy values
-        // (e.g., INFO/info, warn/warning, MEDIUM) are filtered consistently.
-        if (filters.severity) {
-          const selectedSeverity = normalizeSeverity(filters.severity);
-          filteredLogs = filteredLogs.filter(
-            (log) => normalizeSeverity(log.severity) === selectedSeverity
-          );
-        }
-        if (filters.site) {
-          const selectedSite = normalizeDomainInput(filters.site);
-          filteredLogs = filteredLogs.filter((log) => {
-            const sourceSite = normalizeDomainInput(String(log.source || ''));
-            const hostSite = normalizeDomainInput(String(log.request?.host || ''));
-            const nodeSite = normalizeDomainInput(String(log.nodeId || ''));
-            return sourceSite === selectedSite || hostSite === selectedSite || nodeSite === selectedSite;
-          });
-        }
-        if (filters.action) {
-          filteredLogs = filteredLogs.filter((log) => {
-            return getDecisionKey(log) === filters.action;
-          });
-        }
-        // Client-side search filter
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          const normalizedSearchDomain = normalizeDomainInput(filters.search);
-          filteredLogs = filteredLogs.filter(log =>
-            (log.message && log.message.toLowerCase().includes(searchLower)) ||
-            (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
-            (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
-            (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
-            (normalizedSearchDomain && (
-              normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
-              normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
-              normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
-            ))
-          );
-        }
-
-        setLogs(filteredLogs);
-        setPagination((prev) => ({
-          ...prev,
-          page: pageToFetch,
-          pageSize: Number(data.pageSize || prev.pageSize || 100),
-          nextCursor: data.nextCursor || null,
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching logs:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isAuthenticated && hasTenant) {
+      fetchLogs(false, pagination.currentCursor, pagination.page);
     }
-  };
+  }, [fetchLogs, hasTenant, isAuthenticated, pagination.currentCursor, pagination.page]);
 
-  const fetchAnalyticsSummary = async (forceRefresh = false) => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.append('hours', '24');
-      if (filters.site) params.append('site', filters.site);
-      if (filters.severity) params.append('severity', filters.severity);
-      if (filters.action) params.append('decision', filters.action);
-      if (forceRefresh) params.append('_ts', String(Date.now()));
-
-      const response = await fetch(`/api/logs/analytics?${params.toString()}`, { cache: 'no-store' });
-      const data = await response.json();
-      setAnalyticsData(data);
-    } catch (error) {
-      console.error('Error fetching analytics logs:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (isAuthenticated && hasTenant) {
+      fetchAnalyticsSummary();
     }
-  };
+  }, [fetchAnalyticsSummary, hasTenant, isAuthenticated]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

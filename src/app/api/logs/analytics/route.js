@@ -87,6 +87,125 @@ function buildAnalyticsResponse({
   };
 }
 
+function filterAnalyticsByDecision(analytics, decision) {
+  if (!decision) return analytics;
+
+  const normalizedDecision = String(decision || '').trim().toLowerCase();
+  if (
+    normalizedDecision !== 'allowed' &&
+    normalizedDecision !== 'waf_blocked' &&
+    normalizedDecision !== 'origin_denied'
+  ) {
+    return analytics;
+  }
+
+  const summary = {
+    totalRequests: 0,
+    wafBlocked: 0,
+    originDenied: 0,
+    allowed: 0,
+    uniqueCountries: 0,
+  };
+
+  const countries = analytics.countries
+    .map((country) => {
+      const allowed = Number(country.allowed || 0);
+      const wafBlocked = Number(country.wafBlocked || 0);
+      const originDenied = Number(country.originDenied || 0);
+      const total =
+        normalizedDecision === 'allowed'
+          ? allowed
+          : normalizedDecision === 'waf_blocked'
+            ? wafBlocked
+            : originDenied;
+
+      if (total <= 0) {
+        return null;
+      }
+
+      return {
+        ...country,
+        count: total,
+        blocked: normalizedDecision === 'allowed' ? 0 : total,
+        wafBlocked: normalizedDecision === 'waf_blocked' ? wafBlocked : 0,
+        originDenied: normalizedDecision === 'origin_denied' ? originDenied : 0,
+        allowed: normalizedDecision === 'allowed' ? allowed : 0,
+      };
+    })
+    .filter(Boolean);
+
+  const timeSeries = analytics.timeSeries
+    .map((series) => {
+      const allowed = Number(series.allowed || 0);
+      const wafBlocked = Number(series.wafBlocked || 0);
+      const originDenied = Number(series.originDenied || 0);
+      const total =
+        normalizedDecision === 'allowed'
+          ? allowed
+          : normalizedDecision === 'waf_blocked'
+            ? wafBlocked
+            : originDenied;
+
+      return {
+        time: series.time,
+        total,
+        wafBlocked: normalizedDecision === 'waf_blocked' ? wafBlocked : 0,
+        originDenied: normalizedDecision === 'origin_denied' ? originDenied : 0,
+        allowed: normalizedDecision === 'allowed' ? allowed : 0,
+        critical: 0,
+        high: 0,
+        medium: 0,
+        warning: 0,
+        low: 0,
+        info: 0,
+      };
+    })
+    .filter((series) => series.total > 0);
+
+  const topBlockedIps =
+    normalizedDecision === 'allowed'
+      ? []
+      : analytics.topBlockedIps
+          .map((item) => {
+            const selectedCount =
+              normalizedDecision === 'waf_blocked'
+                ? Number(item.wafBlocked || 0)
+                : Number(item.originDenied || 0);
+
+            if (selectedCount <= 0) return null;
+
+            return {
+              ip: item.ip,
+              totalBlocked: selectedCount,
+              wafBlocked: normalizedDecision === 'waf_blocked' ? selectedCount : 0,
+              originDenied: normalizedDecision === 'origin_denied' ? selectedCount : 0,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => b.totalBlocked - a.totalBlocked)
+          .slice(0, 10);
+
+  for (const country of countries) {
+    summary.totalRequests += Number(country.count || 0);
+    summary.wafBlocked += Number(country.wafBlocked || 0);
+    summary.originDenied += Number(country.originDenied || 0);
+    summary.allowed += Number(country.allowed || 0);
+  }
+  summary.uniqueCountries = countries.length;
+
+  return {
+    summary,
+    countries,
+    timeSeries,
+    methods: [],
+    statuses: [],
+    topBlockedIps,
+    attackTypes: [],
+    severityCounts: { critical: 0, high: 0, medium: 0, warning: 0, low: 0, info: 0 },
+    topIPs: topBlockedIps.map((item) => [item.ip, item.totalBlocked]),
+  };
+}
+
 function aggregateRawLogs(logs) {
   const countriesMap = new Map();
   const methodsMap = new Map();
@@ -346,7 +465,7 @@ export async function GET(request) {
     const analytics = await getOrSetServerCache(
       cacheKey,
       async () => {
-        if (severity || decision) {
+        if (severity) {
           let rawQuery = adminDb
             .collection('logs')
             .where('tenantName', '==', tenantName)
@@ -381,7 +500,10 @@ export async function GET(request) {
         }
 
         const snapshot = await query.get();
-        return aggregateRollups(snapshot.docs.map((doc) => doc.data()));
+        return filterAnalyticsByDecision(
+          aggregateRollups(snapshot.docs.map((doc) => doc.data())),
+          decision
+        );
       },
       { ttlMs: ANALYTICS_CACHE_TTL_MS }
     );

@@ -8,7 +8,7 @@ import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { persistSecurityLog } from '@/lib/log-storage';
 import { getTenantSummary } from '@/lib/tenant-subscription';
-import { getTrafficLoggingConfig, shouldCaptureAllowedTraffic } from '@/lib/traffic-logging';
+import { getTrafficLoggingConfig } from '@/lib/traffic-logging';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 const MAX_INGEST_BATCH_SIZE = Math.max(
@@ -130,14 +130,6 @@ function getBatchDedupKey(log, tenantName, decision) {
   ].join('|');
 }
 
-function shouldIngestLog(log, decision, trafficLoggingConfig) {
-  if (decision !== 'allowed') {
-    return true;
-  }
-
-  return shouldCaptureAllowedTraffic(trafficLoggingConfig);
-}
-
 /**
  * POST /api/logs
  * Log ingestion for WAF edge. Auth via LOG_INGEST_API_KEY + tenant name.
@@ -196,10 +188,6 @@ export async function POST(request) {
 
     for (const log of logs) {
       const decision = deriveDecision(log);
-      if (!shouldIngestLog(log, decision, trafficLoggingConfig)) {
-        skippedLowValue += 1;
-        continue;
-      }
       if (isLowValueAllowedLog(log, decision)) {
         skippedLowValue += 1;
         continue;
