@@ -456,8 +456,8 @@ export default function LogsPage() {
     const valueClassName = [
       'min-w-0 text-sm leading-5 text-slate-900',
       mono ? 'font-mono' : '',
-      breakAll ? 'break-all' : '',
-      breakWords ? 'break-words' : '',
+      breakAll ? 'break-all sm:break-normal' : '',
+      breakWords ? 'break-words sm:break-normal' : '',
     ]
       .filter(Boolean)
       .join(' ');
@@ -472,7 +472,11 @@ export default function LogsPage() {
               : ''
           }
         >
-          <div className={valueClassName}>{value}</div>
+          <div
+            className={`${valueClassName}${isLongContent ? ' overflow-x-auto whitespace-pre-wrap sm:whitespace-pre sm:[scrollbar-width:thin]' : ''}`}
+          >
+            {value}
+          </div>
         </dd>
       </div>
     );
@@ -868,7 +872,7 @@ export default function LogsPage() {
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+                  <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                       <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Event Summary</h3>
                       <dl className="mt-3">
