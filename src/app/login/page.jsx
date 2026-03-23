@@ -363,8 +363,8 @@ function LoginPageContent() {
         </div>
       ) : null}
 
-      <div className="mx-auto flex h-full max-w-7xl flex-col px-6 pb-4 pt-3 lg:px-8 lg:pb-6">
-        <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
+      <div className="mx-auto flex h-full max-w-7xl flex-col px-6 pb-4 pt-2.5 lg:px-8 lg:pb-5">
+        <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-2.5 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
               <img src="/logo.png" alt="ATRAVA Defense" className="h-8 w-8 object-contain" />
@@ -379,18 +379,18 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-10 pt-6 lg:grid-cols-[minmax(0,1.04fr)_450px] lg:items-center">
+        <div className="grid flex-1 gap-9 pt-5 lg:grid-cols-[minmax(0,1.02fr)_440px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
             <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-3 max-w-[12ch] font-serif text-[2.65rem] leading-[0.93] text-white sm:text-[3.05rem] xl:text-[3.45rem]">
+            <h1 className="mt-3 max-w-[12.5ch] font-serif text-[2.45rem] leading-[0.93] text-white sm:text-[2.85rem] xl:text-[3.2rem]">
               Secure sign-in for managed WAF operations, tenant access, and security visibility.
             </h1>
-            <p className="mt-4 max-w-[36rem] text-[0.95rem] leading-7 text-slate-300">
+            <p className="mt-3 max-w-[35rem] text-[0.93rem] leading-7 text-slate-300">
               Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
               update policies, and operate within your provisioned tenant scope.
             </p>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {trustPoints.map((item) => (
                 <div key={item.label} className="rounded-[24px] border border-white/10 bg-white/5 p-4 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
@@ -399,7 +399,7 @@ function LoginPageContent() {
               ))}
             </div>
 
-            <div className="mt-4 rounded-[24px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+            <div className="mt-4 rounded-[24px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.35)] [@media_(max-height:920px)]:hidden">
               <div className="flex items-start gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
                   <ShieldIcon className="h-5 w-5" />
@@ -427,19 +427,19 @@ function LoginPageContent() {
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
             <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-8 py-5">
+              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-7 py-4.5">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Sign in</p>
-                <h2 className="mt-2.5 text-[2rem] font-bold tracking-tight text-slate-950">Access the dashboard</h2>
-                <p className="mt-2.5 max-w-md text-sm leading-6 text-slate-600">
+                <h2 className="mt-2 text-[1.8rem] font-bold tracking-tight text-slate-950">Access the dashboard</h2>
+                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
                   Use the sign-in method assigned to your managed account. Google-enabled users should use the Google button below.
                 </p>
               </div>
 
-              <div className="p-7">
-                <form className="space-y-3.5" onSubmit={handleAuth}>
-                  <div className="space-y-3.5">
+              <div className="p-6">
+                <form className="space-y-3" onSubmit={handleAuth}>
+                  <div className="space-y-3">
                     <div>
-                      <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700">
                         Email address
                       </label>
                       <input
@@ -455,7 +455,7 @@ function LoginPageContent() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="password" className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700">
                         Password
                       </label>
                       <input
@@ -539,7 +539,7 @@ function LoginPageContent() {
                   </div>
                 </form>
 
-                <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50/90 p-4">
+                <div className="mt-3 rounded-3xl border border-slate-200 bg-slate-50/90 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Access note</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     If your account is provisioned for Google, password login will not work. Use the Google button to complete access verification.
