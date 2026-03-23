@@ -944,18 +944,10 @@ export class ProxyWAFServer {
     this.letsEncryptEnabled =
       options.letsEncryptEnabled !== false && isLetsEncryptAvailable;
     this.provisioningInProgress = new Set(); // domain -> avoid duplicate provision
-    this.logAllowedRequests =
-      options.logAllowedRequests ??
-      (process.env.WAF_LOG_ALLOWED_REQUESTS === "true" ||
-        process.env.WAF_LOG_ALLOWED_REQUESTS === "1");
     this.logHealthRequests =
       options.logHealthRequests === true ||
       process.env.WAF_LOG_HEALTH_REQUESTS === "true" ||
       process.env.WAF_LOG_HEALTH_REQUESTS === "1";
-    this.allowedLogSampleRate = parsePositiveInt(
-      options.allowedLogSampleRate ?? process.env.WAF_ALLOWED_LOG_SAMPLE_RATE,
-      200,
-    );
     this.logDedupWindowMs =
       parsePositiveInt(
         options.logDedupWindowSec ?? process.env.WAF_LOG_DEDUPE_WINDOW_SEC,
@@ -1027,7 +1019,7 @@ export class ProxyWAFServer {
     if (blocked) return true;
     if (Number.isFinite(statusCode) && statusCode >= 400) return true;
     if (pathname === "/ws" || pathname.startsWith("/ws/")) return true;
-    return Number.isFinite(statusCode) && statusCode >= 400;
+    return true;
   }
 
   shouldSkipLowValueRequest(pathname, userAgent = "") {

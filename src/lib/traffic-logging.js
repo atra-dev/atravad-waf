@@ -8,6 +8,15 @@ export const TRAFFIC_LOGGING_MODES = {
 const TRAFFIC_LOGGING_CACHE_KEY = 'logging:traffic:config';
 const TRAFFIC_LOGGING_CACHE_TTL_MS = 30000;
 
+function firstDefined(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 function parseBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
   const normalized = String(value).trim().toLowerCase();
@@ -28,15 +37,44 @@ export function normalizeTrafficLoggingMode(mode) {
     : TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY;
 }
 
+function getLegacyAllowedTrafficMode() {
+  const legacyEnabled = parseBoolean(process.env.WAF_LOG_ALLOWED_REQUESTS, null);
+  if (legacyEnabled === null) {
+    return undefined;
+  }
+
+  // Legacy behavior toggled whether normal allowed requests were logged at all.
+  // In the rollup-first model, "disabled" maps to rollups-only visibility,
+  // while "enabled" maps to sampled raw visibility.
+  return legacyEnabled
+    ? TRAFFIC_LOGGING_MODES.SAMPLED
+    : TRAFFIC_LOGGING_MODES.ROLLUPS_ONLY;
+}
+
 export function getDefaultTrafficLoggingConfig() {
+  const mode = firstDefined(
+    process.env.WAF_ALLOWED_TRAFFIC_MODE,
+    process.env.WAF_NORMAL_TRAFFIC_MODE,
+    getLegacyAllowedTrafficMode()
+  );
+  const allowedSampleRate = firstDefined(
+    process.env.WAF_ALLOWED_TRAFFIC_SAMPLE_RATE,
+    process.env.WAF_ALLOWED_LOG_SAMPLE_RATE
+  );
+  const storeAllowedRawLogs = firstDefined(
+    process.env.WAF_ALLOWED_RAW_LOGS_ENABLED,
+    process.env.WAF_STORE_ALLOWED_RAW_LOGS
+  );
+  const allowedRawLogSampleRate = firstDefined(
+    process.env.WAF_ALLOWED_RAW_SAMPLE_RATE,
+    process.env.WAF_ALLOWED_RAW_LOG_SAMPLE_RATE
+  );
+
   return {
-    mode: normalizeTrafficLoggingMode(process.env.WAF_NORMAL_TRAFFIC_MODE),
-    allowedSampleRate: parsePositiveInt(process.env.WAF_ALLOWED_LOG_SAMPLE_RATE, 200),
-    storeAllowedRawLogs: parseBoolean(process.env.WAF_STORE_ALLOWED_RAW_LOGS, false),
-    allowedRawLogSampleRate: parsePositiveInt(
-      process.env.WAF_ALLOWED_RAW_LOG_SAMPLE_RATE,
-      100
-    ),
+    mode: normalizeTrafficLoggingMode(mode),
+    allowedSampleRate: parsePositiveInt(allowedSampleRate, 200),
+    storeAllowedRawLogs: parseBoolean(storeAllowedRawLogs, false),
+    allowedRawLogSampleRate: parsePositiveInt(allowedRawLogSampleRate, 100),
     investigation: {
       enabledUntil: null,
       mode: TRAFFIC_LOGGING_MODES.SAMPLED,

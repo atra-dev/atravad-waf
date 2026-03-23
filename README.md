@@ -136,6 +136,35 @@ NEXT_PUBLIC_ATRAVAD_WAF_CNAME=waf.atravad.com
 
 **ATRAVAD WAF IP/CNAME:** Set `NEXT_PUBLIC_ATRAVAD_WAF_IP` and/or `NEXT_PUBLIC_ATRAVAD_WAF_CNAME` to the address customers point their domain's A or CNAME record to (like Sucuri). The Applications page shows this so customers know where to point DNS — no server or node deployment on their side.
 
+### Traffic Logging Env Names
+
+Allowed traffic is now handled in two layers:
+
+- Hourly rollups: always feed analytics, site traffic totals, and geographic summaries
+- Raw allowed logs: optional, and may be sampled to control storage
+
+Preferred environment variables:
+
+```env
+WAF_ALLOWED_TRAFFIC_MODE=rollups_only
+WAF_ALLOWED_TRAFFIC_SAMPLE_RATE=200
+WAF_ALLOWED_RAW_LOGS_ENABLED=false
+WAF_ALLOWED_RAW_SAMPLE_RATE=100
+```
+
+Behavior:
+
+- `WAF_ALLOWED_TRAFFIC_MODE=rollups_only` keeps allowed traffic in rollups and analytics without storing full raw allowed logs by default
+- `WAF_ALLOWED_TRAFFIC_MODE=sampled` enables sampled raw visibility for allowed traffic
+- `WAF_ALLOWED_TRAFFIC_SAMPLE_RATE` controls sampling for normal allowed-traffic ingestion when sampled mode is active
+- `WAF_ALLOWED_RAW_LOGS_ENABLED` controls whether raw allowed-request documents are stored
+- `WAF_ALLOWED_RAW_SAMPLE_RATE` controls raw allowed-log sampling when raw storage is enabled
+
+Legacy compatibility:
+
+- `WAF_NORMAL_TRAFFIC_MODE`, `WAF_ALLOWED_LOG_SAMPLE_RATE`, `WAF_STORE_ALLOWED_RAW_LOGS`, and `WAF_ALLOWED_RAW_LOG_SAMPLE_RATE` still work
+- `WAF_LOG_ALLOWED_REQUESTS` is deprecated; `false` now maps to `rollups_only` and `true` maps to `sampled`
+
 ### 4. Firestore Security Rules
 
 Set up Firestore security rules in Firebase Console:
