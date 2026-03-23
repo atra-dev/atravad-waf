@@ -379,13 +379,13 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-10 pt-8 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center">
+        <div className="grid flex-1 gap-12 pt-8 lg:grid-cols-[minmax(0,1.08fr)_460px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
             <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-4 max-w-[10ch] font-serif text-[3.15rem] leading-[0.92] text-white sm:text-[3.85rem] xl:text-[4.25rem]">
+            <h1 className="mt-4 max-w-[12.5ch] font-serif text-[2.9rem] leading-[0.94] text-white sm:text-[3.4rem] xl:text-[3.85rem]">
               Secure sign-in for managed WAF operations, tenant access, and security visibility.
             </h1>
-            <p className="mt-5 max-w-[40rem] text-[0.98rem] leading-8 text-slate-300">
+            <p className="mt-5 max-w-[38rem] text-[0.98rem] leading-8 text-slate-300">
               Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
               update policies, and operate within your provisioned tenant scope.
             </p>
