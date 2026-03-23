@@ -65,7 +65,7 @@ const securityHeaders = [
   },
   {
     key: 'Cross-Origin-Opener-Policy',
-    value: 'same-origin',
+    value: 'same-origin-allow-popups',
   },
   {
     key: 'Cross-Origin-Resource-Policy',
@@ -102,18 +102,6 @@ const nextConfig = {
   },
   reactCompiler: true,
   poweredByHeader: false,
-  async rewrites() {
-    return [
-      {
-        source: '/__/auth/:path*',
-        destination: `${firebaseAuthOrigin}/__/auth/:path*`,
-      },
-      {
-        source: '/__/firebase/init.json',
-        destination: `${firebaseAuthOrigin}/__/firebase/init.json`,
-      },
-    ];
-  },
   async headers() {
     return [
       {
