@@ -379,27 +379,27 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-8 pt-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-center">
+        <div className="grid flex-1 gap-10 pt-8 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
             <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-4 max-w-[6.6ch] font-serif text-[3.1rem] leading-[0.9] text-white sm:text-[3.7rem] xl:text-[4.15rem]">
+            <h1 className="mt-4 max-w-[10ch] font-serif text-[3.15rem] leading-[0.92] text-white sm:text-[3.85rem] xl:text-[4.25rem]">
               Secure sign-in for managed WAF operations, tenant access, and security visibility.
             </h1>
-            <p className="mt-4 max-w-[34rem] text-[0.97rem] leading-8 text-slate-300">
+            <p className="mt-5 max-w-[40rem] text-[0.98rem] leading-8 text-slate-300">
               Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
               update policies, and operate within your provisioned tenant scope.
             </p>
 
             <div className="mt-7 grid gap-4 sm:grid-cols-3">
               {trustPoints.map((item) => (
-                <div key={item.label} className="rounded-[28px] border border-white/10 bg-white/5 p-4.5 backdrop-blur">
+                <div key={item.label} className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                  <p className="mt-3 text-[0.92rem] font-semibold leading-8 text-white xl:text-[1.02rem]">{item.value}</p>
+                  <p className="mt-3 text-[0.95rem] font-semibold leading-8 text-white xl:text-[1.02rem]">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-4.5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+            <div className="mt-6 rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
                   <ShieldIcon className="h-6 w-6" />
@@ -416,7 +416,7 @@ function LoginPageContent() {
                 {platformSignals.map((item) => (
                   <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2.5">
                     <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                    <span className="text-[0.92rem] text-white/85">{item}</span>
+                    <span className="text-sm text-white/85">{item}</span>
                   </div>
                 ))}
               </div>
