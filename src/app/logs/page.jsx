@@ -452,6 +452,7 @@ export default function LogsPage() {
 
   const renderDetailRow = (label, value, options = {}) => {
     const { mono = false, breakAll = false, breakWords = false } = options;
+    const isLongContent = breakAll || breakWords || mono;
     const valueClassName = [
       'min-w-0 text-sm leading-5 text-slate-900',
       mono ? 'font-mono' : '',
@@ -464,7 +465,15 @@ export default function LogsPage() {
     return (
       <div className="border-b border-slate-100 py-2.5 last:border-b-0">
         <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</dt>
-        <dd className={valueClassName}>{value}</dd>
+        <dd
+          className={
+            isLongContent
+              ? 'overflow-hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5'
+              : ''
+          }
+        >
+          <div className={valueClassName}>{value}</div>
+        </dd>
       </div>
     );
   };
@@ -744,7 +753,12 @@ export default function LogsPage() {
                           {deriveRuleId(log)}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {log.message || 'No message'}
+                          <div
+                            className="max-w-[34rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-900"
+                            title={log.message || 'No message'}
+                          >
+                            {log.message || 'No message'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
