@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { 
   signInWithEmailAndPassword, 
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -63,7 +64,7 @@ function LoginPageContent() {
     ) {
       return mode === 'google'
         ? 'This Google account is not authorized for ATRAVA Defense access.'
-        : 'Invalid sign-in credentials or the account is not authorized.';
+        : 'Invalid sign-in credentials. If this account was provisioned for Google access, use Continue with Google.';
     }
     if (code === 'auth/too-many-requests') {
       return 'Too many sign-in attempts. Please wait and try again.';
@@ -238,9 +239,34 @@ function LoginPageContent() {
     setLoadingGoogle(true);
 
     try {
-      await signInWithRedirect(auth, googleProvider);
-      return;
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const finalized = await finalizeGoogleSession(
+        userCredential.user,
+        'Unable to verify managed access after Google sign-in.'
+      );
+
+      if (finalized) {
+        return;
+      }
+
+      throw new Error('Unable to verify managed access after Google sign-in.');
     } catch (err) {
+      const code = typeof err?.code === 'string' ? err.code : '';
+
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/cancelled-popup-request' ||
+        code === 'auth/operation-not-supported-in-this-environment'
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          showToast(getFriendlyAuthError(redirectError, 'google'));
+          return;
+        }
+      }
+
       showToast(getFriendlyAuthError(err, 'google'));
     } finally {
       setLoadingGoogle(false);
@@ -309,6 +335,9 @@ function LoginPageContent() {
             <p className="text-sm font-semibold text-blue-900">Managed access only</p>
             <p className="mt-1 text-sm text-blue-800">
               User accounts and tenant assignments are provisioned by the ATRAVA Defense super admin team as part of the managed service.
+            </p>
+            <p className="mt-2 text-sm text-blue-800">
+              Accounts provisioned with Google must use the Google sign-in button below. Firestore user records alone do not enable password login.
             </p>
           </div>
 
