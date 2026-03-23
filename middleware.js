@@ -10,7 +10,9 @@ export function middleware(request) {
 
   // Public routes that don't require authentication
   const publicRoutes = ["/", "/login"];
-  const isPublicRoute = publicRoutes.includes(pathname);
+  const isFirebaseHelperRoute =
+    pathname.startsWith('/__/auth') || pathname.startsWith('/__/firebase');
+  const isPublicRoute = publicRoutes.includes(pathname) || isFirebaseHelperRoute;
 
   // Check for auth token in cookies
   const token = request.cookies.get("authToken")?.value;

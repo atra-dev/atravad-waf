@@ -42,7 +42,9 @@ function LoginPageContent() {
     const code = typeof error?.code === 'string' ? error.code : '';
 
     if (code === 'auth/popup-closed-by-user') {
-      return 'Sign-in was cancelled before completion.';
+      return mode === 'google'
+        ? 'Google sign-in popup was interrupted before Firebase finished. Redirect sign-in will be used instead.'
+        : 'Sign-in was cancelled before completion.';
     }
     if (code === 'auth/popup-blocked') {
       return 'The sign-in popup was blocked. Please allow popups and try again.';
@@ -254,6 +256,7 @@ function LoginPageContent() {
       const code = typeof err?.code === 'string' ? err.code : '';
 
       if (
+        code === 'auth/popup-closed-by-user' ||
         code === 'auth/popup-blocked' ||
         code === 'auth/cancelled-popup-request' ||
         code === 'auth/operation-not-supported-in-this-environment'
@@ -331,16 +334,6 @@ function LoginPageContent() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8 lg:p-10">
-          <div className="mb-8 rounded-xl border border-blue-100 bg-blue-50 p-4">
-            <p className="text-sm font-semibold text-blue-900">Managed access only</p>
-            <p className="mt-1 text-sm text-blue-800">
-              User accounts and tenant assignments are provisioned by the ATRAVA Defense super admin team as part of the managed service.
-            </p>
-            <p className="mt-2 text-sm text-blue-800">
-              Accounts provisioned with Google must use the Google sign-in button below. Firestore user records alone do not enable password login.
-            </p>
-          </div>
-
           <form className="space-y-5" onSubmit={handleAuth}>
             <div className="space-y-4">
               <div>
