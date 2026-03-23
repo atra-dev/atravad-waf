@@ -363,7 +363,7 @@ function LoginPageContent() {
         </div>
       ) : null}
 
-      <div className="mx-auto flex h-full max-w-7xl flex-col px-6 pb-6 pt-4 lg:px-8 lg:pb-8">
+      <div className="mx-auto flex h-full max-w-7xl flex-col px-6 pb-4 pt-3 lg:px-8 lg:pb-6">
         <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
@@ -379,44 +379,44 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-12 pt-8 lg:grid-cols-[minmax(0,1.08fr)_460px] lg:items-center">
+        <div className="grid flex-1 gap-10 pt-6 lg:grid-cols-[minmax(0,1.04fr)_450px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
             <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-4 max-w-[12.5ch] font-serif text-[2.9rem] leading-[0.94] text-white sm:text-[3.4rem] xl:text-[3.85rem]">
+            <h1 className="mt-3 max-w-[12ch] font-serif text-[2.65rem] leading-[0.93] text-white sm:text-[3.05rem] xl:text-[3.45rem]">
               Secure sign-in for managed WAF operations, tenant access, and security visibility.
             </h1>
-            <p className="mt-5 max-w-[38rem] text-[0.98rem] leading-8 text-slate-300">
+            <p className="mt-4 max-w-[36rem] text-[0.95rem] leading-7 text-slate-300">
               Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
               update policies, and operate within your provisioned tenant scope.
             </p>
 
-            <div className="mt-7 grid gap-4 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {trustPoints.map((item) => (
-                <div key={item.label} className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
+                <div key={item.label} className="rounded-[24px] border border-white/10 bg-white/5 p-4 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                  <p className="mt-3 text-[0.95rem] font-semibold leading-8 text-white xl:text-[1.02rem]">{item.value}</p>
+                  <p className="mt-2 text-[0.9rem] font-semibold leading-7 text-white xl:text-[0.98rem]">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+            <div className="mt-4 rounded-[24px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
-                  <ShieldIcon className="h-6 w-6" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
+                  <ShieldIcon className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Managed sign-in policy</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-200">
+                  <p className="mt-2 text-sm leading-6 text-slate-200">
                     Accounts are provisioned by the ATRAVA Defense team. Some users are password-based, while others are
                     restricted to Google sign-in depending on the assigned access model.
                   </p>
                 </div>
               </div>
-              <div className="mt-4 space-y-2.5">
+              <div className="mt-3 space-y-2">
                 {platformSignals.map((item) => (
-                  <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2.5">
+                  <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                    <span className="text-sm text-white/85">{item}</span>
+                    <span className="text-[0.92rem] text-white/85">{item}</span>
                   </div>
                 ))}
               </div>
@@ -427,17 +427,17 @@ function LoginPageContent() {
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
             <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-8 py-6">
+              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-8 py-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Sign in</p>
-                <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Access the dashboard</h2>
-                <p className="mt-3 max-w-md text-sm leading-6 text-slate-600">
+                <h2 className="mt-2.5 text-[2rem] font-bold tracking-tight text-slate-950">Access the dashboard</h2>
+                <p className="mt-2.5 max-w-md text-sm leading-6 text-slate-600">
                   Use the sign-in method assigned to your managed account. Google-enabled users should use the Google button below.
                 </p>
               </div>
 
-              <div className="p-8">
-                <form className="space-y-4" onSubmit={handleAuth}>
-                  <div className="space-y-4">
+              <div className="p-7">
+                <form className="space-y-3.5" onSubmit={handleAuth}>
+                  <div className="space-y-3.5">
                     <div>
                       <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
                         Email address
@@ -448,7 +448,7 @@ function LoginPageContent() {
                         type="email"
                         autoComplete="email"
                         required
-                        className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                        className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                         placeholder="you@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -464,7 +464,7 @@ function LoginPageContent() {
                         type="password"
                         autoComplete="current-password"
                         required
-                        className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                        className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -472,11 +472,11 @@ function LoginPageContent() {
                     </div>
                   </div>
 
-                  <div className="space-y-3.5">
+                  <div className="space-y-3">
                     <button
                       type="submit"
                       disabled={loadingEmail || loadingGoogle}
-                      className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-6 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.25)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.25)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingEmail ? (
                         <span className="flex items-center space-x-2">
@@ -502,7 +502,7 @@ function LoginPageContent() {
                       type="button"
                       onClick={handleGoogleSignIn}
                       disabled={loadingEmail || loadingGoogle}
-                      className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingGoogle ? (
                         <span className="flex items-center space-x-2">
@@ -539,7 +539,7 @@ function LoginPageContent() {
                   </div>
                 </form>
 
-                <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50/90 p-4">
+                <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50/90 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Access note</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     If your account is provisioned for Google, password login will not work. Use the Google button to complete access verification.
