@@ -307,7 +307,7 @@ export default function AnalyticsPage() {
                             title={`${formatHourLabel(item.hour)} - ${count} attacks`}
                           />
                         </div>
-                        <span className="mt-2 text-xs text-slate-500">{item.hour}</span>
+                        <span className="mt-2 text-xs text-slate-500">{formatHourLabel(item.hour)}</span>
                       </div>
                     );
                   })}
