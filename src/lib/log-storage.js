@@ -2,6 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { normalizeDomainInput } from './domain-utils.js';
 import { normalizeIpAddress } from './ip-utils.js';
 import { classifyAttack, getDecisionKey } from './log-analytics.js';
+import { deriveRuleId } from './log-rule-utils.js';
 import { getTenantRetentionSettings } from './tenant-subscription.js';
 import {
   getAllowedRawLogSampleRate,
@@ -60,6 +61,10 @@ function shouldPersistRawLog(log, trafficLoggingConfig) {
     return true;
   }
 
+  if (shouldAlwaysPersistAllowedLog(log)) {
+    return true;
+  }
+
   if (!shouldStoreAllowedRawLogs(trafficLoggingConfig)) {
     return false;
   }
@@ -71,6 +76,33 @@ function shouldPersistRawLog(log, trafficLoggingConfig) {
   }
 
   return Math.random() < 1 / sampleRate;
+}
+
+function shouldAlwaysPersistAllowedLog(log) {
+  if (getDecisionKey(log) !== 'allowed') {
+    return false;
+  }
+
+  const severity = normalizeSeverity(log.severity);
+  const attackType = classifyAttack(log);
+  const derivedRuleId = deriveRuleId({
+    ruleId: log?.ruleId,
+    ruleMessage: log?.ruleMessage,
+    message: log?.message,
+    blocked: Boolean(log?.blocked),
+    statusCode: log?.statusCode,
+  });
+  const hasRuleContext = Boolean(String(log?.ruleMessage || '').trim());
+  const hasExplicitRuleId = Boolean(String(log?.ruleId || '').trim());
+  const hasAttackClassification = attackType !== 'Other';
+  const hasMeaningfulDerivedRuleId =
+    Boolean(derivedRuleId) && !['WAF-EVENT', 'HTTP-2XX', 'HTTP-3XX'].includes(derivedRuleId);
+  const hasElevatedSeverity = ['warning', 'medium', 'high', 'critical'].includes(severity);
+
+  return (
+    hasElevatedSeverity &&
+    (hasRuleContext || hasExplicitRuleId || hasAttackClassification || hasMeaningfulDerivedRuleId)
+  );
 }
 
 function buildRollupUpdate(log, retentionDays) {
