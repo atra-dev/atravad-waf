@@ -363,7 +363,7 @@ function LoginPageContent() {
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-7xl px-6 pb-16 pt-6 lg:px-8 lg:pb-20">
+      <div className="mx-auto max-w-7xl px-6 pb-10 pt-4 lg:px-8 lg:pb-12">
         <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
@@ -379,27 +379,27 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid gap-14 pt-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(400px,0.95fr)] lg:items-center">
+        <div className="grid gap-10 pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.92fr)] lg:items-start">
           <section>
             <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-6 max-w-4xl font-serif text-5xl leading-[0.98] text-white sm:text-6xl">
+            <h1 className="mt-5 max-w-4xl font-serif text-[3.5rem] leading-[0.94] text-white sm:text-[4.2rem] xl:text-[4.8rem]">
               Secure sign-in for managed WAF operations, tenant access, and security visibility.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300 xl:text-lg">
               Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
               update policies, and operate within your provisioned tenant scope.
             </p>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {trustPoints.map((item) => (
-                <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+                <div key={item.label} className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                  <p className="mt-3 text-lg font-semibold text-white">{item.value}</p>
+                  <p className="mt-3 text-[0.95rem] font-semibold leading-9 text-white xl:text-lg">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-8 rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-6 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+            <div className="mt-7 rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
                   <ShieldIcon className="h-6 w-6" />
@@ -412,7 +412,7 @@ function LoginPageContent() {
                   </p>
                 </div>
               </div>
-              <div className="mt-5 space-y-3">
+              <div className="mt-4 space-y-3">
                 {platformSignals.map((item) => (
                   <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
@@ -423,11 +423,11 @@ function LoginPageContent() {
             </div>
           </section>
 
-          <section className="relative">
+          <section className="relative lg:pt-16">
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
             <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-8 py-8">
+              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-8 py-7">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Sign in</p>
                 <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">Access the dashboard</h2>
                 <p className="mt-3 max-w-md text-sm leading-7 text-slate-600">
@@ -436,8 +436,8 @@ function LoginPageContent() {
               </div>
 
               <div className="p-8">
-                <form className="space-y-6" onSubmit={handleAuth}>
-                  <div className="space-y-5">
+                <form className="space-y-5" onSubmit={handleAuth}>
+                  <div className="space-y-4">
                     <div>
                       <label htmlFor="email" className="mb-2 block text-sm font-semibold text-slate-700">
                         Email address
@@ -472,7 +472,7 @@ function LoginPageContent() {
                     </div>
                   </div>
 
-                  <div className="space-y-5">
+                  <div className="space-y-4">
                     <button
                       type="submit"
                       disabled={loadingEmail || loadingGoogle}
@@ -539,7 +539,7 @@ function LoginPageContent() {
                   </div>
                 </form>
 
-                <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50/90 p-4">
+                <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50/90 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Access note</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     If your account is provisioned for Google, password login will not work. Use the Google button to complete access verification.
