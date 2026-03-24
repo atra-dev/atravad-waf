@@ -76,10 +76,6 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
     return Array.from(countryMap.values()).sort((a, b) => b.count - a.count);
   }, [logs]);
 
-  // Top countries by traffic
-  const topCountries = useMemo(() => {
-    return countryData.slice(0, 10);
-  }, [countryData]);
   const maxCountryCount = useMemo(
     () => Math.max(...countryData.map((c) => c.count), 1),
     [countryData]
@@ -211,10 +207,10 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
         )}
       </div>
 
-      {/* Top Countries Table */}
+      {/* Countries Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Top Countries by Traffic</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Countries by Traffic</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -244,14 +240,14 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {topCountries.length === 0 ? (
+              {countryData.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
                     No geographic data available yet. New logs will include country metadata for SOC analysis.
                   </td>
                 </tr>
               ) : (
-                topCountries.map((country, index) => (
+                countryData.map((country, index) => (
                   <tr key={country.code} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       #{index + 1}
