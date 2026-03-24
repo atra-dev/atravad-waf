@@ -240,7 +240,9 @@ function aggregateRawLogs(logs) {
 
     addCount(methodsMap, method, 1);
     addCount(statusesMap, statusBucket, 1);
-    addCount(attackTypesMap, attackType, 1);
+    if (decision !== 'allowed') {
+      addCount(attackTypesMap, attackType, 1);
+    }
 
     const country = countriesMap.get(countryCode) || {
       code: countryCode,
@@ -452,6 +454,7 @@ export async function GET(request) {
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const severity = normalizeSeverity(searchParams.get('severity'));
     const decision = String(searchParams.get('decision') || '').trim().toLowerCase();
+    const attacksOnly = String(searchParams.get('attacksOnly') || '').trim().toLowerCase() === 'true';
 
     const cacheKey = [
       'analytics',
@@ -460,11 +463,50 @@ export async function GET(request) {
       site || 'all-sites',
       severity || 'all-severity',
       decision || 'all-decisions',
+      attacksOnly ? 'attacks-only' : 'all-traffic',
     ].join(':');
 
     const analytics = await getOrSetServerCache(
       cacheKey,
       async () => {
+        if (attacksOnly) {
+          const blockedDecisions =
+            decision === 'waf_blocked' || decision === 'origin_denied'
+              ? [decision]
+              : ['waf_blocked', 'origin_denied'];
+          const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+          const snapshots = await Promise.all(
+            blockedDecisions.map((decisionKey) => {
+              let rawQuery = adminDb
+                .collection('logs')
+                .where('tenantName', '==', tenantName)
+                .where('decision', '==', decisionKey)
+                .where('timestamp', '>=', sinceIso);
+
+              if (site) {
+                rawQuery = rawQuery.where('siteNormalized', '==', site);
+              }
+              if (severity) {
+                rawQuery = rawQuery.where('severityNormalized', '==', severity);
+              }
+
+              return rawQuery.orderBy('timestamp', 'desc').get();
+            })
+          );
+
+          const logs = snapshots
+            .flatMap((snapshot) =>
+              snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+              }))
+            )
+            .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')));
+
+          return aggregateRawLogs(logs);
+        }
+
         if (severity) {
           let rawQuery = adminDb
             .collection('logs')

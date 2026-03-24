@@ -147,9 +147,11 @@ function buildRollupUpdate(log, retentionDays) {
   );
   setValue(update, ['countries', countryCode, 'name'], countryName);
 
-  const attackKey = encodeCounterKey(attackType);
-  incrementCount(update, ['attackTypes', attackKey, 'count']);
-  setValue(update, ['attackTypes', attackKey, 'label'], attackType);
+  if (decision !== 'allowed') {
+    const attackKey = encodeCounterKey(attackType);
+    incrementCount(update, ['attackTypes', attackKey, 'count']);
+    setValue(update, ['attackTypes', attackKey, 'label'], attackType);
+  }
 
   if (ip && decision !== 'allowed') {
     const ipKey = encodeCounterKey(ip);

@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
         '7d': 7 * 24,
         '30d': 30 * 24,
       }[timeRange] || 24;
-      const response = await fetch(`/api/logs/analytics?hours=${hours}`);
+      const response = await fetch(`/api/logs/analytics?hours=${hours}&attacksOnly=true`);
       const data = await response.json();
 
       setAnalytics({
