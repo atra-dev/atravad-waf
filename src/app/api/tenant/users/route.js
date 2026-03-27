@@ -9,6 +9,10 @@ function generateTemporaryPassword() {
   return `Tmp!${Math.random().toString(36).slice(2, 10)}9Z`;
 }
 
+function getInviteRedirectUrl(request) {
+  return `${request.nextUrl.origin}/login`;
+}
+
 async function requireTenantAdmin(request) {
   if (!adminDb || !adminAuth) {
     return { errorResponse: NextResponse.json({ error: 'Firebase Admin not initialized' }, { status: 500 }) };
@@ -182,6 +186,15 @@ export async function POST(request) {
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
     invalidateTenantSubscriptionCache(tenantName);
 
+    let inviteLink = null;
+    try {
+      inviteLink = await adminAuth.generatePasswordResetLink(normalizedEmail, {
+        url: getInviteRedirectUrl(request),
+      });
+    } catch (inviteError) {
+      console.error('Error generating tenant invite password reset link:', inviteError);
+    }
+
     return NextResponse.json(
       {
         id: normalizedEmail,
@@ -192,6 +205,7 @@ export async function POST(request) {
         invitedAt: now,
         createdAt: now,
         updatedAt: now,
+        inviteLink,
       },
       { status: 201 }
     );

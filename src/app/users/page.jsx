@@ -1,16 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
-import { auth } from '@/lib/firebase';
 
 export default function TenantUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -55,6 +54,26 @@ export default function TenantUsersPage() {
     }
   };
 
+  const copyInviteLink = async (inviteLink) => {
+    if (!inviteLink) return false;
+
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(inviteLink);
+      return true;
+    }
+
+    const tempInput = document.createElement('textarea');
+    tempInput.value = inviteLink;
+    tempInput.setAttribute('readonly', '');
+    tempInput.style.position = 'absolute';
+    tempInput.style.left = '-9999px';
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    return copied;
+  };
+
   return (
     <Layout>
       <div className="space-y-8">
@@ -79,6 +98,24 @@ export default function TenantUsersPage() {
         {error && (
           <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
             <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        {feedback && (
+          <div
+            className={`rounded-lg border-l-4 p-4 ${
+              feedback.tone === 'success'
+                ? 'border-emerald-400 bg-emerald-50'
+                : 'border-amber-400 bg-amber-50'
+            }`}
+          >
+            <p
+              className={`text-sm ${
+                feedback.tone === 'success' ? 'text-emerald-800' : 'text-amber-800'
+              }`}
+            >
+              {feedback.message}
+            </p>
           </div>
         )}
 
@@ -240,6 +277,7 @@ export default function TenantUsersPage() {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   setActionLoading(true);
+                  setFeedback(null);
                   try {
                     const res = await fetch('/api/tenant/users', {
                       method: 'POST',
@@ -250,13 +288,24 @@ export default function TenantUsersPage() {
                     if (!res.ok) {
                       throw new Error(data.error || 'Failed to create user');
                     }
-                    await sendPasswordResetEmail(auth, createFormData.email.trim(), {
-                      url: `${window.location.origin}/login`,
-                    });
+
+                    const copied = await copyInviteLink(data.inviteLink);
                     setShowCreateModal(false);
                     setCreateFormData({ email: '', role: 'client' });
                     await fetchUsers();
-                    alert(`Invitation sent to ${createFormData.email.trim()}.`);
+                    if (data.inviteLink) {
+                      setFeedback({
+                        tone: copied ? 'success' : 'warning',
+                        message: copied
+                          ? `Invite created for ${data.email}. The password setup link has been copied to your clipboard.`
+                          : `Invite created for ${data.email}. Copy the setup link manually: ${data.inviteLink}`,
+                      });
+                    } else {
+                      setFeedback({
+                        tone: 'warning',
+                        message: `Invite created for ${data.email}, but the password setup link could not be generated automatically.`,
+                      });
+                    }
                   } catch (err) {
                     alert(err.message || 'Failed to invite user');
                   } finally {
@@ -313,7 +362,7 @@ export default function TenantUsersPage() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  The member will receive a Firebase email to set their password and join this tenant.
+                  The system creates a password setup link for the invited member and copies it for sharing.
                 </p>
               </form>
             </div>

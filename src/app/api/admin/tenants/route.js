@@ -294,11 +294,14 @@ export async function PUT(request) {
     }
 
     const tenantData = tenantDoc.data() || {};
-    const subscription = createTenantSubscription(body?.planId || tenantData.planId, {
+    const existingPlanId = normalizePlanId(tenantData.planId);
+    const nextPlanId = normalizePlanId(body?.planId || tenantData.planId);
+    const planChanged = nextPlanId !== existingPlanId;
+    const subscription = createTenantSubscription(nextPlanId, {
       subscriptionStatus: body?.subscriptionStatus || tenantData.subscriptionStatus,
       billingCycle: body?.billingCycle || tenantData.billingCycle,
-      limits: tenantData.limits,
-      features: tenantData.features,
+      limits: planChanged ? undefined : tenantData.limits,
+      features: planChanged ? undefined : tenantData.features,
     });
     const now = new Date().toISOString();
 
