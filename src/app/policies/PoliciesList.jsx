@@ -365,9 +365,15 @@ export default function PoliciesList({
                     </Link>
                     <Link
                       href={`/policies/${name}`}
+                      className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Audit Trail
+                    </Link>
+                    <Link
+                      href={`/policies/${name}`}
                       className="flex items-center space-x-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
                     >
-                      <span>View Versions</span>
+                      <span>View Versions & Audit</span>
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -398,6 +404,10 @@ export default function PoliciesList({
                     <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Updated</span>
                     <p className="mt-1 text-sm text-gray-900">{formatTimestamp(latestVersion.updatedAt || latestVersion.createdAt)}</p>
                   </div>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                  Operational IP and geo changes are available in the audit trail for this policy.
                 </div>
               </div>
             );
