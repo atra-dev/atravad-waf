@@ -367,16 +367,7 @@ export default function PoliciesList({
                       href={`/policies/${name}`}
                       className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                     >
-                      Audit Trail
-                    </Link>
-                    <Link
-                      href={`/policies/${name}`}
-                      className="flex items-center space-x-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-                    >
-                      <span>View Versions & Audit</span>
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                      View Versions & Audit
                     </Link>
                     <button
                       type="button"
