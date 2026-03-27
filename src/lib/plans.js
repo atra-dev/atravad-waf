@@ -154,6 +154,30 @@ export const PLAN_CATALOG = {
   },
 };
 
+function hasObjectShape(value) {
+  return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function matchesPlanValues(candidate, reference) {
+  if (!hasObjectShape(candidate) || !hasObjectShape(reference)) {
+    return false;
+  }
+
+  return Object.keys(reference).every((key) => candidate[key] === reference[key]);
+}
+
+function shouldIgnoreLegacyOverrides(planId, overrides = {}) {
+  if (planId !== PLAN_IDS.CUSTOM) {
+    return false;
+  }
+
+  const businessPlan = PLAN_CATALOG[PLAN_IDS.BUSINESS];
+  const matchesBusinessLimits = matchesPlanValues(overrides.limits, businessPlan.limits);
+  const matchesBusinessFeatures = matchesPlanValues(overrides.features, businessPlan.featuresConfig);
+
+  return matchesBusinessLimits || matchesBusinessFeatures;
+}
+
 export function normalizePlanId(planId) {
   const normalized = String(planId || '').trim().toLowerCase();
   return PLAN_CATALOG[normalized] ? normalized : PLAN_IDS.ESSENTIAL;
@@ -165,6 +189,8 @@ export function getPlanDefinition(planId) {
 
 export function createTenantSubscription(planId, overrides = {}) {
   const plan = getPlanDefinition(planId);
+  const ignoreLegacyOverrides = shouldIgnoreLegacyOverrides(plan.id, overrides);
+
   return {
     planId: plan.id,
     subscriptionStatus: overrides.subscriptionStatus || SUBSCRIPTION_STATUSES.ACTIVE,
@@ -172,11 +198,11 @@ export function createTenantSubscription(planId, overrides = {}) {
     planName: plan.name,
     limits: {
       ...plan.limits,
-      ...(overrides.limits || {}),
+      ...(ignoreLegacyOverrides ? {} : (overrides.limits || {})),
     },
     features: {
       ...plan.featuresConfig,
-      ...(overrides.features || {}),
+      ...(ignoreLegacyOverrides ? {} : (overrides.features || {})),
     },
     pricing: {
       websitePrice: plan.websitePrice,

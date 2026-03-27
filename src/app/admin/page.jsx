@@ -4,10 +4,27 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
-import { getPlanOptions } from '@/lib/plans';
+import { getPlanOptions, PLAN_CATALOG, PLAN_IDS } from '@/lib/plans';
 import { TRAFFIC_LOGGING_MODES } from '@/lib/traffic-logging';
 
 const PLAN_OPTIONS = getPlanOptions();
+const CUSTOM_LIMIT_FIELDS = [
+  { key: 'maxApps', label: 'Sites', min: 1 },
+  { key: 'maxPolicies', label: 'Policies', min: 1 },
+  { key: 'maxUsers', label: 'Users', min: 1 },
+  { key: 'monthlyRequestsIncluded', label: 'Monthly requests', min: 0, step: 1000 },
+  { key: 'logRetentionDays', label: 'Log retention days', min: 1 },
+  { key: 'analyticsRetentionDays', label: 'Analytics retention days', min: 1 },
+  { key: 'maxLogLookbackHours', label: 'Max log lookback hours', min: 1 },
+];
+const CUSTOM_FEATURE_FIELDS = [
+  { key: 'prioritySupport', label: 'Priority support' },
+  { key: 'twentyFourSevenOps', label: '24/7 managed operations' },
+  { key: 'virtualPatching', label: 'Virtual patching' },
+  { key: 'customReporting', label: 'Custom reporting' },
+  { key: 'botMitigation', label: 'Bot mitigation' },
+  { key: 'geoBlocking', label: 'Geo blocking' },
+];
 const ADMIN_TABS = [
   {
     id: 'overview',
@@ -30,6 +47,23 @@ const ADMIN_TABS = [
     description: 'Operational timeline',
   },
 ];
+
+function createCustomTenantDraft(tenant = {}) {
+  const basePlan = PLAN_CATALOG[PLAN_IDS.CUSTOM];
+
+  return {
+    planId: tenant.planId || 'essential',
+    subscriptionStatus: tenant.subscriptionStatus || 'active',
+    limits: {
+      ...basePlan.limits,
+      ...(tenant.limits || {}),
+    },
+    features: {
+      ...basePlan.featuresConfig,
+      ...(tenant.features || {}),
+    },
+  };
+}
 
 // Icons
 const TenantIcon = ({ className }) => (
@@ -149,7 +183,7 @@ export default function SuperAdminPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [userRole, setUserRole] = useState(null);
   const [selectedTenantFilter, setSelectedTenantFilter] = useState('all');
-  const [tenantForm, setTenantForm] = useState({ name: '', assignUserEmail: '', planId: 'essential' });
+  const [tenantForm, setTenantForm] = useState({ name: '', assignUserEmail: '', ...createCustomTenantDraft() });
   const [userForm, setUserForm] = useState({
     email: '',
     password: '',
@@ -252,10 +286,7 @@ export default function SuperAdminPage() {
         Object.fromEntries(
           (tenantsData || []).map((tenant) => [
             tenant.id,
-            {
-              planId: tenant.planId || 'essential',
-              subscriptionStatus: tenant.subscriptionStatus || 'active',
-            },
+            createCustomTenantDraft(tenant),
           ])
         )
       );
@@ -315,6 +346,8 @@ export default function SuperAdminPage() {
           name: tenantForm.name,
           assignUserEmail: tenantForm.assignUserEmail || undefined,
           planId: tenantForm.planId,
+          limits: tenantForm.planId === PLAN_IDS.CUSTOM ? tenantForm.limits : undefined,
+          features: tenantForm.planId === PLAN_IDS.CUSTOM ? tenantForm.features : undefined,
         }),
       });
 
@@ -324,7 +357,7 @@ export default function SuperAdminPage() {
         return;
       }
 
-      setTenantForm({ name: '', assignUserEmail: '', planId: 'essential' });
+      setTenantForm({ name: '', assignUserEmail: '', ...createCustomTenantDraft() });
       await fetchData(true);
       showToast('Tenant created successfully.');
     } catch (err) {
@@ -345,6 +378,84 @@ export default function SuperAdminPage() {
     }));
   };
 
+  const handleTenantPlanChange = (tenantId, planId) => {
+    setTenantEdits((prev) => {
+      const currentDraft = prev[tenantId] || createCustomTenantDraft();
+      return {
+        ...prev,
+        [tenantId]: {
+          ...currentDraft,
+          planId,
+          ...(planId === PLAN_IDS.CUSTOM
+            ? {
+                limits: currentDraft.limits || { ...PLAN_CATALOG[PLAN_IDS.CUSTOM].limits },
+                features: currentDraft.features || { ...PLAN_CATALOG[PLAN_IDS.CUSTOM].featuresConfig },
+              }
+            : {}),
+        },
+      };
+    });
+  };
+
+  const handleTenantLimitEditChange = (tenantId, field, value) => {
+    setTenantEdits((prev) => ({
+      ...prev,
+      [tenantId]: {
+        ...(prev[tenantId] || {}),
+        limits: {
+          ...(prev[tenantId]?.limits || PLAN_CATALOG[PLAN_IDS.CUSTOM].limits),
+          [field]: value === '' ? '' : Number(value),
+        },
+      },
+    }));
+  };
+
+  const handleTenantFeatureEditChange = (tenantId, field, value) => {
+    setTenantEdits((prev) => ({
+      ...prev,
+      [tenantId]: {
+        ...(prev[tenantId] || {}),
+        features: {
+          ...(prev[tenantId]?.features || PLAN_CATALOG[PLAN_IDS.CUSTOM].featuresConfig),
+          [field]: value,
+        },
+      },
+    }));
+  };
+
+  const handleTenantFormPlanChange = (planId) => {
+    setTenantForm((prev) => ({
+      ...prev,
+      planId,
+      ...(planId === PLAN_IDS.CUSTOM
+        ? {
+            limits: prev.limits || { ...PLAN_CATALOG[PLAN_IDS.CUSTOM].limits },
+            features: prev.features || { ...PLAN_CATALOG[PLAN_IDS.CUSTOM].featuresConfig },
+          }
+        : {}),
+    }));
+  };
+
+  const handleTenantFormLimitChange = (field, value) => {
+    setTenantForm((prev) => ({
+      ...prev,
+      limits: {
+        ...(prev.limits || PLAN_CATALOG[PLAN_IDS.CUSTOM].limits),
+        [field]: value === '' ? '' : Number(value),
+      },
+    }));
+  };
+
+  const handleTenantFormFeatureChange = (field, value) => {
+    setTenantForm((prev) => ({
+      ...prev,
+      features: {
+        ...(prev.features || PLAN_CATALOG[PLAN_IDS.CUSTOM].featuresConfig),
+        [field]: value,
+      },
+    }));
+  };
+
   const handleSaveTenant = async (tenantId) => {
     const pendingEdit = tenantEdits[tenantId];
     if (!pendingEdit) return;
@@ -358,6 +469,8 @@ export default function SuperAdminPage() {
           tenantId,
           planId: pendingEdit.planId,
           subscriptionStatus: pendingEdit.subscriptionStatus,
+          limits: pendingEdit.planId === PLAN_IDS.CUSTOM ? pendingEdit.limits : undefined,
+          features: pendingEdit.planId === PLAN_IDS.CUSTOM ? pendingEdit.features : undefined,
         }),
       });
 
@@ -921,11 +1034,12 @@ export default function SuperAdminPage() {
                       </div>
                     </div>
 
-                    <form onSubmit={handleCreateTenant} className="grid grid-cols-1 gap-4 rounded-[26px] border border-white/70 bg-white/80 p-5 shadow-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(240px,0.9fr)_180px]">
-                      <input
-                        type="text"
-                        value={tenantForm.name}
-                        onChange={(e) => setTenantForm((prev) => ({ ...prev, name: e.target.value }))}
+                    <form onSubmit={handleCreateTenant} className="rounded-[26px] border border-white/70 bg-white/80 p-5 shadow-sm">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(240px,0.9fr)_180px]">
+                        <input
+                          type="text"
+                          value={tenantForm.name}
+                          onChange={(e) => setTenantForm((prev) => ({ ...prev, name: e.target.value }))}
                         placeholder="Tenant name"
                         className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
@@ -936,25 +1050,62 @@ export default function SuperAdminPage() {
                         onChange={(e) => setTenantForm((prev) => ({ ...prev, assignUserEmail: e.target.value }))}
                         placeholder="Assign user email (optional)"
                         className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <select
-                        value={tenantForm.planId}
-                        onChange={(e) => setTenantForm((prev) => ({ ...prev, planId: e.target.value }))}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        {PLAN_OPTIONS.map((plan) => (
-                          <option key={plan.id} value={plan.id}>
-                            {plan.name} ({plan.price})
+                        />
+                        <select
+                          value={tenantForm.planId}
+                          onChange={(e) => handleTenantFormPlanChange(e.target.value)}
+                          className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {PLAN_OPTIONS.map((plan) => (
+                            <option key={plan.id} value={plan.id}>
+                              {plan.name} ({plan.price})
                           </option>
                         ))}
                       </select>
                       <button
                         type="submit"
                         disabled={creatingTenant || !tenantForm.name.trim()}
-                        className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                      >
-                        {creatingTenant ? 'Creating...' : 'Create Tenant'}
-                      </button>
+                          className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                        >
+                          {creatingTenant ? 'Creating...' : 'Create Tenant'}
+                        </button>
+                      </div>
+
+                      {tenantForm.planId === PLAN_IDS.CUSTOM ? (
+                        <div className="mt-4 rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Custom Plan Designer</p>
+                          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            {CUSTOM_LIMIT_FIELDS.map((field) => (
+                              <label key={field.key} className="block">
+                                <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                  {field.label}
+                                </span>
+                                <input
+                                  type="number"
+                                  min={field.min}
+                                  step={field.step || 1}
+                                  value={tenantForm.limits?.[field.key] ?? ''}
+                                  onChange={(e) => handleTenantFormLimitChange(field.key, e.target.value)}
+                                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {CUSTOM_FEATURE_FIELDS.map((field) => (
+                              <label key={field.key} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                                <span>{field.label}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(tenantForm.features?.[field.key])}
+                                  onChange={(e) => handleTenantFormFeatureChange(field.key, e.target.checked)}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </form>
                   </div>
                 </section>
@@ -998,15 +1149,15 @@ export default function SuperAdminPage() {
                             </p>
                           </div>
 
-                          <div className="grid w-full gap-3 xl:w-[380px]">
-                            <select
-                              value={tenantEdits[tenant.id]?.planId || tenant.planId || 'essential'}
-                              onChange={(e) => handleTenantEditChange(tenant.id, 'planId', e.target.value)}
-                              className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              {PLAN_OPTIONS.map((plan) => (
-                                <option key={plan.id} value={plan.id}>
-                                  {plan.name} ({plan.price})
+                            <div className="grid w-full gap-3 xl:w-[380px]">
+                              <select
+                                value={tenantEdits[tenant.id]?.planId || tenant.planId || 'essential'}
+                                onChange={(e) => handleTenantPlanChange(tenant.id, e.target.value)}
+                                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                {PLAN_OPTIONS.map((plan) => (
+                                  <option key={plan.id} value={plan.id}>
+                                    {plan.name} ({plan.price})
                                 </option>
                               ))}
                             </select>
@@ -1020,18 +1171,54 @@ export default function SuperAdminPage() {
                               <option value="past_due">past_due</option>
                               <option value="suspended">suspended</option>
                             </select>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveTenant(tenant.id)}
-                              disabled={savingTenantId === tenant.id}
-                              className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-                            >
-                              {savingTenantId === tenant.id ? 'Saving...' : 'Save Subscription Changes'}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveTenant(tenant.id)}
+                                disabled={savingTenantId === tenant.id}
+                                className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                              >
+                                {savingTenantId === tenant.id ? 'Saving...' : 'Save Subscription Changes'}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </article>
-                    ))}
+
+                          {(tenantEdits[tenant.id]?.planId || tenant.planId) === PLAN_IDS.CUSTOM ? (
+                            <div className="mt-5 rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-700">Custom Subscription Controls</p>
+                              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                {CUSTOM_LIMIT_FIELDS.map((field) => (
+                                  <label key={field.key} className="block">
+                                    <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                      {field.label}
+                                    </span>
+                                    <input
+                                      type="number"
+                                      min={field.min}
+                                      step={field.step || 1}
+                                      value={tenantEdits[tenant.id]?.limits?.[field.key] ?? ''}
+                                      onChange={(e) => handleTenantLimitEditChange(tenant.id, field.key, e.target.value)}
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                {CUSTOM_FEATURE_FIELDS.map((field) => (
+                                  <label key={field.key} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                                    <span>{field.label}</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(tenantEdits[tenant.id]?.features?.[field.key])}
+                                      onChange={(e) => handleTenantFeatureEditChange(tenant.id, field.key, e.target.checked)}
+                                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </article>
+                      ))}
 
                     {tenants.length === 0 ? (
                       <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center text-sm text-slate-500">

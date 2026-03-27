@@ -14,6 +14,52 @@ function invalidateAdminTenantCaches() {
   invalidateServerCache('admin:activity:');
 }
 
+function sanitizeCustomLimits(limits) {
+  if (!limits || typeof limits !== 'object') return undefined;
+
+  const numericFields = [
+    'maxApps',
+    'maxPolicies',
+    'maxUsers',
+    'monthlyRequestsIncluded',
+    'logRetentionDays',
+    'analyticsRetentionDays',
+    'maxLogLookbackHours',
+  ];
+
+  const sanitized = {};
+  for (const field of numericFields) {
+    const value = Number(limits[field]);
+    if (Number.isFinite(value) && value >= 0) {
+      sanitized[field] = Math.round(value);
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function sanitizeCustomFeatures(features) {
+  if (!features || typeof features !== 'object') return undefined;
+
+  const booleanFields = [
+    'prioritySupport',
+    'twentyFourSevenOps',
+    'virtualPatching',
+    'customReporting',
+    'botMitigation',
+    'geoBlocking',
+  ];
+
+  const sanitized = {};
+  for (const field of booleanFields) {
+    if (typeof features[field] === 'boolean') {
+      sanitized[field] = features[field];
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
 /**
  * GET /api/admin/tenants
  * List all tenants (Super Admin only)
@@ -157,6 +203,8 @@ export async function POST(request) {
     const planId = normalizePlanId(body?.planId);
     const subscriptionStatus = body?.subscriptionStatus || SUBSCRIPTION_STATUSES.ACTIVE;
     const billingCycle = body?.billingCycle || 'annual';
+    const customLimits = planId === 'custom' ? sanitizeCustomLimits(body?.limits) : undefined;
+    const customFeatures = planId === 'custom' ? sanitizeCustomFeatures(body?.features) : undefined;
 
     if (!rawName) {
       return NextResponse.json(
@@ -185,6 +233,8 @@ export async function POST(request) {
     const subscription = createTenantSubscription(planId, {
       subscriptionStatus,
       billingCycle,
+      limits: customLimits,
+      features: customFeatures,
     });
     await adminDb.collection('tenants').doc(tenantId).set({
       name: rawName,
@@ -297,11 +347,13 @@ export async function PUT(request) {
     const existingPlanId = normalizePlanId(tenantData.planId);
     const nextPlanId = normalizePlanId(body?.planId || tenantData.planId);
     const planChanged = nextPlanId !== existingPlanId;
+    const customLimits = nextPlanId === 'custom' ? sanitizeCustomLimits(body?.limits) : undefined;
+    const customFeatures = nextPlanId === 'custom' ? sanitizeCustomFeatures(body?.features) : undefined;
     const subscription = createTenantSubscription(nextPlanId, {
       subscriptionStatus: body?.subscriptionStatus || tenantData.subscriptionStatus,
       billingCycle: body?.billingCycle || tenantData.billingCycle,
-      limits: planChanged ? undefined : tenantData.limits,
-      features: planChanged ? undefined : tenantData.features,
+      limits: customLimits || (planChanged ? undefined : tenantData.limits),
+      features: customFeatures || (planChanged ? undefined : tenantData.features),
     });
     const now = new Date().toISOString();
 
