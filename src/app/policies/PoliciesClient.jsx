@@ -37,6 +37,7 @@ export function PoliciesPageContent({
   const [submitting, setSubmitting] = useState(false);
   const [deletingPolicyName, setDeletingPolicyName] = useState('');
   const [editingPolicyName, setEditingPolicyName] = useState('');
+  const [editingPolicyId, setEditingPolicyId] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
   const [editorInitialized, setEditorInitialized] = useState(false);
   const [confirmationState, setConfirmationState] = useState({
@@ -182,6 +183,7 @@ export function PoliciesPageContent({
     setShowForm(false);
     setActiveTab('basic');
     setEditingPolicyName('');
+    setEditingPolicyId('');
     setFormData(getDefaultPolicyFormData());
   };
 
@@ -228,6 +230,7 @@ export function PoliciesPageContent({
     ];
 
     setEditingPolicyName(policyVersion.name);
+    setEditingPolicyId(policyVersion.id || '');
     setFormData({
       ...defaults,
       name: policyVersion.name || '',
@@ -393,6 +396,7 @@ export function PoliciesPageContent({
         : [];
 
       const policyData = {
+        policyId: editingPolicyId || undefined,
         name: formData.name,
         mode: formData.mode,
         includeOWASPCRS: formData.includeOWASPCRS,
@@ -440,11 +444,20 @@ export function PoliciesPageContent({
         return;
       }
 
+      const result = await response.json();
       openFeedback({
-        title: editingPolicyName ? 'Policy version saved' : 'Policy created',
-        description: editingPolicyName
-          ? 'A new policy version was saved successfully.'
-          : 'The policy was created successfully. Assign it to an application in the Applications page to use it with the proxy WAF.',
+        title:
+          result?.saveMode === 'updated'
+            ? 'Policy updated'
+            : editingPolicyName
+              ? 'Policy version saved'
+              : 'Policy created',
+        description:
+          result?.saveMode === 'updated'
+            ? 'Routine IP access control or geo blocking changes were applied in place without creating a new version.'
+            : editingPolicyName
+              ? 'A new policy version was saved successfully.'
+              : 'The policy was created successfully. Assign it to an application in the Applications page to use it with the proxy WAF.',
         tone: 'green',
       });
       if (editorOnly) {
@@ -471,7 +484,7 @@ export function PoliciesPageContent({
     openConfirmation({
       title: editingPolicyName ? 'Save policy version?' : 'Create this policy?',
       description: editingPolicyName
-        ? `This will save a new version for "${editingPolicyName}" using the current policy configuration.`
+        ? `Structural changes will create a new version for "${editingPolicyName}". Routine IP and geo list edits update the current version in place.`
         : `This will create the policy "${formData.name || 'Untitled Policy'}" and make it available for site assignment.`,
       confirmLabel: editingPolicyName ? 'Save Version' : 'Create Policy',
       tone: 'blue',

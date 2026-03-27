@@ -19,9 +19,15 @@ export async function getTenantUsageSummary(adminDb, tenantName) {
     adminDb.collection('users').where('tenantName', '==', tenantName).get(),
   ]);
 
+  const uniquePolicyNames = new Set(
+    policiesSnapshot.docs
+      .map((doc) => String(doc.data()?.name || '').trim())
+      .filter(Boolean)
+  );
+
   return {
     currentApps: appsSnapshot.size,
-    currentPolicies: policiesSnapshot.size,
+    currentPolicies: uniquePolicyNames.size,
     currentUsers: usersSnapshot.size,
     currentMonthRequests: 0,
   };

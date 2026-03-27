@@ -79,6 +79,145 @@ function invalidateTenantPolicyCaches(tenantName) {
   invalidateTenantSubscriptionCache(tenantName);
 }
 
+function normalizeList(values = []) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean))].sort();
+}
+
+function normalizeApplications(values = []) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean))].sort();
+}
+
+function diffLists(previousValues = [], nextValues = []) {
+  const previous = normalizeList(previousValues);
+  const next = normalizeList(nextValues);
+  const previousSet = new Set(previous);
+  const nextSet = new Set(next);
+
+  return {
+    before: previous,
+    after: next,
+    added: next.filter((item) => !previousSet.has(item)),
+    removed: previous.filter((item) => !nextSet.has(item)),
+  };
+}
+
+function sortObjectKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map(sortObjectKeys);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = sortObjectKeys(value[key]);
+        return acc;
+      }, {});
+  }
+
+  return value;
+}
+
+function stableStringify(value) {
+  return JSON.stringify(sortObjectKeys(value));
+}
+
+function sanitizePolicyForVersionComparison(policy = {}) {
+  const nextPolicy = { ...policy };
+  delete nextPolicy.ipAccessControl;
+  delete nextPolicy.geoBlocking;
+  return nextPolicy;
+}
+
+function isOperationalListOnlyUpdate({
+  existingPolicyDoc,
+  name,
+  nextPolicy,
+  mode,
+  includeOWASPCRS,
+  applicationIds,
+}) {
+  if (!existingPolicyDoc) return false;
+  if (String(existingPolicyDoc.name || '').trim() !== String(name || '').trim()) return false;
+  if ((existingPolicyDoc.mode || 'prevention') !== (mode || 'prevention')) return false;
+  if (Boolean(existingPolicyDoc.includeOWASPCRS) !== Boolean(includeOWASPCRS)) return false;
+
+  const existingApplicationIds = normalizeApplications(
+    Array.isArray(existingPolicyDoc.applicationIds)
+      ? existingPolicyDoc.applicationIds
+      : existingPolicyDoc.applicationId
+        ? [existingPolicyDoc.applicationId]
+        : []
+  );
+  const nextApplicationIds = normalizeApplications(applicationIds);
+  if (stableStringify(existingApplicationIds) !== stableStringify(nextApplicationIds)) {
+    return false;
+  }
+
+  const existingPolicy = existingPolicyDoc.policy || {};
+  const existingComparable = sanitizePolicyForVersionComparison(existingPolicy);
+  const nextComparable = sanitizePolicyForVersionComparison(nextPolicy);
+
+  return stableStringify(existingComparable) === stableStringify(nextComparable);
+}
+
+function buildOperationalAuditChanges(previousPolicy = {}, nextPolicy = {}) {
+  const previousIp = previousPolicy.ipAccessControl || {};
+  const nextIp = nextPolicy.ipAccessControl || {};
+  const previousGeo = previousPolicy.geoBlocking || {};
+  const nextGeo = nextPolicy.geoBlocking || {};
+
+  const changes = {
+    ipAccessControl: {
+      enabledBefore: Boolean(previousPolicy.ipAccessControl),
+      enabledAfter: Boolean(nextPolicy.ipAccessControl),
+      whitelist: diffLists(previousIp.whitelist, nextIp.whitelist),
+      blacklist: diffLists(previousIp.blacklist, nextIp.blacklist),
+      whitelistCIDR: diffLists(previousIp.whitelistCIDR, nextIp.whitelistCIDR),
+      blacklistCIDR: diffLists(previousIp.blacklistCIDR, nextIp.blacklistCIDR),
+    },
+    geoBlocking: {
+      enabledBefore: Boolean(previousPolicy.geoBlocking),
+      enabledAfter: Boolean(nextPolicy.geoBlocking),
+      blockedCountries: diffLists(previousGeo.blockedCountries, nextGeo.blockedCountries),
+      allowedCountries: diffLists(previousGeo.allowedCountries, nextGeo.allowedCountries),
+    },
+  };
+
+  const hasEntries = [
+    ...Object.values(changes.ipAccessControl).filter((value) => value && typeof value === 'object'),
+    ...Object.values(changes.geoBlocking).filter((value) => value && typeof value === 'object'),
+  ].some((entry) => Array.isArray(entry.added) && (entry.added.length > 0 || entry.removed.length > 0));
+
+  const toggled =
+    changes.ipAccessControl.enabledBefore !== changes.ipAccessControl.enabledAfter ||
+    changes.geoBlocking.enabledBefore !== changes.geoBlocking.enabledAfter;
+
+  return {
+    hasChanges: hasEntries || toggled,
+    changes,
+  };
+}
+
+function getOperationalChangeScopes(changes) {
+  const scopes = [];
+  const hasIpChanges = [
+    changes?.ipAccessControl?.whitelist,
+    changes?.ipAccessControl?.blacklist,
+    changes?.ipAccessControl?.whitelistCIDR,
+    changes?.ipAccessControl?.blacklistCIDR,
+  ].some((entry) => (entry?.added?.length || 0) > 0 || (entry?.removed?.length || 0) > 0);
+
+  const hasGeoChanges = [
+    changes?.geoBlocking?.blockedCountries,
+    changes?.geoBlocking?.allowedCountries,
+  ].some((entry) => (entry?.added?.length || 0) > 0 || (entry?.removed?.length || 0) > 0);
+
+  if (hasIpChanges) scopes.push('ip');
+  if (hasGeoChanges) scopes.push('geo');
+  return scopes;
+}
+
 export async function POST(request) {
   try {
     if (!adminDb) {
@@ -105,20 +244,6 @@ export async function POST(request) {
     const tenantName = await getTenantName(user);
     if (!tenantName) {
       return NextResponse.json({ error: 'No tenant assigned' }, { status: 400 });
-    }
-
-    const policyLimit = await getTenantLimitStatus(adminDb, tenantName, 'maxPolicies');
-    if (!policyLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: `Plan limit reached: ${policyLimit.current} of ${policyLimit.limit} policies used`,
-          code: 'PLAN_LIMIT_MAX_POLICIES',
-          limit: policyLimit.limit,
-          current: policyLimit.current,
-          planId: policyLimit.tenant?.planId || null,
-        },
-        { status: 403 }
-      );
     }
 
     const body = await request.json();
@@ -161,7 +286,8 @@ export async function POST(request) {
       applicationIds,
       applicationId,
       includeOWASPCRS = true,
-      mode = 'prevention'
+      mode = 'prevention',
+      policyId,
     } = body;
 
     if (!name) {
@@ -239,7 +365,6 @@ export async function POST(request) {
       }
     }
 
-    // Get current version number
     // Fetch without orderBy to avoid index requirement, then sort in memory
     const existingPoliciesSnapshot = await adminDb
       .collection('policies')
@@ -247,10 +372,46 @@ export async function POST(request) {
       .where('name', '==', name)
       .get();
 
+    const existingPolicies = existingPoliciesSnapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => Number(b.version || 0) - Number(a.version || 0));
+    const latestExistingPolicy = existingPolicies[0] || null;
+    const isEditingExistingPolicy = Boolean(policyId && latestExistingPolicy);
+
+    if (!isEditingExistingPolicy && !existingPoliciesSnapshot.empty) {
+      const policyLimit = await getTenantLimitStatus(adminDb, tenantName, 'maxPolicies');
+      if (!policyLimit.allowed) {
+        return NextResponse.json(
+          {
+            error: `Plan limit reached: ${policyLimit.current} of ${policyLimit.limit} policies used`,
+            code: 'PLAN_LIMIT_MAX_POLICIES',
+            limit: policyLimit.limit,
+            current: policyLimit.current,
+            planId: policyLimit.tenant?.planId || null,
+          },
+          { status: 403 }
+        );
+      }
+    } else if (!latestExistingPolicy) {
+      const policyLimit = await getTenantLimitStatus(adminDb, tenantName, 'maxPolicies');
+      if (!policyLimit.allowed) {
+        return NextResponse.json(
+          {
+            error: `Plan limit reached: ${policyLimit.current} of ${policyLimit.limit} policies used`,
+            code: 'PLAN_LIMIT_MAX_POLICIES',
+            limit: policyLimit.limit,
+            current: policyLimit.current,
+            planId: policyLimit.tenant?.planId || null,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     let version = 1;
-    if (!existingPoliciesSnapshot.empty) {
-      const versions = existingPoliciesSnapshot.docs
-        .map(doc => doc.data().version || 0)
+    if (existingPolicies.length > 0) {
+      const versions = existingPolicies
+        .map((doc) => doc.version || 0)
         .sort((a, b) => b - a);
       version = versions[0] + 1;
     }
@@ -279,28 +440,85 @@ export async function POST(request) {
     }
 
     const normalizedApplicationIds = assignedApplications.map((app) => app.id);
-
-    const policyRef = await adminDb.collection('policies').add({
+    const operationalListOnlyUpdate = isOperationalListOnlyUpdate({
+      existingPolicyDoc: latestExistingPolicy,
       name,
-      policy,
-      modSecurityConfig,
-      version,
-      tenantName,
-      applicationId: normalizedApplicationIds[0] || null,
-      applicationIds: normalizedApplicationIds,
-      includeOWASPCRS,
+      nextPolicy: policy,
       mode,
-      validationWarnings: validation.warnings,
-      createdAt: new Date().toISOString(),
-      createdBy: user.uid,
+      includeOWASPCRS,
+      applicationIds: normalizedApplicationIds,
     });
+    const now = new Date().toISOString();
+
+    let savedPolicyId = '';
+    let savedVersion = version;
+    let saveMode = 'created';
+
+    if (operationalListOnlyUpdate && latestExistingPolicy) {
+      const operationalAudit = buildOperationalAuditChanges(latestExistingPolicy.policy || {}, policy);
+      await adminDb.collection('policies').doc(latestExistingPolicy.id).update({
+        name,
+        policy,
+        modSecurityConfig,
+        tenantName,
+        applicationId: normalizedApplicationIds[0] || null,
+        applicationIds: normalizedApplicationIds,
+        includeOWASPCRS,
+        mode,
+        validationWarnings: validation.warnings,
+        updatedAt: now,
+        updatedBy: user.uid,
+        lastOperationalUpdateAt: now,
+        lastOperationalUpdateBy: user.uid,
+        lastOperationalUpdateType: 'ip_geo_access_lists',
+      });
+      savedPolicyId = latestExistingPolicy.id;
+      savedVersion = latestExistingPolicy.version || 1;
+      saveMode = 'updated';
+
+        if (operationalAudit.hasChanges) {
+        const changeScopes = getOperationalChangeScopes(operationalAudit.changes);
+        await adminDb.collection('policyAuditLogs').add({
+          tenantName,
+          policyId: latestExistingPolicy.id,
+          policyName: name,
+          policyVersion: latestExistingPolicy.version || 1,
+          eventType: 'operational_list_update',
+          changes: operationalAudit.changes,
+          changeScopes,
+          actorEmail: user.email || null,
+          actor: {
+            uid: user.uid,
+            email: user.email || null,
+          },
+          createdAt: now,
+        });
+      }
+    } else {
+      const policyRef = await adminDb.collection('policies').add({
+        name,
+        policy,
+        modSecurityConfig,
+        version,
+        tenantName,
+        applicationId: normalizedApplicationIds[0] || null,
+        applicationIds: normalizedApplicationIds,
+        includeOWASPCRS,
+        mode,
+        validationWarnings: validation.warnings,
+        createdAt: now,
+        createdBy: user.uid,
+      });
+      savedPolicyId = policyRef.id;
+      saveMode = existingPolicies.length > 0 ? 'versioned' : 'created';
+    }
 
     if (assignedApplications.length > 0) {
       const updateBatch = adminDb.batch();
       for (const assignedApplication of assignedApplications) {
         updateBatch.update(adminDb.collection('applications').doc(assignedApplication.id), {
-          policyId: policyRef.id,
-          updatedAt: new Date().toISOString(),
+          policyId: savedPolicyId,
+          updatedAt: now,
           updatedBy: user.uid,
         });
       }
@@ -310,9 +528,9 @@ export async function POST(request) {
     invalidateTenantPolicyCaches(tenantName);
 
     return NextResponse.json({
-      id: policyRef.id,
+      id: savedPolicyId,
       name,
-      version,
+      version: savedVersion,
       policy,
       modSecurityConfig,
       validationWarnings: validation.warnings,
@@ -320,6 +538,7 @@ export async function POST(request) {
       applicationIds: normalizedApplicationIds,
       applicationName: assignedApplications[0] ? getApplicationLabel(assignedApplications[0]) : null,
       applicationNames: assignedApplications.map((app) => getApplicationLabel(app)).filter(Boolean),
+      saveMode,
     });
   } catch (error) {
     console.error('Error creating policy:', error);
