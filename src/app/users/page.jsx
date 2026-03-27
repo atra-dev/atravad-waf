@@ -293,17 +293,24 @@ export default function TenantUsersPage() {
                     setShowCreateModal(false);
                     setCreateFormData({ email: '', role: 'client' });
                     await fetchUsers();
-                    if (data.inviteLink) {
+                    if (data.inviteEmailSent) {
+                      setFeedback({
+                        tone: 'success',
+                        message: copied
+                          ? `Invite email sent to ${data.email}. The setup link was also copied to your clipboard.`
+                          : `Invite email sent to ${data.email}.`,
+                      });
+                    } else if (data.inviteLink) {
                       setFeedback({
                         tone: copied ? 'success' : 'warning',
                         message: copied
-                          ? `Invite created for ${data.email}. The password setup link has been copied to your clipboard.`
-                          : `Invite created for ${data.email}. Copy the setup link manually: ${data.inviteLink}`,
+                          ? `Invite created for ${data.email}, but the email could not be sent. The password setup link has been copied to your clipboard.`
+                          : `Invite created for ${data.email}, but the email could not be sent. Copy the setup link manually: ${data.inviteLink}`,
                       });
                     } else {
                       setFeedback({
                         tone: 'warning',
-                        message: `Invite created for ${data.email}, but the password setup link could not be generated automatically.`,
+                        message: `Invite created for ${data.email}, but the email and password setup link could not be generated automatically.`,
                       });
                     }
                   } catch (err) {
@@ -362,7 +369,7 @@ export default function TenantUsersPage() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500">
-                  The system creates a password setup link for the invited member and copies it for sharing.
+                  The system sends a Firebase password setup email and also keeps a copyable fallback link.
                 </p>
               </form>
             </div>

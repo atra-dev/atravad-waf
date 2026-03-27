@@ -13,6 +13,31 @@ function getInviteRedirectUrl(request) {
   return `${request.nextUrl.origin}/login`;
 }
 
+async function sendFirebaseInviteEmail(email, redirectUrl) {
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Firebase web API key is not configured');
+  }
+
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestType: 'PASSWORD_RESET',
+        email,
+        continueUrl: redirectUrl,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload?.error?.message || 'Failed to send Firebase password reset email');
+  }
+}
+
 async function requireTenantAdmin(request) {
   if (!adminDb || !adminAuth) {
     return { errorResponse: NextResponse.json({ error: 'Firebase Admin not initialized' }, { status: 500 }) };
@@ -186,13 +211,24 @@ export async function POST(request) {
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
     invalidateTenantSubscriptionCache(tenantName);
 
+    const redirectUrl = getInviteRedirectUrl(request);
     let inviteLink = null;
+    let inviteEmailSent = false;
+    let inviteEmailError = null;
     try {
       inviteLink = await adminAuth.generatePasswordResetLink(normalizedEmail, {
-        url: getInviteRedirectUrl(request),
+        url: redirectUrl,
       });
     } catch (inviteError) {
       console.error('Error generating tenant invite password reset link:', inviteError);
+    }
+
+    try {
+      await sendFirebaseInviteEmail(normalizedEmail, redirectUrl);
+      inviteEmailSent = true;
+    } catch (inviteError) {
+      inviteEmailError = inviteError.message;
+      console.error('Error sending tenant invite email:', inviteError);
     }
 
     return NextResponse.json(
@@ -206,6 +242,8 @@ export async function POST(request) {
         createdAt: now,
         updatedAt: now,
         inviteLink,
+        inviteEmailSent,
+        inviteEmailError,
       },
       { status: 201 }
     );
