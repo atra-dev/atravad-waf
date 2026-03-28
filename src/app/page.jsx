@@ -322,14 +322,6 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="relative grid gap-4 sm:grid-cols-2">
-                {proofPoints.map((item) => (
-                  <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                    <p className="mt-3 text-lg font-semibold text-white">{item.value}</p>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
