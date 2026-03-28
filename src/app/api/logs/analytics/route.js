@@ -6,6 +6,7 @@ import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { classifyAttack, getDecisionKey } from '@/lib/log-analytics';
 import { getOrSetServerCache } from '@/lib/server-cache';
+import { getTenantTrafficStats } from '@/lib/site-traffic-stats';
 import { getTenantSummary } from '@/lib/tenant-subscription';
 
 const ANALYTICS_CACHE_TTL_MS = 30000;
@@ -85,6 +86,14 @@ function buildAnalyticsResponse({
     severityCounts,
     topIPs: topBlockedIps.map((item) => [item.ip, item.totalBlocked]),
   };
+}
+
+function sumVisibleRequestCount(statsBySource) {
+  let total = 0;
+  for (const stats of statsBySource.values()) {
+    total += Number(stats?.total || 0);
+  }
+  return total;
 }
 
 function filterAnalyticsByDecision(analytics, decision) {
@@ -563,7 +572,22 @@ export async function GET(request) {
       { ttlMs: ANALYTICS_CACHE_TTL_MS }
     );
 
-    return NextResponse.json(analytics);
+    let visibleRequestCount = Number(analytics?.summary?.totalRequests || 0);
+    if (!severity && !decision && !attacksOnly) {
+      const statsBySource = await getTenantTrafficStats(adminDb, tenantName, hours);
+      visibleRequestCount = site
+        ? Number(statsBySource.get(site)?.total || 0)
+        : sumVisibleRequestCount(statsBySource);
+    }
+
+    return NextResponse.json({
+      ...analytics,
+      summary: {
+        ...analytics.summary,
+        visibleRequestCount,
+      },
+      maxLookbackHours,
+    });
   } catch (error) {
     console.error('Error fetching log analytics:', error);
     return NextResponse.json(
