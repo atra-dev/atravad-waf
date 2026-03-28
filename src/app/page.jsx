@@ -260,7 +260,7 @@ export default function Home() {
             </div>
           </header>
 
-          <div className="grid gap-14 pt-16 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] lg:items-center">
+          <div className="grid gap-14 pt-16 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] lg:items-start">
             <div>
               <SectionEyebrow>Managed cyber defense for growing teams</SectionEyebrow>
               <h1 className="mt-6 max-w-4xl font-serif text-5xl leading-[0.98] text-white sm:text-6xl lg:text-7xl">
