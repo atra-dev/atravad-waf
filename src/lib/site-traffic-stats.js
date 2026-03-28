@@ -81,22 +81,31 @@ function isSiteScopedRollupDocId(docId) {
   return SITE_SCOPED_ROLLUP_ID_PATTERN.test(String(docId || ''));
 }
 
-export async function getTenantTrafficStats(adminDb, tenantName, lookbackHours) {
+export async function getTenantTrafficStats(
+  adminDb,
+  tenantName,
+  lookbackHours,
+  { includeRawBackfill = true } = {}
+) {
   const windowStartIso = new Date(
     Date.now() - lookbackHours * 60 * 60 * 1000
   ).toISOString();
+  const rollupsQuery = adminDb
+    .collection('log_rollups_hourly')
+    .where('tenantName', '==', tenantName)
+    .where('bucketStartIso', '>=', windowStartIso);
+
+  const logsQuery = includeRawBackfill
+    ? adminDb
+        .collection('logs')
+        .where('tenantName', '==', tenantName)
+        .where('timestamp', '>=', windowStartIso)
+        .orderBy('timestamp', 'desc')
+    : null;
+
   const [rollupsSnapshot, logsSnapshot] = await Promise.all([
-    adminDb
-      .collection('log_rollups_hourly')
-      .where('tenantName', '==', tenantName)
-      .where('bucketStartIso', '>=', windowStartIso)
-      .get(),
-    adminDb
-      .collection('logs')
-      .where('tenantName', '==', tenantName)
-      .where('timestamp', '>=', windowStartIso)
-      .orderBy('timestamp', 'desc')
-      .get(),
+    rollupsQuery.get(),
+    logsQuery ? logsQuery.get() : Promise.resolve(null),
   ]);
 
   const statsBySource = new Map();
@@ -118,24 +127,26 @@ export async function getTenantTrafficStats(adminDb, tenantName, lookbackHours) 
     coveredBuckets.add(`${source}|${bucketStartIso}`);
   }
 
-  for (const doc of logsSnapshot.docs) {
-    const log = doc.data();
-    const source = normalizeLogSource(
-      log?.siteNormalized || log?.site || log?.source || log?.request?.host
-    );
-    if (!source) continue;
+  if (logsSnapshot) {
+    for (const doc of logsSnapshot.docs) {
+      const log = doc.data();
+      const source = normalizeLogSource(
+        log?.siteNormalized || log?.site || log?.source || log?.request?.host
+      );
+      if (!source) continue;
 
-    const bucketKey = `${source}|${getHourBucketIso(log?.timestamp || log?.ingestedAt)}`;
-    if (coveredBuckets.has(bucketKey)) {
+      const bucketKey = `${source}|${getHourBucketIso(log?.timestamp || log?.ingestedAt)}`;
+      if (coveredBuckets.has(bucketKey)) {
+        const existing = getStatsEntry(statsBySource, source);
+        updateLastSeen(existing, log?.timestamp || log?.ingestedAt || null);
+        statsBySource.set(source, existing);
+        continue;
+      }
+
       const existing = getStatsEntry(statsBySource, source);
-      updateLastSeen(existing, log?.timestamp || log?.ingestedAt || null);
+      applyRawLogStats(existing, log);
       statsBySource.set(source, existing);
-      continue;
     }
-
-    const existing = getStatsEntry(statsBySource, source);
-    applyRawLogStats(existing, log);
-    statsBySource.set(source, existing);
   }
 
   return statsBySource;
