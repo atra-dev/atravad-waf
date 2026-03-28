@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import ScrollReveal from '@/components/ScrollReveal';
 
 const capabilityHighlights = [
   {
@@ -230,11 +231,11 @@ function SectionEyebrow({ children }) {
 export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#08111f] text-white">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[700px] bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.32),_transparent_42%),radial-gradient(circle_at_20%_25%,_rgba(14,165,233,0.24),_transparent_25%),linear-gradient(180deg,_#08111f_0%,_#09192d_42%,_#f3f6fb_42%,_#f3f6fb_100%)]" />
+      <div className="hero-depth-bg absolute inset-x-0 top-0 -z-10 h-[700px] bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.32),_transparent_42%),radial-gradient(circle_at_20%_25%,_rgba(14,165,233,0.24),_transparent_25%),linear-gradient(180deg,_#08111f_0%,_#09192d_42%,_#f3f6fb_42%,_#f3f6fb_100%)]" />
 
       <section className="relative">
         <div className="mx-auto max-w-7xl px-6 pb-20 pt-6 lg:px-8 lg:pb-28">
-          <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
+          <header className="hero-fade-up flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
                 <Image src="/logo.png" alt="ATRAVA Defense" width={32} height={32} className="h-8 w-8 object-contain" priority />
@@ -263,27 +264,27 @@ export default function Home() {
           <div className="grid gap-14 pt-16 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] lg:items-start">
             <div>
               <SectionEyebrow>Managed cyber defense for growing teams</SectionEyebrow>
-              <h1 className="mt-6 max-w-4xl text-5xl leading-[0.98] text-white sm:text-6xl lg:text-7xl">
+              <h1 className="hero-headline-3d hero-fade-up hero-fade-delay-1 mt-6 max-w-4xl text-5xl leading-[0.98] text-white sm:text-6xl lg:text-7xl">
                 Let us take care of your cyber defense so you can focus on what
                 you do best: running and growing your business.
               </h1>
-              <p className="mt-8 max-w-[68rem] text-[1.15rem] leading-9 text-slate-300 lg:pr-8">
+              <p className="hero-fade-up hero-fade-delay-2 mt-8 max-w-[68rem] text-[1.15rem] leading-9 text-slate-300 lg:pr-8">
                 ATRAVA Defense is a managed WAF service that protects your websites and APIs with continuous
                 monitoring, policy enforcement, threat blocking, managed SSL, and security operations support.
                 It is innovated, managed, and operated by young Filipino cybersecurity professionals delivering credible,
                 production-ready cyber defense for growing businesses.
               </p>
 
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <div className="hero-fade-up hero-fade-delay-3 mt-8 flex flex-col gap-4 sm:flex-row">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-base font-semibold text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] hover:bg-cyan-300"
+                  className="homepage-cta-primary inline-flex items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-base font-semibold text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] hover:bg-cyan-300"
                 >
                   Start protected access
                 </Link>
                 <a
                   href="#capabilities"
-                  className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-base font-semibold text-white/85 hover:border-white/35 hover:text-white"
+                  className="homepage-cta-secondary inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-base font-semibold text-white/85 hover:border-white/35 hover:text-white"
                 >
                   See what is protected
                 </a>
@@ -292,9 +293,9 @@ export default function Home() {
             </div>
 
             <div className="relative space-y-6">
-              <div className="absolute -left-10 top-12 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
-              <div className="absolute -right-6 bottom-0 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
-              <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 p-6 shadow-[0_32px_100px_rgba(2,6,23,0.7)]">
+              <div className="hero-orb-left absolute -left-10 top-12 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
+              <div className="hero-orb-right absolute -right-6 bottom-0 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
+              <div className="homepage-surface-card hero-fade-up hero-fade-delay-2 relative overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 p-6 shadow-[0_32px_100px_rgba(2,6,23,0.7)]">
                 <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">
@@ -313,8 +314,12 @@ export default function Home() {
                     { label: 'SSL handling', value: 'Auto or custom certs' },
                     { label: 'Traffic controls', value: 'Geo, IP, rate, bots' },
                     { label: 'Observability', value: 'Logs, trends, attack views' },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-2xl border border-white/8 bg-white/5 p-4">
+                  ].map((item, index) => (
+                    <div
+                      key={item.label}
+                      className="homepage-tilt-card homepage-tilt-card-soft rounded-2xl border border-white/8 bg-white/5 p-4"
+                      style={{ animationDelay: `${180 + index * 90}ms` }}
+                    >
                       <p className="text-xs uppercase tracking-[0.25em] text-white/40">{item.label}</p>
                       <p className="mt-3 text-lg font-semibold text-white">{item.value}</p>
                     </div>
@@ -343,7 +348,7 @@ export default function Home() {
 
       <section id="capabilities" className="bg-[#f3f6fb] py-24 text-slate-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="max-w-3xl">
+          <ScrollReveal className="max-w-3xl">
             <SectionEyebrow>Core capabilities</SectionEyebrow>
             <h2 className="mt-5 font-serif text-4xl leading-tight text-slate-950 sm:text-5xl">
               The protection stack your customers expect from a serious WAF.
@@ -352,18 +357,20 @@ export default function Home() {
               This platform combines a reverse-proxy edge, policy-driven inspection, certificate automation,
               operational visibility, and tenant-scoped control into one managed layer.
             </p>
-          </div>
+          </ScrollReveal>
 
-          <div className="mt-14 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <ScrollReveal className="mt-14" delay={120}>
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {capabilityHighlights.map((item, index) => {
               const icons = [ShieldIcon, PulseIcon, GlobeIcon, LockIcon];
               const Icon = icons[index % icons.length];
 
               return (
-                <article
-                  key={item.title}
-                  className="group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.06)] transition-transform duration-300 hover:-translate-y-1"
-                >
+                  <article
+                    key={item.title}
+                    className="homepage-tilt-card homepage-tilt-card-lift group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.06)] transition-transform duration-300 hover:-translate-y-1"
+                    style={{ animationDelay: `${120 + index * 70}ms` }}
+                  >
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-cyan-300">
                     <Icon />
                   </div>
@@ -372,13 +379,14 @@ export default function Home() {
                 </article>
               );
             })}
-          </div>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
       <section className="bg-slate-950 py-24 text-white">
         <div className="mx-auto grid max-w-7xl gap-16 px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:px-8">
-          <div>
+          <ScrollReveal>
             <SectionEyebrow>Security features</SectionEyebrow>
             <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
               Rich controls for blocking, allowing, inspecting, and proving value.
@@ -387,25 +395,31 @@ export default function Home() {
               The feature set is built around actual capabilities already present in the platform, from edge traffic
               enforcement to operational dashboards and certificate workflows.
             </p>
-          </div>
+          </ScrollReveal>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {platformFeatures.map((feature) => (
-              <div key={feature} className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-sm text-slate-200">
+          <ScrollReveal delay={120}>
+            <div className="grid gap-4 sm:grid-cols-2">
+            {platformFeatures.map((feature, index) => (
+              <div
+                key={feature}
+                className="homepage-tilt-card homepage-tilt-card-drift rounded-3xl border border-white/10 bg-white/5 px-5 py-4 text-sm text-slate-200"
+                style={{ animationDelay: `${160 + index * 55}ms` }}
+              >
                 <div className="flex items-start gap-3">
                   <span className="mt-1 h-2.5 w-2.5 rounded-full bg-cyan-300" />
                   <span className="leading-7">{feature}</span>
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
       <section className="bg-[linear-gradient(180deg,#f3f6fb_0%,#ffffff_100%)] py-24 text-slate-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid gap-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-            <div>
+            <ScrollReveal>
               <SectionEyebrow>How it works</SectionEyebrow>
               <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
                 Familiar onboarding, stronger enforcement, cleaner operations.
@@ -414,11 +428,16 @@ export default function Home() {
                 The deployment flow is straightforward: add the app, point DNS, activate edge services, and operate
                 from a single management surface.
               </p>
-            </div>
+            </ScrollReveal>
 
-            <div className="space-y-5">
-              {deploymentSteps.map((item) => (
-                <div key={item.step} className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+            <ScrollReveal delay={120}>
+              <div className="space-y-5">
+              {deploymentSteps.map((item, index) => (
+                <div
+                  key={item.step}
+                  className="homepage-tilt-card homepage-tilt-card-step rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+                  style={{ animationDelay: `${220 + index * 95}ms` }}
+                >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                     <div className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-700">{item.step}</div>
                     <div>
@@ -428,14 +447,15 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
 
       <section id="pricing" className="bg-white py-24 text-slate-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="max-w-3xl">
+            <ScrollReveal className="max-w-3xl">
               <SectionEyebrow>Pricing</SectionEyebrow>
               <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
                 Service plans for teams that want cyber defense handled well.
@@ -444,17 +464,19 @@ export default function Home() {
                 Every plan is built around managed protection, operational support, and visibility that scales with the
                 importance of the applications you protect.
               </p>
-          </div>
+            </ScrollReveal>
 
-          <div className="mt-14 grid gap-6 xl:grid-cols-4">
+          <ScrollReveal className="mt-14" delay={120}>
+            <div className="grid gap-6 xl:grid-cols-4">
             {pricingPlans.map((plan) => (
               <article
                 key={plan.name}
-                className={`rounded-[32px] border p-8 shadow-[0_22px_70px_rgba(15,23,42,0.08)] ${
+                className={`homepage-plan-card ${plan.highlight ? 'homepage-plan-card-featured' : 'homepage-plan-card-standard'} rounded-[32px] border p-8 shadow-[0_22px_70px_rgba(15,23,42,0.08)] ${
                   plan.highlight
                     ? 'border-cyan-300 bg-slate-950 text-white'
                     : 'border-slate-200 bg-[#f7f9fc] text-slate-950'
                 }`}
+                style={{ animationDelay: `${140 + pricingPlans.indexOf(plan) * 80}ms` }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -510,14 +532,16 @@ export default function Home() {
                 </div>
               </article>
             ))}
-          </div>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
       <section className="bg-[#091322] py-24 text-white">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_26px_90px_rgba(2,6,23,0.55)]">
+            <ScrollReveal>
+              <div className="rounded-[32px] border border-white/10 bg-white/5 p-8 shadow-[0_26px_90px_rgba(2,6,23,0.55)]">
               <SectionEyebrow>Operations and control</SectionEyebrow>
               <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
                 Operate security from one control layer without adding complexity for customers.
@@ -528,22 +552,24 @@ export default function Home() {
                 sites and APIs.
               </p>
               <div className="mt-8 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+                <div className="homepage-tilt-card homepage-tilt-card-soft rounded-3xl border border-white/10 bg-slate-950/40 p-5" style={{ animationDelay: '120ms' }}>
                   <p className="text-sm font-semibold text-white">Edge inspection</p>
                   <p className="mt-2 text-sm leading-7 text-slate-300">Traffic is inspected before it reaches origin infrastructure.</p>
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+                <div className="homepage-tilt-card homepage-tilt-card-soft rounded-3xl border border-white/10 bg-slate-950/40 p-5" style={{ animationDelay: '240ms' }}>
                   <p className="text-sm font-semibold text-white">Real-time sync</p>
                   <p className="mt-2 text-sm leading-7 text-slate-300">Application and policy changes are picked up without manual node edits.</p>
                 </div>
-                <div className="rounded-3xl border border-white/10 bg-slate-950/40 p-5">
+                <div className="homepage-tilt-card homepage-tilt-card-soft rounded-3xl border border-white/10 bg-slate-950/40 p-5" style={{ animationDelay: '360ms' }}>
                   <p className="text-sm font-semibold text-white">Operational clarity</p>
                   <p className="mt-2 text-sm leading-7 text-slate-300">Teams can review logs, analytics, status, and tenant-scoped activity centrally.</p>
                 </div>
               </div>
-            </div>
+              </div>
+            </ScrollReveal>
 
-            <div className="rounded-[32px] border border-cyan-400/20 bg-[linear-gradient(180deg,rgba(34,211,238,0.12),rgba(8,17,31,0.94))] p-8 shadow-[0_26px_90px_rgba(2,6,23,0.55)]">
+            <ScrollReveal delay={120} direction="left">
+              <div className="rounded-[32px] border border-cyan-400/20 bg-[linear-gradient(180deg,rgba(34,211,238,0.12),rgba(8,17,31,0.94))] p-8 shadow-[0_26px_90px_rgba(2,6,23,0.55)]">
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-200">Get started</p>
               <h3 className="mt-5 text-3xl font-semibold text-white">
                 Protect production websites and APIs with a managed enterprise WAF.
@@ -566,7 +592,8 @@ export default function Home() {
                   Review pricing
                 </a>
               </div>
-            </div>
+              </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
