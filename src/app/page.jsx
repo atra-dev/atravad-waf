@@ -289,17 +289,9 @@ export default function Home() {
                 </a>
               </div>
 
-              <div className="mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {proofPoints.map((item) => (
-                  <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                    <p className="mt-3 text-lg font-semibold text-white">{item.value}</p>
-                  </div>
-                ))}
-              </div>
             </div>
 
-            <div className="relative">
+            <div className="relative space-y-6">
               <div className="absolute -left-10 top-12 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
               <div className="absolute -right-6 bottom-0 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
               <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/80 p-6 shadow-[0_32px_100px_rgba(2,6,23,0.7)]">
@@ -328,7 +320,15 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
+              </div>
 
+              <div className="relative grid gap-4 sm:grid-cols-2">
+                {proofPoints.map((item) => (
+                  <div key={item.label} className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+                    <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
+                    <p className="mt-3 text-lg font-semibold text-white">{item.value}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
