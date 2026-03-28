@@ -358,7 +358,7 @@ function LoginPageContent() {
   };
 
   return (
-    <div className="relative h-screen overflow-hidden bg-[#08111f] text-white">
+    <div className="relative min-h-screen overflow-hidden bg-[#08111f] text-white">
       <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.32),_transparent_42%),radial-gradient(circle_at_20%_25%,_rgba(14,165,233,0.24),_transparent_25%),linear-gradient(180deg,_#08111f_0%,_#09192d_48%,_#f3f6fb_48%,_#f3f6fb_100%)]" />
       <div className="absolute left-10 top-24 -z-10 h-40 w-40 rounded-full bg-cyan-400/15 blur-3xl" />
       <div className="absolute right-8 top-56 -z-10 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
@@ -395,7 +395,7 @@ function LoginPageContent() {
         </div>
       ) : null}
 
-      <div className="mx-auto flex h-full max-w-7xl flex-col px-6 pb-4 pt-2.5 lg:px-8 lg:pb-5">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 pb-10 pt-4 lg:px-8 lg:pb-12 lg:pt-4">
         <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-2.5 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
@@ -411,32 +411,32 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.06fr)_446px] lg:items-center">
+        <div className="grid flex-1 gap-10 pt-8 lg:grid-cols-[minmax(0,1.06fr)_446px] lg:items-center lg:gap-12 lg:pt-10">
           <section className="flex min-h-0 flex-col justify-center">
             <div>
               <SectionEyebrow>Customer access</SectionEyebrow>
               <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-white sm:text-[2.95rem] xl:text-[3.42rem]">
                 Secure sign-in for managed WAF operations, tenant access, and security visibility.
               </h1>
-              <p className="mt-4 max-w-[35rem] text-[0.98rem] leading-7 text-slate-300">
+              <p className="mt-5 max-w-[35rem] text-[0.98rem] leading-8 text-slate-300">
                 Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
                 update policies, and operate within your provisioned tenant scope.
               </p>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {trustPoints.map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-4 backdrop-blur"
+                  className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 backdrop-blur"
                 >
                   <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                  <p className="mt-2 text-[0.9rem] font-semibold leading-7 text-white xl:text-[0.98rem]">{item.value}</p>
+                  <p className="mt-3 text-[0.9rem] font-semibold leading-8 text-white xl:text-[0.98rem]">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-5 [@media_(max-height:920px)]:hidden">
+            <div className="mt-8 [@media_(max-height:920px)]:hidden">
               <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">Operations view</p>
@@ -445,7 +445,7 @@ function LoginPageContent() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-2.5">
+                <div className="mt-5 grid gap-3">
                   {operationsHighlights.map((item) => (
                     <div
                       key={item.label}
@@ -457,8 +457,8 @@ function LoginPageContent() {
                   ))}
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-                  <div className="space-y-4">
+                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/45 p-5">
+                  <div className="space-y-5">
                     {activityRail.map((item, index) => (
                       <div key={item.title} className="flex gap-3">
                         <div className="flex flex-col items-center">
@@ -481,7 +481,7 @@ function LoginPageContent() {
             </div>
           </section>
 
-          <section className="relative flex min-h-0 items-center lg:justify-end">
+          <section className="relative flex min-h-0 items-center pt-2 lg:justify-end lg:pt-0">
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
             <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">

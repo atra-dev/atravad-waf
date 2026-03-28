@@ -226,73 +226,6 @@ function SectionEyebrow({ children }) {
   );
 }
 
-function CoverageMapCard() {
-  return (
-    <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-white">Global coverage view</p>
-          <p className="mt-1 text-sm text-slate-300">
-            Global protection plane with operations anchored in the Philippines.
-          </p>
-        </div>
-        <GlobeIcon className="h-10 w-10 text-cyan-300" />
-      </div>
-
-      <div className="relative mt-5 overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/45 p-4">
-        <div className="absolute left-6 top-5 h-24 w-24 rounded-full bg-cyan-400/10 blur-2xl" />
-        <div className="absolute bottom-4 right-6 h-20 w-20 rounded-full bg-sky-500/10 blur-2xl" />
-        <svg viewBox="0 0 520 260" className="relative h-[210px] w-full" fill="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="continentFill" x1="48" y1="36" x2="448" y2="220" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#67E8F9" stopOpacity="0.32" />
-              <stop offset="1" stopColor="#0F172A" stopOpacity="0.08" />
-            </linearGradient>
-            <radialGradient id="phGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(393 122) rotate(90) scale(40 40)">
-              <stop stopColor="#67E8F9" stopOpacity="0.78" />
-              <stop offset="0.45" stopColor="#22D3EE" stopOpacity="0.38" />
-              <stop offset="1" stopColor="#22D3EE" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-
-          <path d="M40 95c16-19 43-35 74-33 15 1 27 5 36 9 8-12 21-22 38-27 26-8 56 2 71 20 7 9 9 20 5 31-4 11-16 19-30 22-17 4-36 2-53-2-7 15-21 28-40 34-26 8-59 2-79-11-18-12-30-28-31-43-1-1-1-1 9 0Z" fill="url(#continentFill)" stroke="rgba(165,243,252,0.22)" />
-          <path d="M177 142c12-7 29-8 41-4 11 4 18 12 20 21 1 8-3 16-10 22-8 7-20 12-33 14-14 2-28 0-38-6-10-5-16-13-16-22s6-18 18-25c5 1 12 1 18 0Z" fill="url(#continentFill)" stroke="rgba(165,243,252,0.18)" />
-          <path d="M263 88c19-21 48-38 83-40 31-2 62 7 83 21 15 10 24 24 24 38 0 17-14 32-34 43-24 13-57 20-88 20-31 0-60-8-78-22-17-12-23-28-18-44 4-6 10-11 17-16 5 1 8 2 11 0Z" fill="url(#continentFill)" stroke="rgba(165,243,252,0.2)" />
-          <path d="M318 182c11-7 27-11 43-10 14 1 26 6 32 13 5 6 6 14 2 21-4 8-13 14-25 18-13 4-29 5-43 3-14-2-26-8-31-16-5-7-4-16 2-23 4-2 11-4 20-6Z" fill="url(#continentFill)" stroke="rgba(165,243,252,0.18)" />
-          <path d="M447 186c6-5 16-7 24-6 8 1 14 4 17 9 3 4 3 10 0 15-4 6-11 11-20 13-8 3-18 3-25 1-7-2-12-6-13-11-2-6 2-14 12-21 1 0 3 0 5 0Z" fill="url(#continentFill)" stroke="rgba(165,243,252,0.18)" />
-
-          <path d="M44 77h430" stroke="rgba(255,255,255,0.06)" strokeDasharray="5 7" />
-          <path d="M44 130h430" stroke="rgba(255,255,255,0.06)" strokeDasharray="5 7" />
-          <path d="M44 184h430" stroke="rgba(255,255,255,0.06)" strokeDasharray="5 7" />
-
-          <circle cx="393" cy="122" r="40" fill="url(#phGlow)" />
-          <circle cx="393" cy="122" r="14" fill="#22D3EE" fillOpacity="0.2" />
-          <circle cx="393" cy="122" r="7" fill="#67E8F9" fillOpacity="0.42" />
-          <circle cx="393" cy="122" r="4.5" fill="#ECFEFF" />
-          <path d="M393 118v8M389 122h8" stroke="#ECFEFF" strokeWidth="1.6" strokeLinecap="round" />
-
-          <path d="M403 116c14-10 28-14 50-14" stroke="#67E8F9" strokeWidth="1.5" strokeDasharray="4 5" strokeLinecap="round" />
-          <rect x="452" y="84" width="48" height="34" rx="10" fill="rgba(8,17,31,0.86)" stroke="rgba(103,232,249,0.28)" />
-          <text x="464" y="98" fill="#A5F3FC" fontSize="8.5" fontWeight="700" letterSpacing="1.8">PHILIPPINES</text>
-          <text x="464" y="109" fill="#E2E8F0" fontSize="8.5">Security operations</text>
-        </svg>
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {[
-          'Global request visibility',
-          'Philippines-highlighted operations',
-          'Managed edge enforcement',
-        ].map((item) => (
-          <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-3">
-            <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-            <span className="text-sm text-white/85">{item}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function Home() {
   return (
@@ -396,7 +329,23 @@ export default function Home() {
                   ))}
                 </div>
 
-                <CoverageMapCard />
+                <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-5">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Attack handling workflow</p>
+                      <p className="mt-1 text-sm text-slate-300">Point DNS, apply policy, issue SSL, inspect traffic, monitor outcomes.</p>
+                    </div>
+                    <ShieldIcon className="h-10 w-10 text-cyan-300" />
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    {['Traffic reaches the ATRAVA Defense edge', 'Threats are filtered by the policy engine', 'Clean traffic is forwarded to origin'].map((item) => (
+                      <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-3">
+                        <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+                        <span className="text-sm text-white/85">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
