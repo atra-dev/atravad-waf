@@ -34,6 +34,11 @@ function encodeCounterKey(value) {
   return Buffer.from(String(value || ''), 'utf8').toString('base64url');
 }
 
+function getRollupDocumentId(tenantName, bucketKey, site) {
+  const siteKey = site ? encodeCounterKey(site) : 'unknown-site';
+  return `${tenantName}_${bucketKey}_${siteKey}`;
+}
+
 function incrementCount(target, path, amount = 1) {
   let cursor = target;
   for (let index = 0; index < path.length - 1; index += 1) {
@@ -204,7 +209,7 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
 
   const rollupRef = adminDb
     .collection('log_rollups_hourly')
-    .doc(`${rawLog.tenantName}_${bucketKey}`);
+    .doc(getRollupDocumentId(rawLog.tenantName, bucketKey, site));
   batch.set(rollupRef, buildRollupUpdate(entry, analyticsRetentionDays), { merge: true });
 
   await batch.commit();

@@ -13,6 +13,7 @@ import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/t
 
 const APPS_CACHE_TTL_MS = 60000;
 const TRAFFIC_STATS_WINDOW_HOURS = 24;
+const SITE_SCOPED_ROLLUP_ID_PATTERN = /_(\d{10})_([A-Za-z0-9_-]+)$/;
 
 function normalizeLogSource(value) {
   return normalizeDomainInput(typeof value === 'string' ? value : '');
@@ -40,46 +41,113 @@ function deriveLogDecision(log) {
   return 'allowed';
 }
 
-async function getTenantTrafficStats(tenantName) {
-  const windowStartIso = new Date(
-    Date.now() - TRAFFIC_STATS_WINDOW_HOURS * 60 * 60 * 1000
-  ).toISOString();
-  const rollupsSnapshot = await adminDb
-    .collection('log_rollups_hourly')
-    .where('tenantName', '==', tenantName)
-    .where('bucketStartIso', '>=', windowStartIso)
-    .get();
-
-  const statsBySource = new Map();
-
-  for (const doc of rollupsSnapshot.docs) {
-    const rollup = doc.data();
-    const source = normalizeLogSource(rollup?.siteNormalized);
-    if (!source) continue;
-
-    const existing = statsBySource.get(source) || {
+function getStatsEntry(statsBySource, source) {
+  return (
+    statsBySource.get(source) || {
       blocked: 0,
       allowed: 0,
       total: 0,
       lastSeenAt: null,
-    };
+    }
+  );
+}
 
-    const totals = rollup?.totals || {};
-    const allowed = Number(totals.allowed || 0);
-    const wafBlocked = Number(totals.wafBlocked || 0);
-    const originDenied = Number(totals.originDenied || 0);
-    const total = Number(totals.total || allowed + wafBlocked + originDenied || 0);
-    existing.allowed += allowed;
-    existing.blocked += wafBlocked + originDenied;
-    existing.total += total;
+function updateLastSeen(existing, candidate) {
+  if (!candidate) return;
+  if (!existing.lastSeenAt || new Date(candidate).getTime() > new Date(existing.lastSeenAt).getTime()) {
+    existing.lastSeenAt = candidate;
+  }
+}
 
-    const lastSeenAt = rollup?.updatedAt || rollup?.bucketStartIso || null;
-    if (lastSeenAt) {
-      if (!existing.lastSeenAt || new Date(lastSeenAt).getTime() > new Date(existing.lastSeenAt).getTime()) {
-        existing.lastSeenAt = lastSeenAt;
-      }
+function applyRollupStats(existing, rollup) {
+  const totals = rollup?.totals || {};
+  const allowed = Number(totals.allowed || 0);
+  const wafBlocked = Number(totals.wafBlocked || 0);
+  const originDenied = Number(totals.originDenied || 0);
+  const total = Number(totals.total || allowed + wafBlocked + originDenied || 0);
+
+  existing.allowed += allowed;
+  existing.blocked += wafBlocked + originDenied;
+  existing.total += total;
+  updateLastSeen(existing, rollup?.updatedAt || rollup?.bucketStartIso || null);
+}
+
+function applyRawLogStats(existing, log) {
+  const decision = deriveLogDecision(log);
+  existing.total += 1;
+  if (decision === 'allowed') {
+    existing.allowed += 1;
+  } else if (decision === 'waf_blocked' || decision === 'origin_denied') {
+    existing.blocked += 1;
+  }
+
+  updateLastSeen(existing, log?.timestamp || log?.ingestedAt || null);
+}
+
+function getHourBucketIso(timestamp) {
+  const date = timestamp ? new Date(timestamp) : new Date();
+  date.setMinutes(0, 0, 0);
+  return date.toISOString();
+}
+
+function isSiteScopedRollupDocId(docId) {
+  return SITE_SCOPED_ROLLUP_ID_PATTERN.test(String(docId || ''));
+}
+
+async function getTenantTrafficStats(tenantName) {
+  const windowStartIso = new Date(
+    Date.now() - TRAFFIC_STATS_WINDOW_HOURS * 60 * 60 * 1000
+  ).toISOString();
+  const [rollupsSnapshot, logsSnapshot] = await Promise.all([
+    adminDb
+      .collection('log_rollups_hourly')
+      .where('tenantName', '==', tenantName)
+      .where('bucketStartIso', '>=', windowStartIso)
+      .get(),
+    adminDb
+      .collection('logs')
+      .where('tenantName', '==', tenantName)
+      .where('timestamp', '>=', windowStartIso)
+      .orderBy('timestamp', 'desc')
+      .get(),
+  ]);
+
+  const statsBySource = new Map();
+  const coveredBuckets = new Set();
+
+  for (const doc of rollupsSnapshot.docs) {
+    if (!isSiteScopedRollupDocId(doc.id)) {
+      continue;
     }
 
+    const rollup = doc.data();
+    const source = normalizeLogSource(rollup?.siteNormalized);
+    const bucketStartIso = String(rollup?.bucketStartIso || '').trim();
+    if (!source || !bucketStartIso) continue;
+
+    const existing = getStatsEntry(statsBySource, source);
+    applyRollupStats(existing, rollup);
+    statsBySource.set(source, existing);
+    coveredBuckets.add(`${source}|${bucketStartIso}`);
+  }
+
+  for (const doc of logsSnapshot.docs) {
+    const log = doc.data();
+    const source = normalizeLogSource(
+      log?.siteNormalized || log?.site || log?.source || log?.request?.host
+    );
+    if (!source) continue;
+
+    const bucketKey = `${source}|${getHourBucketIso(log?.timestamp || log?.ingestedAt)}`;
+    if (coveredBuckets.has(bucketKey)) {
+      const existing = getStatsEntry(statsBySource, source);
+      updateLastSeen(existing, log?.timestamp || log?.ingestedAt || null);
+      statsBySource.set(source, existing);
+      continue;
+    }
+
+    const existing = getStatsEntry(statsBySource, source);
+    applyRawLogStats(existing, log);
     statsBySource.set(source, existing);
   }
 

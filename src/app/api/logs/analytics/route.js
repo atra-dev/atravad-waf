@@ -416,6 +416,57 @@ function aggregateRollups(docs) {
   });
 }
 
+async function getRawAnalytics({
+  tenantName,
+  hours,
+  site,
+  severity,
+  decision,
+  blockedDecisions = null,
+}) {
+  const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const decisionKeys = Array.isArray(blockedDecisions) && blockedDecisions.length > 0
+    ? blockedDecisions
+    : [decision].filter(Boolean);
+
+  const fetchLogsForDecision = async (decisionKey = null) => {
+    let rawQuery = adminDb
+      .collection('logs')
+      .where('tenantName', '==', tenantName)
+      .where('timestamp', '>=', sinceIso);
+
+    if (site) {
+      rawQuery = rawQuery.where('siteNormalized', '==', site);
+    }
+    if (severity) {
+      rawQuery = rawQuery.where('severityNormalized', '==', severity);
+    }
+    if (decisionKey) {
+      rawQuery = rawQuery.where('decision', '==', decisionKey);
+    }
+
+    const snapshot = await rawQuery.orderBy('timestamp', 'desc').get();
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  };
+
+  if (decisionKeys.length > 0) {
+    const logGroups = await Promise.all(
+      decisionKeys.map((decisionKey) => fetchLogsForDecision(decisionKey))
+    );
+
+    return aggregateRawLogs(
+      logGroups
+        .flat()
+        .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')))
+    );
+  }
+
+  return aggregateRawLogs(await fetchLogsForDecision());
+}
+
 export async function GET(request) {
   try {
     if (!adminDb) {
@@ -474,61 +525,23 @@ export async function GET(request) {
             decision === 'waf_blocked' || decision === 'origin_denied'
               ? [decision]
               : ['waf_blocked', 'origin_denied'];
-          const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-
-          const snapshots = await Promise.all(
-            blockedDecisions.map((decisionKey) => {
-              let rawQuery = adminDb
-                .collection('logs')
-                .where('tenantName', '==', tenantName)
-                .where('decision', '==', decisionKey)
-                .where('timestamp', '>=', sinceIso);
-
-              if (site) {
-                rawQuery = rawQuery.where('siteNormalized', '==', site);
-              }
-              if (severity) {
-                rawQuery = rawQuery.where('severityNormalized', '==', severity);
-              }
-
-              return rawQuery.orderBy('timestamp', 'desc').get();
-            })
-          );
-
-          const logs = snapshots
-            .flatMap((snapshot) =>
-              snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-              }))
-            )
-            .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')));
-
-          return aggregateRawLogs(logs);
+          return getRawAnalytics({
+            tenantName,
+            hours,
+            site,
+            severity,
+            blockedDecisions,
+          });
         }
 
-        if (severity) {
-          let rawQuery = adminDb
-            .collection('logs')
-            .where('tenantName', '==', tenantName)
-            .where('timestamp', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString());
-
-          if (site) {
-            rawQuery = rawQuery.where('siteNormalized', '==', site);
-          }
-          if (severity) {
-            rawQuery = rawQuery.where('severityNormalized', '==', severity);
-          }
-          if (decision) {
-            rawQuery = rawQuery.where('decision', '==', decision);
-          }
-
-          const snapshot = await rawQuery.orderBy('timestamp', 'desc').get();
-          const logs = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          return aggregateRawLogs(logs);
+        if (severity || site) {
+          return getRawAnalytics({
+            tenantName,
+            hours,
+            site,
+            severity,
+            decision,
+          });
         }
 
         let query = adminDb
