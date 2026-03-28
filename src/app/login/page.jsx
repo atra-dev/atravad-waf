@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { 
   signInWithEmailAndPassword, 
   signInWithPopup,
@@ -23,6 +24,27 @@ const platformSignals = [
   'Managed tenant access and role-based onboarding',
   'Security analytics, logs, and policy control in one dashboard',
   'Google or password sign-in based on provisioned access',
+];
+
+const operationsHighlights = [
+  { label: 'Tenant scope', value: 'Provisioned access only', tone: 'cyan' },
+  { label: 'Policy status', value: 'Managed enforcement active', tone: 'emerald' },
+  { label: 'Audit stream', value: 'Logs and analytics available', tone: 'sky' },
+];
+
+const activityRail = [
+  {
+    title: 'Protected applications',
+    detail: 'Review sites, routing, and managed activation status from a single workspace.',
+  },
+  {
+    title: 'Threat visibility',
+    detail: 'Inspect blocked requests, origin denials, geographic patterns, and traffic behavior.',
+  },
+  {
+    title: 'Operational control',
+    detail: 'Tune policies, export investigations, and work inside your assigned tenant boundary.',
+  },
 ];
 
 function ShieldIcon({ className = 'h-6 w-6' }) {
@@ -52,6 +74,16 @@ function SectionEyebrow({ children }) {
   );
 }
 
+function HighlightToneClass(tone) {
+  if (tone === 'emerald') {
+    return 'border-emerald-400/25 bg-emerald-400/10 text-emerald-100';
+  }
+  if (tone === 'sky') {
+    return 'border-sky-400/25 bg-sky-400/10 text-sky-100';
+  }
+  return 'border-cyan-400/25 bg-cyan-400/10 text-cyan-100';
+}
+
 function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -74,9 +106,9 @@ function LoginPageContent() {
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
 
-  const showToast = (message, tone = 'error') => {
+  const showToast = useCallback((message, tone = 'error') => {
     setToast({ message, tone });
-  };
+  }, []);
 
   const getFriendlyAuthError = (error, mode = 'email') => {
     const code = typeof error?.code === 'string' ? error.code : '';
@@ -117,7 +149,7 @@ function LoginPageContent() {
       : 'Unable to sign in. Please verify your access with the ATRAVA Defense team.';
   };
 
-  const getFriendlySessionError = (errorData) => {
+  const getFriendlySessionError = useCallback((errorData) => {
     if (errorData?.error === 'Access denied: account is not provisioned by ATRAVA Defense') {
       return 'Your account has not been provisioned for ATRAVA Defense access.';
     }
@@ -131,9 +163,9 @@ function LoginPageContent() {
       return 'This account is not authorized for the selected sign-in method.';
     }
     return 'Your account could not be verified for managed access.';
-  };
+  }, []);
 
-  const completeManagedSession = async (firebaseUser) => {
+  const completeManagedSession = useCallback(async (firebaseUser) => {
     const token = await firebaseUser.getIdToken();
     const maxAge = 3600;
     const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
@@ -156,9 +188,9 @@ function LoginPageContent() {
     }
 
     return verifyResponse.json();
-  };
+  }, [getFriendlySessionError]);
 
-  const finalizeGoogleSession = async (firebaseUser, fallbackMessage) => {
+  const finalizeGoogleSession = useCallback(async (firebaseUser, fallbackMessage) => {
     if (!firebaseUser) return false;
     if (sessionFinalizePromiseRef.current) {
       return sessionFinalizePromiseRef.current;
@@ -189,14 +221,14 @@ function LoginPageContent() {
     })();
 
     return sessionFinalizePromiseRef.current;
-  };
+  }, [completeManagedSession, router, searchParams, showToast]);
 
-  const hasAuthTokenCookie = () => {
+  const hasAuthTokenCookie = useCallback(() => {
     if (typeof document === 'undefined') return false;
     return document.cookie
       .split(';')
       .some((cookie) => cookie.trim().startsWith('authToken='));
-  };
+  }, []);
   
   useEffect(() => {
     if (loginInitRef.current) return;
@@ -258,7 +290,7 @@ function LoginPageContent() {
     });
 
     return () => unsubscribe();
-  }, [router, searchParams]);
+  }, [finalizeGoogleSession, hasAuthTokenCookie, router, searchParams]);
 
   const googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({
@@ -367,7 +399,7 @@ function LoginPageContent() {
         <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-2.5 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
-              <img src="/logo.png" alt="ATRAVA Defense" className="h-8 w-8 object-contain" />
+              <Image src="/logo.png" alt="ATRAVA Defense" width={32} height={32} className="h-8 w-8 object-contain" priority />
             </div>
             <div>
               <p className="text-sm font-semibold tracking-[0.2em] text-white/70">ATRAVA Defense</p>
@@ -379,46 +411,93 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.02fr)_430px] lg:items-center">
+        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.08fr)_430px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
             <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-3 max-w-[12.5ch] font-serif text-[2.35rem] leading-[0.93] text-white sm:text-[2.7rem] xl:text-[3.05rem]">
+            <h1 className="mt-3 max-w-[11.5ch] font-serif text-[2.55rem] leading-[0.9] text-white sm:text-[3rem] xl:text-[3.55rem]">
               Secure sign-in for managed WAF operations, tenant access, and security visibility.
             </h1>
-            <p className="mt-3 max-w-[35rem] text-[0.93rem] leading-7 text-slate-300">
+            <p className="mt-4 max-w-[39rem] text-[0.98rem] leading-7 text-slate-300">
               Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
               update policies, and operate within your provisioned tenant scope.
             </p>
 
-            <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {trustPoints.map((item) => (
-                <div key={item.label} className="rounded-[24px] border border-white/10 bg-white/5 p-3.5 backdrop-blur">
+                <div
+                  key={item.label}
+                  className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-4 backdrop-blur"
+                >
                   <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
                   <p className="mt-2 text-[0.9rem] font-semibold leading-7 text-white xl:text-[0.98rem]">{item.value}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 rounded-[24px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-4 shadow-[0_20px_70px_rgba(2,6,23,0.35)] [@media_(max-height:920px)]:hidden">
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
-                  <ShieldIcon className="h-5 w-5" />
+            <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(250px,0.95fr)] [@media_(max-height:920px)]:hidden">
+              <div className="rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.14),rgba(15,23,42,0.08))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
+                    <ShieldIcon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Managed sign-in policy</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-200">
+                      Accounts are provisioned by the ATRAVA Defense team. Some users are password-based, while others are
+                      restricted to Google sign-in depending on the assigned access model.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Managed sign-in policy</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-200">
-                    Accounts are provisioned by the ATRAVA Defense team. Some users are password-based, while others are
-                    restricted to Google sign-in depending on the assigned access model.
-                  </p>
+                <div className="mt-4 grid gap-2.5">
+                  {platformSignals.map((item) => (
+                    <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+                      <span className="text-[0.92rem] text-white/85">{item}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="mt-3 space-y-2">
-                {platformSignals.map((item) => (
-                  <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                    <span className="text-[0.92rem] text-white/85">{item}</span>
+
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">Operations view</p>
+                  <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                    Active
                   </div>
-                ))}
+                </div>
+
+                <div className="mt-4 grid gap-2.5">
+                  {operationsHighlights.map((item) => (
+                    <div
+                      key={item.label}
+                      className={`rounded-2xl border px-4 py-3 ${HighlightToneClass(item.tone)}`}
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-current/70">{item.label}</p>
+                      <p className="mt-1 text-sm font-semibold text-white">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+                  <div className="space-y-4">
+                    {activityRail.map((item, index) => (
+                      <div key={item.title} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/25 bg-cyan-400/10 text-xs font-semibold text-cyan-100">
+                            {index + 1}
+                          </span>
+                          {index < activityRail.length - 1 ? (
+                            <span className="mt-2 h-full w-px bg-white/10" />
+                          ) : null}
+                        </div>
+                        <div className="pb-1">
+                          <p className="text-sm font-semibold text-white">{item.title}</p>
+                          <p className="mt-1 text-sm leading-6 text-slate-300">{item.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </section>
