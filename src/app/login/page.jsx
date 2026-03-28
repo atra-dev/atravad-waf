@@ -411,44 +411,17 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.08fr)_446px] lg:items-center">
+        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.06fr)_446px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,0.96fr)_minmax(280px,0.84fr)] xl:items-start">
-              <div>
-                <SectionEyebrow>Customer access</SectionEyebrow>
-                <h1 className="mt-3 max-w-[11.2ch] font-serif text-[2.45rem] leading-[0.92] text-white sm:text-[2.9rem] xl:text-[3.3rem]">
-                  Secure sign-in for managed WAF operations, tenant access, and security visibility.
-                </h1>
-                <p className="mt-4 max-w-[34rem] text-[1rem] leading-7 text-slate-300">
-                  Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
-                  update policies, and operate within your provisioned tenant scope.
-                </p>
-              </div>
-
-              <div className="hidden xl:block">
-                <div className="rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.14),rgba(15,23,42,0.08))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
-                      <ShieldIcon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Managed sign-in policy</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-200">
-                        Accounts are provisioned by the ATRAVA Defense team. Some users are password-based, while others are
-                        restricted to Google sign-in depending on the assigned access model.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-2.5">
-                    {platformSignals.map((item) => (
-                      <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2.5">
-                        <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                        <span className="text-[0.92rem] text-white/85">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            <div>
+              <SectionEyebrow>Customer access</SectionEyebrow>
+              <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-white sm:text-[2.95rem] xl:text-[3.42rem]">
+                Secure sign-in for managed WAF operations, tenant access, and security visibility.
+              </h1>
+              <p className="mt-4 max-w-[35rem] text-[0.98rem] leading-7 text-slate-300">
+                Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
+                update policies, and operate within your provisioned tenant scope.
+              </p>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -463,31 +436,8 @@ function LoginPageContent() {
               ))}
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2 [@media_(max-height:920px)]:hidden xl:grid-cols-[minmax(0,0.92fr)_minmax(280px,1.08fr)]">
-              <div className="rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.14),rgba(15,23,42,0.08))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)] xl:hidden">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
-                    <ShieldIcon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Managed sign-in policy</p>
-                    <p className="mt-2 text-sm leading-6 text-slate-200">
-                      Accounts are provisioned by the ATRAVA Defense team. Some users are password-based, while others are
-                      restricted to Google sign-in depending on the assigned access model.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-2.5">
-                  {platformSignals.map((item) => (
-                    <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2.5">
-                      <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                      <span className="text-[0.92rem] text-white/85">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur md:col-span-2 xl:col-span-1">
+            <div className="mt-5 [@media_(max-height:920px)]:hidden">
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">Operations view</p>
                   <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
