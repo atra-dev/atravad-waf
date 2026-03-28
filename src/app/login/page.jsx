@@ -411,16 +411,45 @@ function LoginPageContent() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.08fr)_430px] lg:items-center">
+        <div className="grid flex-1 gap-8 pt-4 lg:grid-cols-[minmax(0,1.08fr)_446px] lg:items-center">
           <section className="flex min-h-0 flex-col justify-center">
-            <SectionEyebrow>Customer access</SectionEyebrow>
-            <h1 className="mt-3 max-w-[11.5ch] font-serif text-[2.55rem] leading-[0.9] text-white sm:text-[3rem] xl:text-[3.55rem]">
-              Secure sign-in for managed WAF operations, tenant access, and security visibility.
-            </h1>
-            <p className="mt-4 max-w-[39rem] text-[0.98rem] leading-7 text-slate-300">
-              Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
-              update policies, and operate within your provisioned tenant scope.
-            </p>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,0.96fr)_minmax(280px,0.84fr)] xl:items-start">
+              <div>
+                <SectionEyebrow>Customer access</SectionEyebrow>
+                <h1 className="mt-3 max-w-[11.2ch] font-serif text-[2.45rem] leading-[0.92] text-white sm:text-[2.9rem] xl:text-[3.3rem]">
+                  Secure sign-in for managed WAF operations, tenant access, and security visibility.
+                </h1>
+                <p className="mt-4 max-w-[34rem] text-[1rem] leading-7 text-slate-300">
+                  Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
+                  update policies, and operate within your provisioned tenant scope.
+                </p>
+              </div>
+
+              <div className="hidden xl:block">
+                <div className="rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.14),rgba(15,23,42,0.08))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
+                      <ShieldIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-200">Managed sign-in policy</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-200">
+                        Accounts are provisioned by the ATRAVA Defense team. Some users are password-based, while others are
+                        restricted to Google sign-in depending on the assigned access model.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-2.5">
+                    {platformSignals.map((item) => (
+                      <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-2.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
+                        <span className="text-[0.92rem] text-white/85">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {trustPoints.map((item) => (
@@ -434,8 +463,8 @@ function LoginPageContent() {
               ))}
             </div>
 
-            <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(250px,0.95fr)] [@media_(max-height:920px)]:hidden">
-              <div className="rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.14),rgba(15,23,42,0.08))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)]">
+            <div className="mt-5 grid gap-4 md:grid-cols-2 [@media_(max-height:920px)]:hidden xl:grid-cols-[minmax(0,0.92fr)_minmax(280px,1.08fr)]">
+              <div className="rounded-[28px] border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.14),rgba(15,23,42,0.08))] p-5 shadow-[0_20px_70px_rgba(2,6,23,0.35)] xl:hidden">
                 <div className="flex items-start gap-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-slate-950/45 text-cyan-300">
                     <ShieldIcon className="h-5 w-5" />
@@ -458,7 +487,7 @@ function LoginPageContent() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur md:col-span-2 xl:col-span-1">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">Operations view</p>
                   <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
@@ -506,15 +535,15 @@ function LoginPageContent() {
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
             <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-6 py-4">
+              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-7 py-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Sign in</p>
-                <h2 className="mt-2 text-[1.7rem] font-bold tracking-tight text-slate-950">Access the dashboard</h2>
-                <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+                <h2 className="mt-2 text-[1.85rem] font-bold tracking-tight text-slate-950">Access the dashboard</h2>
+                <p className="mt-2 max-w-md text-[0.96rem] leading-7 text-slate-600">
                   Use the sign-in method assigned to your managed account. Google-enabled users should use the Google button below.
                 </p>
               </div>
 
-              <div className="p-5">
+              <div className="p-6">
                 <form className="space-y-2.5" onSubmit={handleAuth}>
                   <div className="space-y-3">
                     <div>

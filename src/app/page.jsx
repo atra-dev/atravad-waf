@@ -97,7 +97,7 @@ const pricingPlans = [
     name: 'Managed Essential',
     price: '$79',
     cadence: '/mo',
-    description: 'For smaller MSMEs that need managed WAF protection, guided onboarding, and predictable baseline coverage.',
+    description: 'For smaller teams that need managed website protection, guided onboarding, and dependable baseline coverage.',
     highlight: false,
     features: [
       '1 protected website or application',
@@ -113,7 +113,7 @@ const pricingPlans = [
     name: 'Managed Professional',
     price: '$179',
     cadence: '/mo',
-    description: 'For growing businesses that need stronger managed protection, deeper analytics, and regular policy tuning.',
+    description: 'For growing businesses that need stronger protection, deeper visibility, and regular policy tuning from a managed team.',
     highlight: true,
     features: [
       '1 protected website or application',
@@ -129,7 +129,7 @@ const pricingPlans = [
     name: 'Managed Business',
     price: '$399',
     cadence: '/mo',
-    description: 'For business-critical applications that require higher-touch managed defense, faster escalation, and stronger operational coverage.',
+    description: 'For business-critical applications that require higher-touch defense, faster escalation, and broader operational coverage.',
     highlight: false,
     features: [
       'Up to 3 protected websites or applications',
@@ -145,7 +145,7 @@ const pricingPlans = [
     name: 'Managed Multi-Site & Custom',
     price: 'Custom',
     cadence: '',
-    description: 'For agencies, larger organizations, and customers needing a fully tailored managed security service.',
+    description: 'For agencies, larger organizations, and teams that need a tailored managed protection program across multiple sites.',
     highlight: false,
     features: [
       'Multiple protected websites or application portfolios',
@@ -260,14 +260,15 @@ export default function Home() {
 
           <div className="grid gap-14 pt-16 lg:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)] lg:items-center">
             <div>
-              <SectionEyebrow>Built to win trust fast</SectionEyebrow>
+              <SectionEyebrow>Managed cyber defense for growing teams</SectionEyebrow>
               <h1 className="mt-6 max-w-4xl font-serif text-5xl leading-[0.98] text-white sm:text-6xl lg:text-7xl">
-                Let us take care of your cyber defense so you can focus on running and growing your business.
+                Let us take care of your cyber defense so you can focus on what
+                you do best: running and growing your business.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                ATRAVA Defense is a managed WAF-as-a-service operated by a 24/7 cyber defense operations center,
-                protecting your websites and APIs with continuous monitoring, policy enforcement, threat blocking,
-                managed SSL, and production-ready security operations.
+                ATRAVA Defense is a managed WAF service that protects your websites and APIs with continuous
+                monitoring, policy enforcement, threat blocking, managed SSL, and security operations support,
+                so your team can stay focused on delivery, customers, and growth.
               </p>
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -275,13 +276,13 @@ export default function Home() {
                   href="/login"
                   className="inline-flex items-center justify-center rounded-full bg-cyan-400 px-6 py-3 text-base font-semibold text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.35)] hover:bg-cyan-300"
                 >
-                  Launch the dashboard
+                  Start protected access
                 </Link>
                 <a
                   href="#capabilities"
                   className="inline-flex items-center justify-center rounded-full border border-white/15 px-6 py-3 text-base font-semibold text-white/85 hover:border-white/35 hover:text-white"
                 >
-                  Explore capabilities
+                  See what is protected
                 </a>
               </div>
 
@@ -302,9 +303,9 @@ export default function Home() {
                 <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.25em] text-cyan-300">
-                      Live security posture
+                      Managed security posture
                     </p>
-                    <h2 className="mt-3 text-2xl font-semibold text-white">Customer-facing protection layer</h2>
+                    <h2 className="mt-3 text-2xl font-semibold text-white">Protection built for live production traffic</h2>
                   </div>
                   <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
                     Active
@@ -456,16 +457,15 @@ export default function Home() {
 
       <section id="pricing" className="bg-white py-24 text-slate-950">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <SectionEyebrow>Pricing</SectionEyebrow>
-            <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
-              Managed WAF-as-a-service pricing for organizations that want security operated for them.
-            </h2>
-            <p className="mt-5 text-lg leading-8 text-slate-600">
-              ATRAVA Defense is a managed service operated by a 24/7 cyber defense operations center. We take care of
-              policy handling, traffic protection, monitoring, and operational defense so your team can focus on
-              running and growing the business.
-            </p>
+            <div className="max-w-3xl">
+              <SectionEyebrow>Pricing</SectionEyebrow>
+              <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
+                Service plans for teams that want cyber defense handled well.
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                Every plan is built around managed protection, operational support, and visibility that scales with the
+                importance of the applications you protect.
+              </p>
           </div>
 
           <div className="mt-14 grid gap-6 xl:grid-cols-4">
