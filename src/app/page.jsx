@@ -329,23 +329,6 @@ export default function Home() {
                   ))}
                 </div>
 
-                <div className="mt-6 rounded-3xl border border-cyan-400/20 bg-[linear-gradient(160deg,rgba(34,211,238,0.12),rgba(15,23,42,0.04))] p-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-white">Attack handling workflow</p>
-                      <p className="mt-1 text-sm text-slate-300">Point DNS, apply policy, issue SSL, inspect traffic, monitor outcomes.</p>
-                    </div>
-                    <ShieldIcon className="h-10 w-10 text-cyan-300" />
-                  </div>
-                  <div className="mt-5 space-y-3">
-                    {['Traffic reaches the ATRAVA Defense edge', 'Threats are filtered by the policy engine', 'Clean traffic is forwarded to origin'].map((item) => (
-                      <div key={item} className="flex items-center gap-3 rounded-2xl bg-slate-950/45 px-4 py-3">
-                        <span className="h-2.5 w-2.5 rounded-full bg-cyan-300" />
-                        <span className="text-sm text-white/85">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             </div>
           </div>

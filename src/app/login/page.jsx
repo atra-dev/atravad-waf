@@ -415,7 +415,7 @@ function LoginPageContent() {
           <section className="flex min-h-0 flex-col justify-center">
             <div>
               <SectionEyebrow>Customer access</SectionEyebrow>
-              <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-white sm:text-[2.95rem] xl:text-[3.42rem]">
+                <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-white sm:text-[2.95rem] xl:max-w-[14.4ch] xl:text-[3.42rem]">
                 Secure sign-in for managed WAF operations, tenant access, and security visibility.
               </h1>
               <p className="mt-5 max-w-[35rem] text-[0.98rem] leading-8 text-slate-300">
