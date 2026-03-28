@@ -267,7 +267,7 @@ export default function Home() {
                 Let us take care of your cyber defense so you can focus on what
                 you do best: running and growing your business.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+              <p className="mt-8 max-w-[68rem] text-[1.15rem] leading-9 text-slate-300 lg:pr-8">
                 ATRAVA Defense is a managed WAF service that protects your websites and APIs with continuous
                 monitoring, policy enforcement, threat blocking, managed SSL, and security operations support.
                 It is innovated, managed, and operated by young Filipino cybersecurity professionals delivering credible,
