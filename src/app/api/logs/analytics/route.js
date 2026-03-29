@@ -541,38 +541,23 @@ export async function GET(request) {
           });
         }
 
-        if (severity || site) {
-          return getRawAnalytics({
-            tenantName,
-            hours,
-            site,
-            severity,
-            decision,
-          });
-        }
-
-        let query = adminDb
-          .collection('log_rollups_hourly')
-          .where('tenantName', '==', tenantName)
-          .where('bucketStartIso', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString())
-          .orderBy('bucketStartIso', 'asc');
-
-        if (site) {
-          query = query.where('siteNormalized', '==', site);
-        }
-
-        const snapshot = await query.get();
-        return filterAnalyticsByDecision(
-          aggregateRollups(snapshot.docs.map((doc) => doc.data())),
-          decision
-        );
+        return getRawAnalytics({
+          tenantName,
+          hours,
+          site,
+          severity,
+          decision,
+        });
       },
       { ttlMs: ANALYTICS_CACHE_TTL_MS }
     );
 
     let visibleRequestCount = Number(analytics?.summary?.totalRequests || 0);
     if (!severity && !decision && !attacksOnly) {
-      const statsBySource = await getTenantTrafficStats(adminDb, tenantName, hours);
+      const statsBySource = await getTenantTrafficStats(adminDb, tenantName, hours, {
+        includeRawBackfill: true,
+        includeRollups: false,
+      });
       visibleRequestCount = site
         ? Number(statsBySource.get(site)?.total || 0)
         : sumVisibleRequestCount(statsBySource);

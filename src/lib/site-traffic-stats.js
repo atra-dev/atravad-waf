@@ -85,15 +85,17 @@ export async function getTenantTrafficStats(
   adminDb,
   tenantName,
   lookbackHours,
-  { includeRawBackfill = true } = {}
+  { includeRawBackfill = true, includeRollups = true } = {}
 ) {
   const windowStartIso = new Date(
     Date.now() - lookbackHours * 60 * 60 * 1000
   ).toISOString();
-  const rollupsQuery = adminDb
-    .collection('log_rollups_hourly')
-    .where('tenantName', '==', tenantName)
-    .where('bucketStartIso', '>=', windowStartIso);
+  const rollupsQuery = includeRollups
+    ? adminDb
+        .collection('log_rollups_hourly')
+        .where('tenantName', '==', tenantName)
+        .where('bucketStartIso', '>=', windowStartIso)
+    : null;
 
   const logsQuery = includeRawBackfill
     ? adminDb
@@ -104,27 +106,29 @@ export async function getTenantTrafficStats(
     : null;
 
   const [rollupsSnapshot, logsSnapshot] = await Promise.all([
-    rollupsQuery.get(),
+    rollupsQuery ? rollupsQuery.get() : Promise.resolve(null),
     logsQuery ? logsQuery.get() : Promise.resolve(null),
   ]);
 
   const statsBySource = new Map();
   const coveredBuckets = new Set();
 
-  for (const doc of rollupsSnapshot.docs) {
-    if (!isSiteScopedRollupDocId(doc.id)) {
-      continue;
+  if (rollupsSnapshot) {
+    for (const doc of rollupsSnapshot.docs) {
+      if (!isSiteScopedRollupDocId(doc.id)) {
+        continue;
+      }
+
+      const rollup = doc.data();
+      const source = normalizeLogSource(rollup?.siteNormalized);
+      const bucketStartIso = String(rollup?.bucketStartIso || '').trim();
+      if (!source || !bucketStartIso) continue;
+
+      const existing = getStatsEntry(statsBySource, source);
+      applyRollupStats(existing, rollup);
+      statsBySource.set(source, existing);
+      coveredBuckets.add(`${source}|${bucketStartIso}`);
     }
-
-    const rollup = doc.data();
-    const source = normalizeLogSource(rollup?.siteNormalized);
-    const bucketStartIso = String(rollup?.bucketStartIso || '').trim();
-    if (!source || !bucketStartIso) continue;
-
-    const existing = getStatsEntry(statsBySource, source);
-    applyRollupStats(existing, rollup);
-    statsBySource.set(source, existing);
-    coveredBuckets.add(`${source}|${bucketStartIso}`);
   }
 
   if (logsSnapshot) {

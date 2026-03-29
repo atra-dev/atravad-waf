@@ -555,10 +555,24 @@ export default function LogsPage() {
       setSelectedLogExactCount(null);
       return;
     }
-    const selectedMethod = String(selectedLog.method || selectedLog.request?.method || '')
+    const selectedMethod = String(
+      selectedLog.method ||
+      selectedLog.request?.method ||
+      selectedLog.request?.requestMethod ||
+      selectedLog.request?.request_method ||
+      selectedLog.request?.verb ||
+      ''
+    )
       .trim()
       .toUpperCase();
-    const selectedUri = String(selectedLog.uri || selectedLog.request?.uri || selectedLog.request?.path || '')
+    const selectedUri = String(
+      selectedLog.uri ||
+      selectedLog.request?.uri ||
+      selectedLog.request?.path ||
+      selectedLog.request?.requestUri ||
+      selectedLog.request?.request_uri ||
+      ''
+    )
       .trim();
 
     const fetchStoredCountForSite = async () => {
@@ -582,7 +596,7 @@ export default function LogsPage() {
 
     const fetchExactCount = async () => {
       if (!selectedMethod || !selectedUri) {
-        setSelectedLogExactCount(null);
+        setSelectedLogExactCount(0);
         return;
       }
       try {
@@ -598,11 +612,11 @@ export default function LogsPage() {
         if (Number.isFinite(data?.totalStoredCount)) {
           setSelectedLogExactCount(Number(data.totalStoredCount));
         } else {
-          setSelectedLogExactCount(null);
+          setSelectedLogExactCount(0);
         }
       } catch (error) {
         console.error('Error fetching exact log count:', error);
-        setSelectedLogExactCount(null);
+        setSelectedLogExactCount(0);
       }
     };
 
@@ -939,10 +953,7 @@ export default function LogsPage() {
                       {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
                     </p>
                     <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                      {formatAnalyticsDisplayWindow()} •{' '}
-                      {Number.isFinite(selectedLogExactCount)
-                        ? `${selectedLogExactCount.toLocaleString()} matching stored requests`
-                        : 'Matching count unavailable'}
+                      {formatAnalyticsDisplayWindow()}
                     </p>
                   </div>
                   <button

@@ -238,14 +238,17 @@ export async function GET(request) {
     const lookbackHours = ANALYTICS_DISPLAY_HOURS;
 
     const apps = await getOrSetServerCache(
-      `apps:${tenantName}:list:${lookbackHours}h:rollups`,
+      `apps:${tenantName}:list:${lookbackHours}h:raw`,
       async () => {
         const [appsSnapshot, statsBySource] = await Promise.all([
           adminDb
             .collection('applications')
             .where('tenantName', '==', tenantName)
             .get(),
-          getTenantTrafficStats(adminDb, tenantName, lookbackHours, { includeRawBackfill: false }),
+          getTenantTrafficStats(adminDb, tenantName, lookbackHours, {
+            includeRawBackfill: true,
+            includeRollups: false,
+          }),
         ]);
 
         return Promise.all(appsSnapshot.docs.map(async (doc) => {
