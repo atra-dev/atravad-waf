@@ -51,6 +51,11 @@ export default function LogsPage() {
   const [activeTab, setActiveTab] = useState('logs'); // 'logs', 'geographic', 'traffic'
   const [selectedLog, setSelectedLog] = useState(null);
   const [logCount, setLogCount] = useState(0);
+  const totalRequests = Number(
+    analyticsData?.summary?.visibleRequestCount ??
+    analyticsData?.summary?.totalRequests ??
+    0
+  );
   
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
@@ -594,7 +599,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Logs ({logCount} events)
+                Logs ({totalRequests} requests)
               </button>
               <button
                 onClick={() => setActiveTab('geographic')}
@@ -790,7 +795,7 @@ export default function LogsPage() {
               </div>
               <div className="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <p className="text-sm text-gray-600">
-                  Showing up to {logs.length} recent raw events from the {formatAnalyticsDisplayWindow().toLowerCase()}
+                  Showing up to {logs.length} stored raw events from the {formatAnalyticsDisplayWindow().toLowerCase()}. Total requests: {totalRequests.toLocaleString()}.
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
