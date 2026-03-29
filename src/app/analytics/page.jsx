@@ -4,29 +4,20 @@ import { useEffect, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/hooks/useAuth';
+import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 
 const ANALYTICS_TIME_ZONE = 'Asia/Manila';
 
-function formatHourLabel(hour) {
-  const normalizedHour = Number(hour) || 0;
-  const suffix = normalizedHour >= 12 ? 'PM' : 'AM';
-  const displayHour = normalizedHour % 12 || 12;
-  return `${displayHour} ${suffix}`;
-}
-
-function getHourInTimeZone(value, timeZone = ANALYTICS_TIME_ZONE) {
+function formatBucketLabel(value, timeZone = ANALYTICS_TIME_ZONE) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+  if (Number.isNaN(date.getTime())) return '-';
 
-  const formatter = new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('en-US', {
     timeZone,
     hour: 'numeric',
-    hour12: false,
-  });
-
-  const hour = Number(formatter.format(date));
-  return Number.isFinite(hour) ? hour : null;
+    hour12: true,
+  }).format(date);
 }
 
 export default function AnalyticsPage() {
@@ -35,23 +26,19 @@ export default function AnalyticsPage() {
   
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('24h');
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchAnalytics();
     }
-  }, [timeRange, isAuthenticated]);
+  }, [isAuthenticated]);
 
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const hours = {
-        '24h': 24,
-        '7d': 7 * 24,
-        '30d': 30 * 24,
-      }[timeRange] || 24;
-      const response = await fetch(`/api/logs/analytics?hours=${hours}&attacksOnly=true`);
+      const response = await fetch(
+        `/api/logs/analytics?hours=${ANALYTICS_DISPLAY_HOURS}&attacksOnly=true`
+      );
       const data = await response.json();
 
       setAnalytics({
@@ -60,11 +47,7 @@ export default function AnalyticsPage() {
         topIPs: data.topIPs || [],
         uniqueIPs: new Set((data.topIPs || []).map(([ip]) => normalizeIpAddress(ip))).size,
         severityCounts: data.severityCounts || { critical: 0, high: 0, medium: 0, warning: 0, info: 0 },
-        hourlyData: Object.fromEntries(
-          (data.timeSeries || [])
-            .map((item) => [getHourInTimeZone(item.time), (item.wafBlocked || 0) + (item.originDenied || 0)])
-            .filter(([hour]) => hour !== null)
-        ),
+        timeSeries: (data.timeSeries || []).slice(-ANALYTICS_DISPLAY_HOURS),
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -91,16 +74,17 @@ export default function AnalyticsPage() {
     return null; // Will redirect via useAuth hook
   }
 
-  const hourlyEntries = Array.from({ length: 24 }, (_, hour) => ({
-    hour,
-    count: analytics?.hourlyData?.[hour] || 0,
+  const hourlyEntries = (analytics?.timeSeries || []).map((item) => ({
+    label: formatBucketLabel(item.time),
+    count: (item.wafBlocked || 0) + (item.originDenied || 0),
+    time: item.time,
   }));
   const maxHourlyCount = Math.max(...hourlyEntries.map((item) => item.count), 1);
   const totalHourlyAttacks = hourlyEntries.reduce((sum, item) => sum + item.count, 0);
   const activeHours = hourlyEntries.filter((item) => item.count > 0).length;
   const peakHourEntry = hourlyEntries.reduce(
     (peak, item) => (item.count > peak.count ? item : peak),
-    { hour: 0, count: 0 }
+    { hour: null, label: 'No activity', count: 0, time: null }
   );
   const averagePerActiveHour = activeHours > 0 ? totalHourlyAttacks / activeHours : 0;
 
@@ -111,18 +95,12 @@ export default function AnalyticsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Attack Analytics</h1>
             <p className="mt-2 text-sm text-gray-600">
-              Visualize blocked and denied traffic trends, attack patterns, and security metrics
+              Visualize blocked and denied traffic trends, attack patterns, and security metrics for the {formatAnalyticsDisplayWindow().toLowerCase()}
             </p>
           </div>
-          <select
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500"
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-          >
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
+          <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600">
+            {formatAnalyticsDisplayWindow()}
+          </div>
         </div>
 
         {loading ? (
@@ -267,7 +245,7 @@ export default function AnalyticsPage() {
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Peak Hour</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">
-                  {peakHourEntry.count > 0 ? formatHourLabel(peakHourEntry.hour) : 'No activity'}
+                  {peakHourEntry.count > 0 ? peakHourEntry.label : 'No activity'}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">
                   {peakHourEntry.count.toLocaleString()} attacks
@@ -275,7 +253,9 @@ export default function AnalyticsPage() {
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Active Hours</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">{activeHours} of 24</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">
+                  {activeHours} of {ANALYTICS_DISPLAY_HOURS}
+                </div>
                 <div className="mt-1 text-xs text-slate-500">Hours with detected attacks</div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -285,7 +265,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
-          {analytics?.hourlyData && Object.keys(analytics.hourlyData).length > 0 ? (
+          {hourlyEntries.length > 0 ? (
             <div className="mt-5">
               <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-600">
                 <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
@@ -308,7 +288,7 @@ export default function AnalyticsPage() {
                   {hourlyEntries.map((item) => {
                     const count = item.count;
                     const height = count > 0 ? Math.max((count / maxHourlyCount) * 100, 6) : 0;
-                    const isPeakHour = peakHourEntry.count > 0 && item.hour === peakHourEntry.hour;
+                    const isPeakHour = peakHourEntry.count > 0 && item.time === peakHourEntry.time;
                     const hasActivity = count > 0;
                     const barTone = isPeakHour
                       ? 'bg-gradient-to-t from-blue-700 to-cyan-400'
@@ -317,7 +297,7 @@ export default function AnalyticsPage() {
                         : 'bg-slate-200';
 
                     return (
-                      <div key={item.hour} className="flex min-w-0 flex-col items-center justify-end">
+                      <div key={item.time} className="flex min-w-0 flex-col items-center justify-end">
                         <div className="mb-2 h-5 text-[11px] font-semibold text-slate-500">
                           {hasActivity ? count : ''}
                         </div>
@@ -325,10 +305,10 @@ export default function AnalyticsPage() {
                           <div
                             className={`w-full rounded-lg transition-all duration-300 ${barTone}`}
                             style={{ height: `${height}%` }}
-                            title={`${formatHourLabel(item.hour)} - ${count} attacks`}
+                            title={`${item.label} - ${count} attacks`}
                           />
                         </div>
-                        <span className="mt-2 text-xs text-slate-500">{formatHourLabel(item.hour)}</span>
+                        <span className="mt-2 text-xs text-slate-500">{item.label}</span>
                       </div>
                     );
                   })}
@@ -340,7 +320,10 @@ export default function AnalyticsPage() {
                   <span className="font-medium text-slate-900">{totalHourlyAttacks.toLocaleString()}</span> total attacks across the selected range
                 </div>
                 <div>
-                  Peak concentration at <span className="font-medium text-slate-900">{formatHourLabel(peakHourEntry.hour)}</span>
+                  Peak concentration at{' '}
+                  <span className="font-medium text-slate-900">
+                    {peakHourEntry.count > 0 ? peakHourEntry.label : 'No activity'}
+                  </span>
                 </div>
               </div>
             </div>

@@ -174,7 +174,7 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
 
   const tenant = await getTenantRetentionSettings(adminDb, rawLog.tenantName);
   const logRetentionDays = Number(tenant?.limits?.logRetentionDays || 7);
-  const analyticsRetentionDays = Number(tenant?.limits?.analyticsRetentionDays || 30);
+  const analyticsRetentionDays = Number(tenant?.limits?.analyticsRetentionDays || 7);
   const timestamp = rawLog.timestamp || new Date().toISOString();
   const site =
     normalizeDomainInput(rawLog.source || rawLog.request?.host || rawLog.request?.hostname || '') ||

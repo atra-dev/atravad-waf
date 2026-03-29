@@ -9,6 +9,7 @@ import { deriveRuleId } from '@/lib/log-rule-utils';
 import { persistSecurityLog } from '@/lib/log-storage';
 import { getTenantSummary } from '@/lib/tenant-subscription';
 import { getTrafficLoggingConfig } from '@/lib/traffic-logging';
+import { ANALYTICS_DISPLAY_HOURS } from '@/lib/analytics-window';
 
 const LOG_INGEST_API_KEY = process.env.LOG_INGEST_API_KEY || '';
 const MAX_INGEST_BATCH_SIZE = Math.max(
@@ -314,11 +315,14 @@ export async function GET(request) {
     const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
     const cursor = String(searchParams.get('cursor') || '').trim();
-    const hoursParam = Number.parseInt(searchParams.get('hours') || '24', 10);
+    const hoursParam = Number.parseInt(
+      searchParams.get('hours') || String(ANALYTICS_DISPLAY_HOURS),
+      10
+    );
     const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
     const hours = Number.isFinite(hoursParam)
       ? Math.min(Math.max(hoursParam, 1), maxLookbackHours)
-      : Math.min(24, maxLookbackHours);
+      : Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;

@@ -11,6 +11,7 @@ import { normalizeDomainInput } from '@/lib/domain-utils';
 import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
 import { getTenantTrafficStats } from '@/lib/site-traffic-stats';
 import { getTenantLimitStatus, getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { ANALYTICS_DISPLAY_HOURS } from '@/lib/analytics-window';
 
 const APPS_CACHE_TTL_MS = 60000;
 
@@ -233,8 +234,8 @@ export async function GET(request) {
     if (!tenantName) {
       return NextResponse.json([]);
     }
-    const tenant = await getTenantSummary(adminDb, tenantName);
-    const lookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
+    await getTenantSummary(adminDb, tenantName);
+    const lookbackHours = ANALYTICS_DISPLAY_HOURS;
 
     const apps = await getOrSetServerCache(
       `apps:${tenantName}:list:${lookbackHours}h:rollups`,

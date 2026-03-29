@@ -12,6 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import { normalizeIpAddress } from '@/lib/ip-utils';
+import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
 
 function getDecisionKey(log) {
   const decision = String(log?.decision || '').trim().toLowerCase();
@@ -75,7 +76,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
     
     return Array.from(hourlyMap.values())
       .sort((a, b) => new Date(a.time) - new Date(b.time))
-      .slice(-24); // Last 24 hours
+      .slice(-ANALYTICS_DISPLAY_HOURS);
   }, [logs]);
 
   // Request methods distribution
@@ -150,7 +151,9 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
     <div className="space-y-6">
       {/* Time Series Chart */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic Over Time (Last 24 Hours)</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Traffic Over Time ({formatAnalyticsDisplayWindow()})
+        </h3>
         {timeSeriesData.length === 0 ? (
           <div className="bg-gray-50 rounded-lg p-8 text-center border border-dashed border-gray-200">
             <p className="text-gray-600 font-medium mb-1">No traffic data available</p>

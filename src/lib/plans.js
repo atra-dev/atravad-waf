@@ -25,7 +25,7 @@ export const PLAN_CATALOG = {
     features: [
       '1 protected website or application',
       'Managed WAF monitoring with scheduled support',
-      '7-day log retention and 30-day analytics retention',
+      '7-day TTL retention for logs and analytics data',
       'Baseline policy handling and managed SSL onboarding',
       'Email support during business hours',
       'Designed for low-touch MSME protection',
@@ -36,7 +36,7 @@ export const PLAN_CATALOG = {
       maxUsers: 3,
       monthlyRequestsIncluded: 3_000_000,
       logRetentionDays: 7,
-      analyticsRetentionDays: 30,
+      analyticsRetentionDays: 7,
       maxLogLookbackHours: 24 * 7,
     },
     featuresConfig: {
@@ -60,7 +60,7 @@ export const PLAN_CATALOG = {
     features: [
       '1 protected website or application',
       'Priority managed WAF operations and regular tuning',
-      '30-day log retention and 90-day analytics retention',
+      '15-day TTL retention for logs and analytics data',
       'Managed bot mitigation, geo controls, and rate limiting',
       'Priority support with faster handling targets',
       'Suitable for active growth-stage MSMEs',
@@ -70,9 +70,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 12,
       maxUsers: 8,
       monthlyRequestsIncluded: 10_000_000,
-      logRetentionDays: 30,
-      analyticsRetentionDays: 90,
-      maxLogLookbackHours: 24 * 30,
+      logRetentionDays: 15,
+      analyticsRetentionDays: 15,
+      maxLogLookbackHours: 24 * 15,
     },
     featuresConfig: {
       prioritySupport: true,
@@ -95,7 +95,7 @@ export const PLAN_CATALOG = {
     features: [
       'Up to 3 protected websites or applications',
       '24/7 managed WAF operations with escalation handling',
-      '90-day log retention and 180-day analytics retention',
+      '30-day TTL retention for logs and analytics data',
       'Advanced threat controls with hands-on tuning',
       'Priority support and richer reporting visibility',
       'Commercial-grade onboarding and service guidance',
@@ -105,9 +105,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 25,
       maxUsers: 20,
       monthlyRequestsIncluded: 30_000_000,
-      logRetentionDays: 90,
-      analyticsRetentionDays: 180,
-      maxLogLookbackHours: 24 * 90,
+      logRetentionDays: 30,
+      analyticsRetentionDays: 30,
+      maxLogLookbackHours: 24 * 30,
     },
     featuresConfig: {
       prioritySupport: true,
@@ -130,7 +130,7 @@ export const PLAN_CATALOG = {
     features: [
       'Multiple protected websites or application portfolios',
       'Tailored 24/7 cyber defense operations coverage',
-      'Custom log retention, reporting, and workflow design',
+      'Custom TTL retention, reporting, and workflow design',
       'Dedicated service planning and commercial alignment',
       'Custom SLA and support structure',
     ],
@@ -139,9 +139,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 200,
       maxUsers: 100,
       monthlyRequestsIncluded: 250_000_000,
-      logRetentionDays: 180,
-      analyticsRetentionDays: 365,
-      maxLogLookbackHours: 24 * 180,
+      logRetentionDays: 30,
+      analyticsRetentionDays: 30,
+      maxLogLookbackHours: 24 * 30,
     },
     featuresConfig: {
       prioritySupport: true,

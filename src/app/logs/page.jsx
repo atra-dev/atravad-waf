@@ -10,6 +10,7 @@ import TrafficAnalytics from '@/components/TrafficAnalytics';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
+import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
 
 // Icons for tenant creation
 const BuildingIcon = ({ className }) => (
@@ -141,7 +142,7 @@ export default function LogsPage() {
     try {
       const params = new URLSearchParams();
       params.append('pageSize', String(pagination.pageSize || 100));
-      params.append('hours', '24');
+      params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
       if (cursorToFetch) params.append('cursor', cursorToFetch);
       if (filters.site) params.append('site', filters.site);
       if (filters.severity) params.append('severity', filters.severity);
@@ -208,7 +209,7 @@ export default function LogsPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('hours', '24');
+      params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
       if (filters.site) params.append('site', filters.site);
       if (filters.severity) params.append('severity', filters.severity);
       if (filters.action) params.append('decision', filters.action);
@@ -777,7 +778,7 @@ export default function LogsPage() {
               </div>
               <div className="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <p className="text-sm text-gray-600">
-                  Showing up to {logs.length} recent raw events from the last 24 hours
+                  Showing up to {logs.length} recent raw events from the {formatAnalyticsDisplayWindow().toLowerCase()}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button

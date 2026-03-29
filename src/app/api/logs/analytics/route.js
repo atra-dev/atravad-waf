@@ -8,6 +8,7 @@ import { classifyAttack, getDecisionKey } from '@/lib/log-analytics';
 import { getOrSetServerCache } from '@/lib/server-cache';
 import { getTenantTrafficStats } from '@/lib/site-traffic-stats';
 import { getTenantSummary } from '@/lib/tenant-subscription';
+import { ANALYTICS_DISPLAY_HOURS } from '@/lib/analytics-window';
 
 const ANALYTICS_CACHE_TTL_MS = 30000;
 
@@ -506,11 +507,14 @@ export async function GET(request) {
     const tenant = await getTenantSummary(adminDb, tenantName);
 
     const { searchParams } = new URL(request.url);
-    const hoursParam = Number.parseInt(searchParams.get('hours') || '24', 10);
+    const hoursParam = Number.parseInt(
+      searchParams.get('hours') || String(ANALYTICS_DISPLAY_HOURS),
+      10
+    );
     const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
     const hours = Number.isFinite(hoursParam)
       ? Math.min(Math.max(hoursParam, 1), maxLookbackHours)
-      : Math.min(24, maxLookbackHours);
+      : Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const severity = normalizeSeverity(searchParams.get('severity'));
     const decision = String(searchParams.get('decision') || '').trim().toLowerCase();
