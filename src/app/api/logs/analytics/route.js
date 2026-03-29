@@ -507,14 +507,8 @@ export async function GET(request) {
     const tenant = await getTenantSummary(adminDb, tenantName);
 
     const { searchParams } = new URL(request.url);
-    const hoursParam = Number.parseInt(
-      searchParams.get('hours') || String(ANALYTICS_DISPLAY_HOURS),
-      10
-    );
     const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
-    const hours = Number.isFinite(hoursParam)
-      ? Math.min(Math.max(hoursParam, 1), maxLookbackHours)
-      : Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
+    const hours = Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const severity = normalizeSeverity(searchParams.get('severity'));
     const decision = String(searchParams.get('decision') || '').trim().toLowerCase();

@@ -7,6 +7,7 @@ import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { isValidPemCertificate, isValidPemPrivateKey } from '@/lib/ssl-utils';
+import { formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
 
 // Icon Components
 const GlobeIcon = ({ className }) => (
@@ -868,6 +869,9 @@ const getTrafficBarHeight = (value, maxValue) => {
                                   <div className="text-[1.9rem] font-semibold leading-none text-emerald-500">{stats.allowed.toLocaleString()}</div>
                                   <div className="mt-1 text-[13px] text-slate-700">Allowed</div>
                                 </div>
+                              </div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                {formatAnalyticsDisplayWindow()}
                               </div>
                             </div>
                           </div>

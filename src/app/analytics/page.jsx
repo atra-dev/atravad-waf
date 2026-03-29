@@ -20,6 +20,22 @@ function formatBucketLabel(value, timeZone = ANALYTICS_TIME_ZONE) {
   }).format(date);
 }
 
+function getUtcHourBucket(dateInput) {
+  const date = new Date(dateInput);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCMinutes(0, 0, 0);
+  return date.toISOString();
+}
+
+function buildHourBuckets(hours) {
+  const now = Date.now();
+  return Array.from({ length: hours }, (_, index) => {
+    const offset = (hours - 1 - index) * 60 * 60 * 1000;
+    const bucketIso = getUtcHourBucket(now - offset);
+    return bucketIso ? { time: bucketIso } : null;
+  }).filter(Boolean);
+}
+
 export default function AnalyticsPage() {
   // Verify authentication
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -74,10 +90,16 @@ export default function AnalyticsPage() {
     return null; // Will redirect via useAuth hook
   }
 
-  const hourlyEntries = (analytics?.timeSeries || []).map((item) => ({
-    label: formatBucketLabel(item.time),
-    count: (item.wafBlocked || 0) + (item.originDenied || 0),
-    time: item.time,
+  const timeSeriesMap = new Map(
+    (analytics?.timeSeries || []).map((item) => [
+      getUtcHourBucket(item.time),
+      (item.wafBlocked || 0) + (item.originDenied || 0),
+    ])
+  );
+  const hourlyEntries = buildHourBuckets(ANALYTICS_DISPLAY_HOURS).map((bucket) => ({
+    label: formatBucketLabel(bucket.time),
+    count: timeSeriesMap.get(bucket.time) || 0,
+    time: bucket.time,
   }));
   const maxHourlyCount = Math.max(...hourlyEntries.map((item) => item.count), 1);
   const totalHourlyAttacks = hourlyEntries.reduce((sum, item) => sum + item.count, 0);
@@ -284,7 +306,10 @@ export default function AnalyticsPage() {
                   <span>Hourly attack volume</span>
                   <span>Higher activity</span>
                 </div>
-                <div className="grid h-64 grid-cols-24 items-end gap-2">
+                <div
+                  className="grid h-64 items-end gap-2"
+                  style={{ gridTemplateColumns: `repeat(${ANALYTICS_DISPLAY_HOURS}, minmax(0, 1fr))` }}
+                >
                   {hourlyEntries.map((item) => {
                     const count = item.count;
                     const height = count > 0 ? Math.max((count / maxHourlyCount) * 100, 6) : 0;

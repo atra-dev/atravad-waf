@@ -315,14 +315,8 @@ export async function GET(request) {
     const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
     const cursor = String(searchParams.get('cursor') || '').trim();
-    const hoursParam = Number.parseInt(
-      searchParams.get('hours') || String(ANALYTICS_DISPLAY_HOURS),
-      10
-    );
     const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
-    const hours = Number.isFinite(hoursParam)
-      ? Math.min(Math.max(hoursParam, 1), maxLookbackHours)
-      : Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
+    const hours = Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
