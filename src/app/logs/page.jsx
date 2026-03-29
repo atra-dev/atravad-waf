@@ -56,6 +56,8 @@ export default function LogsPage() {
     analyticsData?.summary?.totalRequests ??
     0
   );
+  const [selectedLogStoredCount, setSelectedLogStoredCount] = useState(null);
+  const [selectedLogExactCount, setSelectedLogExactCount] = useState(null);
   
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
@@ -538,6 +540,76 @@ export default function LogsPage() {
     );
   }
 
+  useEffect(() => {
+    if (!selectedLog) {
+      setSelectedLogStoredCount(null);
+      setSelectedLogExactCount(null);
+      return;
+    }
+
+    const selectedSite = normalizeDomainInput(
+      String(selectedLog.siteNormalized || selectedLog.site || selectedLog.source || selectedLog.request?.host || '')
+    );
+    if (!selectedSite) {
+      setSelectedLogStoredCount(null);
+      setSelectedLogExactCount(null);
+      return;
+    }
+    const selectedMethod = String(selectedLog.method || selectedLog.request?.method || '')
+      .trim()
+      .toUpperCase();
+    const selectedUri = String(selectedLog.uri || selectedLog.request?.uri || selectedLog.request?.path || '')
+      .trim();
+
+    const fetchStoredCountForSite = async () => {
+      try {
+        const params = new URLSearchParams();
+        params.append('pageSize', '1');
+        params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
+        params.append('site', selectedSite);
+        const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+        const data = await response.json();
+        if (Number.isFinite(data?.totalStoredCount)) {
+          setSelectedLogStoredCount(Number(data.totalStoredCount));
+        } else {
+          setSelectedLogStoredCount(null);
+        }
+      } catch (error) {
+        console.error('Error fetching stored log count:', error);
+        setSelectedLogStoredCount(null);
+      }
+    };
+
+    const fetchExactCount = async () => {
+      if (!selectedMethod || !selectedUri) {
+        setSelectedLogExactCount(null);
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        params.append('countOnly', 'true');
+        params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
+        params.append('site', selectedSite);
+        params.append('decision', String(selectedLog.decision || '').toLowerCase());
+        params.append('method', selectedMethod);
+        params.append('uri', selectedUri);
+        const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+        const data = await response.json();
+        if (Number.isFinite(data?.totalStoredCount)) {
+          setSelectedLogExactCount(Number(data.totalStoredCount));
+        } else {
+          setSelectedLogExactCount(null);
+        }
+      } catch (error) {
+        console.error('Error fetching exact log count:', error);
+        setSelectedLogExactCount(null);
+      }
+    };
+
+    fetchStoredCountForSite();
+    fetchExactCount();
+  }, [selectedLog]);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -867,7 +939,10 @@ export default function LogsPage() {
                       {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
                     </p>
                     <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                      {formatAnalyticsDisplayWindow()} • {logCount.toLocaleString()} stored • {totalRequests.toLocaleString()} requests
+                      {formatAnalyticsDisplayWindow()} •{' '}
+                      {Number.isFinite(selectedLogExactCount)
+                        ? `${selectedLogExactCount.toLocaleString()} matching stored requests`
+                        : 'Matching count unavailable'}
                     </p>
                   </div>
                   <button

@@ -73,6 +73,16 @@ function normalizeLevel(level) {
   return value;
 }
 
+function normalizeRequestMethod(value) {
+  const method = String(value || '').trim();
+  return method ? method.toUpperCase() : null;
+}
+
+function normalizeRequestUri(value) {
+  const uri = String(value || '').trim();
+  return uri || null;
+}
+
 function deriveDecision(log) {
   const decision = String(log?.decision || '').trim().toLowerCase();
   if (decision === 'blocked') return 'waf_blocked';
@@ -318,8 +328,13 @@ export async function GET(request) {
     const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
     const hours = Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
+    const requestMethod = normalizeRequestMethod(searchParams.get('method'));
+    const requestUri = normalizeRequestUri(searchParams.get('uri'));
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
+    const countOnly = String(searchParams.get('countOnly') || '')
+      .trim()
+      .toLowerCase() === 'true';
 
     let baseQuery = adminDb
       .collection('logs')
@@ -341,9 +356,19 @@ export async function GET(request) {
     if (site) {
       baseQuery = baseQuery.where('siteNormalized', '==', site);
     }
+    if (requestMethod) {
+      baseQuery = baseQuery.where('method', '==', requestMethod);
+    }
+    if (requestUri) {
+      baseQuery = baseQuery.where('uri', '==', requestUri);
+    }
 
     const countSnapshot = await baseQuery.count().get();
     const totalStoredCount = Number(countSnapshot?.data()?.count || 0);
+
+    if (countOnly) {
+      return NextResponse.json({ totalStoredCount });
+    }
 
     let query = baseQuery.orderBy('timestamp', 'desc').limit(pageSize + 1);
 

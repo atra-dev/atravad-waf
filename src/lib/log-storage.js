@@ -34,6 +34,16 @@ function encodeCounterKey(value) {
   return Buffer.from(String(value || ''), 'utf8').toString('base64url');
 }
 
+function normalizeRequestMethod(value) {
+  const method = String(value || '').trim();
+  return method ? method.toUpperCase() : null;
+}
+
+function normalizeRequestUri(value) {
+  const uri = String(value || '').trim();
+  return uri || null;
+}
+
 function getRollupDocumentId(tenantName, bucketKey, site) {
   const siteKey = site ? encodeCounterKey(site) : 'unknown-site';
   return `${tenantName}_${bucketKey}_${siteKey}`;
@@ -190,6 +200,8 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
     decision,
     site,
     siteNormalized: site,
+    requestMethod: normalizeRequestMethod(rawLog.method || rawLog.request?.method),
+    requestUri: normalizeRequestUri(rawLog.uri || rawLog.request?.uri || rawLog.request?.path),
     expiresAt: new Date(Date.now() + logRetentionDays * 24 * 60 * 60 * 1000),
   };
 
