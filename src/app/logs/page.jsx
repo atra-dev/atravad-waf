@@ -197,7 +197,7 @@ export default function LogsPage() {
         }
 
         setLogs(filteredLogs);
-        setLogCount(filteredLogs.length);
+        setLogCount(Number(data.totalStoredCount ?? filteredLogs.length));
         setPagination((prev) => ({
           ...prev,
           page: pageToFetch,
@@ -599,7 +599,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Logs ({totalRequests} requests)
+                Logs ({logCount} stored / {totalRequests} requests)
               </button>
               <button
                 onClick={() => setActiveTab('geographic')}
@@ -698,7 +698,7 @@ export default function LogsPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Logs (Page {pagination.page})
+              Logs (Page {pagination.page}) • {logCount.toLocaleString()} stored • {totalRequests.toLocaleString()} requests
             </h2>
           </div>
 
@@ -865,6 +865,9 @@ export default function LogsPage() {
                     <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-[2rem]">Log Details</h2>
                     <p className="mt-1 text-sm text-slate-500">
                       {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
+                    </p>
+                    <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                      {formatAnalyticsDisplayWindow()} • {logCount.toLocaleString()} stored • {totalRequests.toLocaleString()} requests
                     </p>
                   </div>
                   <button

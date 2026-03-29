@@ -321,28 +321,31 @@ export async function GET(request) {
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
 
-    let query = adminDb
+    let baseQuery = adminDb
       .collection('logs')
       .where('tenantName', '==', tenantName)
       .where('timestamp', '>=', new Date(Date.now() - hours * 60 * 60 * 1000).toISOString());
 
     if (level) {
-      query = query.where('levelNormalized', '==', level);
+      baseQuery = baseQuery.where('levelNormalized', '==', level);
     }
     if (severity) {
-      query = query.where('severityNormalized', '==', severity);
+      baseQuery = baseQuery.where('severityNormalized', '==', severity);
     }
     if (blockedFilter !== null) {
-      query = query.where('blocked', '==', blockedFilter);
+      baseQuery = baseQuery.where('blocked', '==', blockedFilter);
     }
     if (decisionParam) {
-      query = query.where('decision', '==', decisionParam);
+      baseQuery = baseQuery.where('decision', '==', decisionParam);
     }
     if (site) {
-      query = query.where('siteNormalized', '==', site);
+      baseQuery = baseQuery.where('siteNormalized', '==', site);
     }
 
-    query = query.orderBy('timestamp', 'desc').limit(pageSize + 1);
+    const countSnapshot = await baseQuery.count().get();
+    const totalStoredCount = Number(countSnapshot?.data()?.count || 0);
+
+    let query = baseQuery.orderBy('timestamp', 'desc').limit(pageSize + 1);
 
     if (cursor) {
       const cursorDoc = await adminDb.collection('logs').doc(cursor).get();
@@ -365,6 +368,7 @@ export async function GET(request) {
     return NextResponse.json({
       logs,
       count: logs.length,
+      totalStoredCount,
       hasMore,
       pageSize,
       nextCursor,
