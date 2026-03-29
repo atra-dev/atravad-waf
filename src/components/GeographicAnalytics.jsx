@@ -130,14 +130,14 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic by Country</h3>
         {ComposableMap ? (
-          <div className="bg-gray-50 rounded-lg px-4 pb-4 pt-2">
+          <div className="bg-gray-50 rounded-lg p-4">
             <ComposableMap
               projectionConfig={{
-                scale: 165,
-                center: [0, 18],
+                scale: 147,
+                center: [0, 20],
               }}
-              className="w-full h-[320px]"
-              style={{ width: '100%', height: '100%' }}
+              className="w-full"
+              style={{ width: '100%', height: 'auto' }}
             >
               <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
                 {({ geographies }) =>
