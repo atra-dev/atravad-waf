@@ -100,16 +100,6 @@ const modSecurity = createModSecurityProxy({
   responseInspectionEnabled: true,
   failOpen: false,
 });
-if (modSecurity.getStartupError()) {
-  console.error(modSecurity.getStartupError());
-  process.exit(1);
-}
-console.log(
-  `ModSecurity engine: ${modSecurity.isNativeEngineAvailable() ? "native" : "fallback"}`,
-);
-console.log(
-  `Strict native mode: ${modSecurity.isStrictNativeModeEnabled() ? "enabled" : "disabled"}`,
-);
 const certStore = createCertStore({
   persistToDisk:
     process.env.CERT_STORE_PERSIST_TO_DISK === "true" ||

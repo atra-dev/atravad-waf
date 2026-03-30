@@ -31,14 +31,6 @@ try {
 
 const useNativeModSecurity = Boolean(ModSecurityNapi && RulesNapi && TransactionNapi);
 
-function parseBooleanOption(value, defaultValue = false) {
-  if (value === undefined || value === null || value === '') return defaultValue;
-  const normalized = String(value).trim().toLowerCase();
-  if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
-  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
-  return defaultValue;
-}
-
 function compileNativeRules(configText) {
   const rules = new RulesNapi();
   const ok = rules.add(configText);
@@ -287,100 +279,19 @@ function decodeVariants(value, maxDepth = 3) {
   return Array.from(variants);
 }
 
-function decodeHtmlEntities(value) {
-  return String(value ?? '').replace(
-    /&(?:#(\d{1,7})|#x([0-9a-fA-F]{1,6})|lt|gt|quot|apos|amp|colon|sol);?/gi,
-    (match, dec, hex) => {
-      if (dec) {
-        const codePoint = Number.parseInt(dec, 10);
-        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
-      }
-      if (hex) {
-        const codePoint = Number.parseInt(hex, 16);
-        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
-      }
-
-      switch (match.toLowerCase().replace(/;$/, '')) {
-        case '&lt':
-          return '<';
-        case '&gt':
-          return '>';
-        case '&quot':
-          return '"';
-        case '&apos':
-          return "'";
-        case '&amp':
-          return '&';
-        case '&colon':
-          return ':';
-        case '&sol':
-          return '/';
-        default:
-          return match;
-      }
-    },
-  );
-}
-
-function decodeUnicodeEscapes(value) {
-  return String(value ?? '')
-    .replace(/%u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
-    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
-    .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
-}
-
-function normalizeTraversalValue(value) {
-  return String(value ?? '')
-    .replace(/\\/g, '/')
-    .replace(/\/{2,}/g, '/')
-    .replace(/(?:^|\/)\.(?:\/|$)/g, '/');
-}
-
-function stripSqlNoise(value) {
-  return String(value ?? '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/--[^\r\n]*/g, '')
-    .replace(/#[^\r\n]*/g, '')
-    .replace(/[\s"'`()]+/g, '');
-}
-
-function stripXssNoise(value) {
-  return String(value ?? '')
-    .replace(/[\u0000-\u001f\u007f]+/g, '')
-    .replace(/\s+/g, '')
-    .replace(/["'`]+/g, '');
-}
-
 function pushInspectionValue(target, source, value) {
   if (value === undefined || value === null) return;
   const raw = String(value);
   if (!raw) return;
 
-  const seen = new Set();
-  for (const variant of decodeVariants(raw, 5)) {
-    const base = decodeHtmlEntities(decodeUnicodeEscapes(variant)).replace(/\0/g, '');
-    if (!base) continue;
-
-    const candidates = [
-      base,
-      normalizeTraversalValue(base),
-      stripSqlNoise(base),
-      stripXssNoise(base),
-      stripXssNoise(normalizeTraversalValue(base)),
-    ];
-
-    for (const candidate of candidates) {
-      const normalized = String(candidate || '').trim();
-      if (!normalized) continue;
-      const key = `${source}:${normalized}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      target.push({
-        source,
-        value: normalized,
-        normalized: normalized.toLowerCase(),
-      });
-    }
+  for (const variant of decodeVariants(raw)) {
+    const normalized = variant.replace(/\0/g, '');
+    if (!normalized) continue;
+    target.push({
+      source,
+      value: normalized,
+      normalized: normalized.toLowerCase(),
+    });
   }
 }
 
@@ -436,7 +347,7 @@ function matchInspectionRule(inputs, regexes) {
   return null;
 }
 
-function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel = 'fallback') {
+function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
   const headers = req.headers || {};
   const normalizedPolicy = normalizePolicyConfig(policy);
   const strictMode = policy?.includeOWASPCRS !== false;
@@ -451,7 +362,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       blocked: true,
       matchedRules: ipCheck.matchedRules,
       severity: 'CRITICAL',
-      engine: engineLabel,
+      engine: 'fallback',
     };
   }
 
@@ -462,7 +373,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       blocked: true,
       matchedRules: geoCheck.matchedRules,
       severity: 'CRITICAL',
-      engine: engineLabel,
+      engine: 'fallback',
     };
   }
 
@@ -475,9 +386,6 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /\b(?:union(?:\s+all)?\s+select|select\b.{0,80}\bfrom|insert\b.{0,40}\binto|update\b.{0,40}\bset|delete\b.{0,40}\bfrom|drop\b.{0,40}\btable|sleep\s*\(|benchmark\s*\(|waitfor\s+delay)\b/i,
         /(?:^|[\s"'`(])(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|false|1=1)\b/i,
         /(?:--|#|\/\*|\*\/|;\s*(?:select|union|drop|delete|insert|update|exec))/i,
-        /\b(?:or|and)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:true|false|null|\d+|[a-z_][\w$]*)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:=|like|regexp|rlike)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:true|false|null|\d+|[a-z_][\w$]*)/i,
-        /\b(?:pg_sleep|sleep|benchmark|waitfor\s+delay|dbms_pipe\.receive_message)\s*\(/i,
-        /\b(?:information_schema|@@version|version\s*\(|load_file\s*\(|into\s+outfile)\b/i,
       ],
     },
     {
@@ -489,9 +397,6 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /on(?:error|load|click|mouseover|focus|blur|mouseenter|mouseleave|animationstart|submit)\s*=/i,
         /<\s*(?:img|svg|iframe|object|embed|math)\b/i,
         /\b(?:alert|prompt|confirm|document\.cookie|document\.domain|window\.location)\s*\(/i,
-        /<(?:script|svg|img|iframe|object|embed|math|video|body|details|input)\b/i,
-        /\bon[a-z]{3,24}\s*=/i,
-        /\b(?:eval|settimeout|setinterval|fetch|atob)\s*\(/i,
       ],
     },
     {
@@ -500,9 +405,6 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       message: 'Path traversal payload detected',
       regexes: [
         /(?:\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e%5c|\/etc\/passwd|\\windows\\win\.ini|boot\.ini|system32|\/proc\/self\/environ)/i,
-        /(?:^|[\\/])\.\.(?:[\\/]|$)|(?:%2e|\.){2,}(?:%2f|%5c|[\\/])/i,
-        /(?:\/|\\)(?:etc\/(?:passwd|shadow|hosts)|proc\/self\/environ|windows\/(?:win\.ini|system32)|boot\.ini)\b/i,
-        /(?:%00|%252e%252e%252f|%c0%ae%c0%ae%c0%af)/i,
       ],
     },
     {
@@ -602,7 +504,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
     blocked: matchedRules.length > 0,
     matchedRules,
     severity: matchedRules.length ? 'CRITICAL' : 'INFO',
-    engine: engineLabel,
+    engine: 'fallback',
   };
 }
 
@@ -610,20 +512,11 @@ export class ModSecurityProxy {
   constructor(options = {}) {
     this.policies = new Map();
     this.rulesCache = new Map(); // policyId -> { modsec, rules }
-    this.policyEngineState = new Map();
     this.modsec = null;
     this.bodyLimit = options.bodyLimit ?? 13107200;
     this.responseBodyLimit = options.responseBodyLimit ?? 524288;
     this.inspectionTimeout = options.inspectionTimeout ?? 5000;
     this.failOpen = options.failOpen === true;
-    this.requireNative = parseBooleanOption(
-      options.requireNative ?? process.env.MODSECURITY_REQUIRE_NATIVE,
-      false,
-    );
-    this.requireCRS = parseBooleanOption(
-      options.requireCRS ?? process.env.MODSECURITY_REQUIRE_CRS,
-      false,
-    );
     this.responseInspectionEnabled = options.responseInspectionEnabled !== false;
     if (useNativeModSecurity) {
       try {
@@ -633,28 +526,14 @@ export class ModSecurityProxy {
         this.modsec = null;
       }
     }
-    if (this.requireNative && !this.modsec) {
-      this.startupError =
-        'Native ModSecurity is required but the modsecurity binding is unavailable.';
-    } else {
-      this.startupError = null;
-    }
   }
 
   async loadPolicy(policyId) {
     try {
-      if (this.startupError) {
-        throw new Error(this.startupError);
-      }
       if (!adminDb) return null;
       const policyDoc = await adminDb.collection('policies').doc(policyId).get();
       if (!policyDoc.exists) return null;
       const policy = policyDoc.data();
-      const engineState = {
-        mode: 'none',
-        nativeEngineAvailable: useNativeModSecurity && Boolean(this.modsec),
-        reason: null,
-      };
       // Regenerate config from structured policy data when available so GUI-created
       // policies keep working even if an older stored config string is stale/broken.
       if (policy.policy || policy.sqlInjection !== undefined) {
@@ -665,25 +544,8 @@ export class ModSecurityProxy {
       }
       this.policies.set(policyId, policy);
 
-      if (policy.modSecurityConfig) {
-        engineState.mode = 'fallback';
-        engineState.reason = engineState.nativeEngineAvailable
-          ? 'native_rules_not_loaded'
-          : 'native_engine_unavailable';
-      } else {
-        engineState.reason = 'no_modsecurity_config';
-      }
-
       if (useNativeModSecurity && this.modsec && policy.modSecurityConfig) {
         const candidates = getNativeConfigCandidates(policy.modSecurityConfig);
-        if (this.requireCRS && !candidates.some((candidate) => candidate.name === 'libmodsecurity-crs')) {
-          engineState.mode = 'strict-native-required';
-          engineState.reason = 'crs_include_files_unavailable';
-          this.policyEngineState.set(policyId, engineState);
-          throw new Error(
-            `Policy ${policyId} requires native ModSecurity with CRS files, but CRS includes are unavailable.`,
-          );
-        }
         for (const candidate of candidates) {
           try {
             const rules = compileNativeRules(candidate.config);
@@ -693,8 +555,6 @@ export class ModSecurityProxy {
                 rules,
                 engineVariant: candidate.name,
               });
-              engineState.mode = `libmodsecurity:${candidate.name}`;
-              engineState.reason = null;
               break;
             }
             console.warn(`ModSecurity rules add returned false for policy ${policyId} using ${candidate.name}`);
@@ -704,54 +564,17 @@ export class ModSecurityProxy {
         }
         if (!this.rulesCache.has(policyId)) {
           console.warn(`ModSecurity native rules unavailable for policy ${policyId}; fallback engine will be used`);
-          if (this.requireNative) {
-            engineState.mode = 'strict-native-required';
-            engineState.reason = 'native_rule_compilation_failed';
-            this.policyEngineState.set(policyId, engineState);
-            throw new Error(
-              `Policy ${policyId} requires native ModSecurity, but native rules could not be compiled.`,
-            );
-          }
         }
-      } else if (this.requireNative && policy.modSecurityConfig) {
-        engineState.mode = 'strict-native-required';
-        engineState.reason = this.modsec ? 'native_rules_not_loaded' : 'native_engine_unavailable';
-        this.policyEngineState.set(policyId, engineState);
-        throw new Error(
-          `Policy ${policyId} requires native ModSecurity, but the native engine is unavailable.`,
-        );
       }
-      this.policyEngineState.set(policyId, engineState);
       return policy;
     } catch (err) {
       console.error('loadPolicy error:', err);
-      if (policyId) {
-        this.policyEngineState.set(policyId, {
-          mode: 'strict-native-required',
-          nativeEngineAvailable: useNativeModSecurity && Boolean(this.modsec),
-          reason: err.message,
-        });
-        const failedPolicy = {
-          modSecurityConfig: '__load_error__',
-          _loadError: err.message,
-        };
-        this.policies.set(policyId, failedPolicy);
-        return failedPolicy;
-      }
       return null;
     }
   }
 
   _getRules(policyId) {
     return this.rulesCache.get(policyId) || null;
-  }
-
-  _getEngineLabel(policyId, fallbackReason = null) {
-    const state = policyId ? this.policyEngineState.get(policyId) : null;
-    if (state?.mode && state.mode !== 'fallback') return state.mode;
-    if (fallbackReason) return `fallback:${fallbackReason}`;
-    if (state?.reason) return `fallback:${state.reason}`;
-    return 'fallback';
   }
 
   async inspectAccessControls(req, policyId) {
@@ -763,21 +586,6 @@ export class ModSecurityProxy {
     const policy = this.policies.get(policyId);
     if (!policy) {
       return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
-    }
-    if (policy._loadError) {
-      return {
-        allowed: false,
-        blocked: true,
-        matchedRules: [{
-          id: 0,
-          message: policy._loadError,
-          severity: 'CRITICAL',
-          matchedData: null,
-          matchedVar: null,
-        }],
-        severity: 'CRITICAL',
-        engine: this._getEngineLabel(policyId, 'strict_native_required'),
-      };
     }
 
     const ipCheck = fallbackIpAccessCheck(req, policy);
@@ -808,20 +616,6 @@ export class ModSecurityProxy {
   async inspectRequest(req, policyId, bodyBuffer = null) {
     if (!this.policies.has(policyId)) await this.loadPolicy(policyId);
     const policy = this.policies.get(policyId);
-    if (policy?._loadError) {
-      return {
-        allowed: false,
-        blocked: true,
-        matchedRules: [{
-          id: 0,
-          message: policy._loadError,
-          severity: 'CRITICAL',
-          matchedData: null,
-          matchedVar: null,
-        }],
-        engine: this._getEngineLabel(policyId, 'strict_native_required'),
-      };
-    }
     if (!policy || !policy.modSecurityConfig) {
       return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
     }
@@ -832,12 +626,7 @@ export class ModSecurityProxy {
       const { rules, engineVariant } = this._getRules(policyId) || {};
       if (!rules) {
         console.warn(`ModSecurity native rules unavailable for policy ${policyId}; using fallback inspection`);
-        return runFallbackInspectRequest(
-          req,
-          policy,
-          bodyBuffer,
-          this._getEngineLabel(policyId, 'native_rules_unavailable'),
-        );
+        return runFallbackInspectRequest(req, policy, bodyBuffer);
       }
 
       const run = () => {
@@ -901,12 +690,7 @@ export class ModSecurityProxy {
       }
     }
 
-    return runFallbackInspectRequest(
-      req,
-      policy,
-      bodyBuffer,
-      this._getEngineLabel(policyId),
-    );
+    return runFallbackInspectRequest(req, policy, bodyBuffer);
   }
 
   /**
@@ -989,7 +773,7 @@ export class ModSecurityProxy {
       };
     }
 
-    return runFallbackInspectRequest(req, null, bodyBuffer, 'fallback:ad_hoc_fallback');
+    return runFallbackInspectRequest(req, null, bodyBuffer);
   }
 
   async inspectResponse(responseMeta, policyId) {
@@ -1048,14 +832,6 @@ export class ModSecurityProxy {
 
   isNativeEngineAvailable() {
     return useNativeModSecurity && Boolean(this.modsec);
-  }
-
-  getStartupError() {
-    return this.startupError;
-  }
-
-  isStrictNativeModeEnabled() {
-    return this.requireNative;
   }
 }
 
