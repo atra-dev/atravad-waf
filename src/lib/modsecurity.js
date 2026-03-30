@@ -473,7 +473,7 @@ function generatePathTraversalRules(ruleIdBase) {
     t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
-  rules += `SecRule REQUEST_URI|QUERY_STRING|ARGS|ARGS_NAMES "@rx (?i)(?:%25?c0%25?af|%25?c1%25?9c|%25?e0%25?80%25?af|%25?e0%25?80%25?bc|%25?c0%25?ae%25?c0%25?ae%25?c0%25?af)" \\
+  rules += `SecRule REQUEST_LINE|REQUEST_URI|QUERY_STRING|ARGS|ARGS_NAMES "@rx (?i)(?:%c0%af|%c1%9c|%e0%80%af|%e0%80%bc|%c0%ae%c0%ae%c0%af|%25c0%25af|%25c1%259c|%25e0%2580%25af|%25e0%2580%25bc|%25c0%25ae%25c0%25ae%25c0%25af)" \\
     "id:${ruleIdBase + 2},phase:2,block,msg:'Path Traversal Attack: Overlong UTF-8 Encoding Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
