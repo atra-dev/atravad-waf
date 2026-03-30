@@ -343,6 +343,19 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
     return headers;
   }
 
+  const originalCsp = sanitizeHeaderValue(
+    headers["Content-Security-Policy"] || headers["content-security-policy"],
+  );
+  const originalXFrameOptions = sanitizeHeaderValue(
+    headers["X-Frame-Options"] || headers["x-frame-options"],
+  );
+  const originalXssProtection = sanitizeHeaderValue(
+    headers["X-XSS-Protection"] || headers["x-xss-protection"],
+  );
+  const originalHsts = sanitizeHeaderValue(
+    headers["Strict-Transport-Security"] || headers["strict-transport-security"],
+  );
+
   const nextHeaders = sanitizeHeaderMap(headers);
   delete nextHeaders.etag;
   delete nextHeaders.ETag;
@@ -376,32 +389,28 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
   nextHeaders["Referrer-Policy"] = "strict-origin-when-cross-origin";
   nextHeaders["Permissions-Policy"] =
     'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()';
-  nextHeaders["X-Frame-Options"] =
-    sanitizeHeaderValue(nextHeaders["X-Frame-Options"] || nextHeaders["x-frame-options"]) ||
-    "DENY";
+  nextHeaders["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups";
+  nextHeaders["Cross-Origin-Resource-Policy"] = "same-site";
+  nextHeaders["Origin-Agent-Cluster"] = "?1";
+  nextHeaders["X-Frame-Options"] = originalXFrameOptions || "DENY";
 
-  const xssProtection = sanitizeHeaderValue(
-    nextHeaders["X-XSS-Protection"] || nextHeaders["x-xss-protection"],
-  );
-  if (!xssProtection || xssProtection === "0") {
+  if (!originalXssProtection || originalXssProtection === "0") {
     nextHeaders["X-XSS-Protection"] = "1; mode=block";
   }
 
-  const csp = sanitizeHeaderValue(
-    nextHeaders["Content-Security-Policy"] || nextHeaders["content-security-policy"],
-  );
-  if (!csp) {
+  if (originalCsp) {
+    nextHeaders["Content-Security-Policy"] = originalCsp;
+  } else {
     nextHeaders["Content-Security-Policy"] =
-      "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; form-action 'self'; upgrade-insecure-requests";
+      "default-src 'self'; base-uri 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://accounts.google.com https://apis.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self' https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; media-src 'self'; child-src 'self' blob:; upgrade-insecure-requests";
   }
 
   if (req?.secure || req?.socket?.encrypted) {
-    const existingHsts = sanitizeHeaderValue(
-      nextHeaders["Strict-Transport-Security"] || nextHeaders["strict-transport-security"],
-    );
-    if (!existingHsts) {
+    if (!originalHsts) {
       nextHeaders["Strict-Transport-Security"] =
         "max-age=63072000; includeSubDomains; preload";
+    } else {
+      nextHeaders["Strict-Transport-Security"] = originalHsts;
     }
   }
 
