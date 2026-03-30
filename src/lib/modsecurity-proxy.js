@@ -496,7 +496,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /(?:\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e%5c|\/etc\/passwd|\\windows\\win\.ini|boot\.ini|system32|\/proc\/self\/environ)/i,
         /(?:^|[\\/])\.\.(?:[\\/]|$)|(?:%2e|\.){2,}(?:%2f|%5c|[\\/])/i,
         /(?:\/|\\)(?:etc\/(?:passwd|shadow|hosts)|proc\/self\/environ|windows\/(?:win\.ini|system32)|boot\.ini)\b/i,
-        /(?:%00|%252e%252e%252f|%c0%ae%c0%ae%c0%af|%c0%af|%c1%9c|%e0%80%af|%e0%80%bc)/i,
+        /(?:%00|%252e%252e%252f|%c0%ae%c0%ae%c0%af|%c0%af|%c1%9c|%e0%80%af|%e0%80%bc|%25c0%25af|%25c1%259c|%25e0%2580%25af|%25e0%2580%25bc)/i,
       ],
     },
     {
