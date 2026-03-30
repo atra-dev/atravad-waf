@@ -775,10 +775,13 @@ export class ModSecurityProxy {
           if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
             return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
           }
-          res = tx.processRequestBody();
-          if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-            return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
-          }
+        }
+
+        // Phase 2 must still run for methods without a request body so query-string
+        // and header-based rules execute on GET/HEAD requests.
+        res = tx.processRequestBody();
+        if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+          return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${engineVariant || 'native'}` };
         }
 
         tx.processLogging && tx.processLogging();
@@ -860,10 +863,11 @@ export class ModSecurityProxy {
               if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
                 return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
               }
-              res = tx.processRequestBody();
-              if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
-                return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
-              }
+            }
+
+            res = tx.processRequestBody();
+            if (typeof res === 'object' && res !== null && (res.status || res.disruptive)) {
+              return { allowed: false, blocked: true, matchedRules: interventionToMatchedRules(res), engine: `libmodsecurity:${candidate.name}` };
             }
             tx.processLogging && tx.processLogging();
             return { allowed: true, blocked: false, matchedRules: [], engine: `libmodsecurity:${candidate.name}` };
