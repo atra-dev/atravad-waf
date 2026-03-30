@@ -477,13 +477,15 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       id: 100100,
       message: 'Cross-site scripting payload detected',
       regexes: [
-        /<script\b[^>]*>|<\/script>|javascript:|vbscript:|data:text\/html/i,
+        /<script\b[^>]*>|<\/script>|javascript:|vbscript:|livescript:|data:text\/html/i,
         /on(?:error|load|click|mouseover|focus|blur|mouseenter|mouseleave|animationstart|submit)\s*=/i,
         /<\s*(?:img|svg|iframe|object|embed|math)\b/i,
         /\b(?:alert|prompt|confirm|document\.cookie|document\.domain|window\.location)\s*\(/i,
         /<(?:script|svg|img|iframe|object|embed|math|video|body|details|input)\b/i,
         /\bon[a-z]{3,24}\s*=/i,
         /\b(?:eval|settimeout|setinterval|fetch|atob)\s*\(/i,
+        /&#(?:x0*3c|0*60);?\s*(?:script|svg|img)|&lt;?\s*(?:script|svg|img)/i,
+        /\$\{\s*(?:alert|prompt|confirm|document\.|window\.|fetch\()/i,
       ],
     },
     {
@@ -494,7 +496,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /(?:\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e%5c|\/etc\/passwd|\\windows\\win\.ini|boot\.ini|system32|\/proc\/self\/environ)/i,
         /(?:^|[\\/])\.\.(?:[\\/]|$)|(?:%2e|\.){2,}(?:%2f|%5c|[\\/])/i,
         /(?:\/|\\)(?:etc\/(?:passwd|shadow|hosts)|proc\/self\/environ|windows\/(?:win\.ini|system32)|boot\.ini)\b/i,
-        /(?:%00|%252e%252e%252f|%c0%ae%c0%ae%c0%af)/i,
+        /(?:%00|%252e%252e%252f|%c0%ae%c0%ae%c0%af|%c0%af|%c1%9c|%e0%80%af|%e0%80%bc)/i,
       ],
     },
     {
@@ -504,6 +506,8 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       regexes: [
         /\b(?:cmd(?:\.exe)?|powershell(?:\.exe)?|bash|sh|zsh|ksh|nc|netcat|curl|wget|perl|python|php|ruby|node)\b/i,
         /(?:\$\(|`[^`]+`|\|\||&&|;\s*(?:cat|ls|id|whoami|uname|curl|wget|powershell|bash|sh))/i,
+        /\{\s*(?:cat|bash|sh|curl|wget|nc|python|perl|php|node|powershell)\s*,[^{}]{1,128}\}/i,
+        /<\([^)]{1,128}\)/i,
       ],
     },
     {
@@ -513,6 +517,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       regexes: [
         /\b(?:file|gopher|dict|ftp):\/\/|@(?:127\.0\.0\.1|localhost)\b/i,
         /\b(?:127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|metadata\.google\.internal|localhost)(?::\d+)?\b/i,
+        /(?:^|[?&])(?:redirect|redir|url|next|return|returnto|continue|dest|destination|callback|target)=(?:(?:https?:)?\/\/|%2f%2f)/i,
       ],
     },
     {
@@ -530,6 +535,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       regexes: [
         /\b(?:username|user|login|email|password|pass|auth|token)\b.{0,80}(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|1=1)\b/i,
         /\b(?:admin|administrator|root|guest|test)\b.{0,32}(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|1=1)\b/i,
+        /\*\)\s*(?:\(|\||&)?\s*\(?\s*(?:uid|cn|mail|memberof|samaccountname)\s*=\*|\(\|\(uid=\*\)\)|\)\(&\(uid=\*\)\)/i,
       ],
     },
     {

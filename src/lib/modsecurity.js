@@ -377,7 +377,7 @@ function generateXSSRules(ruleIdBase) {
     setvar:'tx.xss_score=+1'"\n\n`;
 
   // Script tag detection
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx (?i)(?:<script[^>]*>.*?</script>|<script[^>]*>|javascript:|vbscript:|onload=|onerror=|onclick=|onmouseover=|onfocus=|onblur=)" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx (?i)(?:<script[^>]*>.*?</script>|<script[^>]*>|javascript:|vbscript:|livescript:|onload=|onerror=|onclick=|onmouseover=|onfocus=|onblur=|&#(?:x0*3c|0*60);\\s*script|&lt;\\s*script)" \\
     "id:${ruleIdBase + 1},phase:2,block,msg:'XSS Attack: Script Tag Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
@@ -395,8 +395,17 @@ function generateXSSRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
   // Raw URI / query-string XSS probes.
-  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:<script[^>]*>|</script>|javascript:|vbscript:|data:text/html|on(?:load|error|click|mouseover|focus|blur)\\s*=|%3cscript|%3c/svg|%3cimg)" \\
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:<script[^>]*>|</script>|javascript:|vbscript:|livescript:|data:text/html|on(?:load|error|click|mouseover|focus|blur)\\s*=|%3cscript|%3c/svg|%3cimg|&#(?:x0*3c|0*60);\\s*(?:script|svg|img)|&lt;\\s*(?:script|svg|img)|\\$\\{\\s*(?:alert|prompt|confirm|document\\.|window\\.|fetch\\())" \\
     "id:${ruleIdBase + 3},phase:2,block,msg:'XSS Attack: Raw URI Pattern Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-xss',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.xss_score=+1'"\n\n`;
+
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_URI|QUERY_STRING "@rx (?i)(?:\\$\\{\\s*(?:alert|prompt|confirm|document\\.|window\\.|fetch\\()|&#(?:x0*3c|0*60);\\s*(?:script|svg|img)|&lt;\\s*(?:script|svg|img)|livescript:)" \\
+    "id:${ruleIdBase + 4},phase:2,block,msg:'XSS Attack: Encoded or Template-Literal Payload Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
     tag:'attack-xss',\\
@@ -446,7 +455,7 @@ function generateFileUploadRules(ruleIdBase) {
 function generatePathTraversalRules(ruleIdBase) {
   let rules = '# Path Traversal Protection Rules\n';
   
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_URI|QUERY_STRING|REQUEST_HEADERS|XML:/* "@rx (?:(?:\\.\\.(?:%2f|%5c|/|\\\\))|(?:(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\))|(?:^(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\)))" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_URI|QUERY_STRING|REQUEST_HEADERS|XML:/* "@rx (?i)(?:(?:\\.\\.(?:%2f|%5c|/|\\\\))|(?:(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\))|(?:^(?:%2f|%5c|/|\\\\)\\.\\.(?:%2f|%5c|/|\\\\))|%c0%af|%c1%9c|%e0%80%af|%e0%80%bc|%c0%ae%c0%ae%c0%af)" \\
     "id:${ruleIdBase},phase:2,block,msg:'Path Traversal Attack Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
@@ -456,7 +465,7 @@ function generatePathTraversalRules(ruleIdBase) {
     t:none,t:urlDecodeUni,t:normalizePathWin,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
-  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:/etc/passwd|/etc/shadow|/proc/self/environ|\\\\windows\\\\win\\.ini|/windows/system32|boot\\.ini|%2fetc%2fpasswd|%2e%2e%2f|%2e%2e%5c)" \\
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:/etc/passwd|/etc/shadow|/proc/self/environ|\\\\windows\\\\win\\.ini|/windows/system32|boot\\.ini|%2fetc%2fpasswd|%2e%2e%2f|%2e%2e%5c|%c0%af|%c1%9c|%e0%80%af|%e0%80%bc)" \\
     "id:${ruleIdBase + 1},phase:2,block,msg:'Path Traversal Attack: Sensitive File Probe Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
@@ -497,7 +506,7 @@ function generateKnownScannerBlockRules(ruleIdBase) {
 function generateRCERules(ruleIdBase) {
   let rules = '# Remote Code Execution (RCE) Protection Rules\n';
   
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx (?i)(?:\\b(?:(?:s(?:elect\\b.*\\b(?:length|count|top)\\b.*\\bfrom|from\\b.*\\bwhere)|.*?\\b(?:d(?:ump\\b.*\\bfrom|ata_type)|(?:to_(?:num|char)|inst(?:r|ance_of))\\b)|[^\\s]*\\b(?:n(?:vl|extval)|[^\\s]*\\b(?:asc|desc)\\b.*\\b(?:chr|char))|.*?\\b(?:group|order)\\b.*\\bby\\b.*\\b(?:chr|char|ascii|substring|substr|truncate|cast|convert|concat|concat_ws))|.*?\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b.*\\b(?:select|from|where|group|order|having|limit|offset|union|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b|.*?\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b.*\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b|.*?\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b.*\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b)|(?:\\b(?:cmd|command|exec|execute|system|shell|bash|sh|powershell|python|perl|ruby|php|eval|call_user_func|assert|preg_replace|create_function|file_get_contents|file_put_contents|fopen|fwrite|fread|include|require|include_once|require_once|passthru|proc_open|popen|shell_exec|system|exec|eval|assert|call_user_func|preg_replace|create_function)\\b)" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_FILENAME|REQUEST_HEADERS|XML:/* "@rx (?i)(?:\\b(?:(?:s(?:elect\\b.*\\b(?:length|count|top)\\b.*\\bfrom|from\\b.*\\bwhere)|.*?\\b(?:d(?:ump\\b.*\\bfrom|ata_type)|(?:to_(?:num|char)|inst(?:r|ance_of))\\b)|[^\\s]*\\b(?:n(?:vl|extval)|[^\\s]*\\b(?:asc|desc)\\b.*\\b(?:chr|char))|.*?\\b(?:group|order)\\b.*\\bby\\b.*\\b(?:chr|char|ascii|substring|substr|truncate|cast|convert|concat|concat_ws))|.*?\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b.*\\b(?:select|from|where|group|order|having|limit|offset|union|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b|.*?\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b.*\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b|.*?\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b.*\\b(?:union|select|insert|update|delete|create|alter|drop|exec|execute|script|javascript|vbscript|onload|onerror)\\b)|(?:\\b(?:cmd|command|exec|execute|system|shell|bash|sh|powershell|python|perl|ruby|php|eval|call_user_func|assert|preg_replace|create_function|file_get_contents|file_put_contents|fopen|fwrite|fread|include|require|include_once|require_once|passthru|proc_open|popen|shell_exec|system|exec|eval|assert|call_user_func|preg_replace|create_function)\\b)|(?:\\{\\s*(?:cat|bash|sh|curl|wget|nc|python|perl|php|node|powershell)\\s*,[^{}]{1,128}\\})|(?:<\\([^)]{1,128}\\))" \\
     "id:${ruleIdBase},phase:2,block,msg:'Remote Code Execution Attempt Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
@@ -641,6 +650,14 @@ function generateSSRFRules(ruleIdBase) {
     t:none,t:urlDecodeUni,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
+  rules += `SecRule REQUEST_URI|QUERY_STRING|ARGS_NAMES|ARGS "@rx (?i)(?:^|[?&])(?:redirect|redir|url|next|return|returnto|continue|dest|destination|callback|target)=(?:(?:https?:)?//|%2f%2f)" \\
+    "id:${ruleIdBase + 3},phase:2,block,msg:'SSRF Attack: Open Redirect Style Destination Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-ssrf',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
   return rules;
 }
 
@@ -722,6 +739,14 @@ function generateAuthBypassRules(ruleIdBase) {
     tag:'attack-auth-bypass',\\
     t:none,t:urlDecodeUni,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
+
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_COOKIES|REQUEST_COOKIES_NAMES|REQUEST_BODY "@rx (?i)(?:\\*\\)\\s*(?:\\(|\\||&)?\\s*\\(?\\s*(?:uid|cn|mail|memberof|samaccountname)\\s*=\\*|\\(\\|\\(uid=\\*\\)\\)|\\)\\(&\\(uid=\\*\\))" \\
+    "id:${ruleIdBase + 3},phase:2,block,msg:'Authentication Bypass: LDAP Injection Pattern Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-auth-bypass',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
   return rules;
 }
