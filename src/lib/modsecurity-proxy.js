@@ -279,19 +279,100 @@ function decodeVariants(value, maxDepth = 3) {
   return Array.from(variants);
 }
 
+function decodeHtmlEntities(value) {
+  return String(value ?? '').replace(
+    /&(?:#(\d{1,7})|#x([0-9a-fA-F]{1,6})|lt|gt|quot|apos|amp|colon|sol);?/gi,
+    (match, dec, hex) => {
+      if (dec) {
+        const codePoint = Number.parseInt(dec, 10);
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      }
+      if (hex) {
+        const codePoint = Number.parseInt(hex, 16);
+        return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      }
+
+      switch (match.toLowerCase().replace(/;$/, '')) {
+        case '&lt':
+          return '<';
+        case '&gt':
+          return '>';
+        case '&quot':
+          return '"';
+        case '&apos':
+          return "'";
+        case '&amp':
+          return '&';
+        case '&colon':
+          return ':';
+        case '&sol':
+          return '/';
+        default:
+          return match;
+      }
+    },
+  );
+}
+
+function decodeUnicodeEscapes(value) {
+  return String(value ?? '')
+    .replace(/%u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
+}
+
+function normalizeTraversalValue(value) {
+  return String(value ?? '')
+    .replace(/\\/g, '/')
+    .replace(/\/{2,}/g, '/')
+    .replace(/(?:^|\/)\.(?:\/|$)/g, '/');
+}
+
+function stripSqlNoise(value) {
+  return String(value ?? '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/--[^\r\n]*/g, '')
+    .replace(/#[^\r\n]*/g, '')
+    .replace(/[\s"'`()]+/g, '');
+}
+
+function stripXssNoise(value) {
+  return String(value ?? '')
+    .replace(/[\u0000-\u001f\u007f]+/g, '')
+    .replace(/\s+/g, '')
+    .replace(/["'`]+/g, '');
+}
+
 function pushInspectionValue(target, source, value) {
   if (value === undefined || value === null) return;
   const raw = String(value);
   if (!raw) return;
 
-  for (const variant of decodeVariants(raw)) {
-    const normalized = variant.replace(/\0/g, '');
-    if (!normalized) continue;
-    target.push({
-      source,
-      value: normalized,
-      normalized: normalized.toLowerCase(),
-    });
+  const seen = new Set();
+  for (const variant of decodeVariants(raw, 5)) {
+    const base = decodeHtmlEntities(decodeUnicodeEscapes(variant)).replace(/\0/g, '');
+    if (!base) continue;
+
+    const candidates = [
+      base,
+      normalizeTraversalValue(base),
+      stripSqlNoise(base),
+      stripXssNoise(base),
+      stripXssNoise(normalizeTraversalValue(base)),
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = String(candidate || '').trim();
+      if (!normalized) continue;
+      const key = `${source}:${normalized}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      target.push({
+        source,
+        value: normalized,
+        normalized: normalized.toLowerCase(),
+      });
+    }
   }
 }
 
@@ -347,7 +428,7 @@ function matchInspectionRule(inputs, regexes) {
   return null;
 }
 
-function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
+function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel = 'fallback') {
   const headers = req.headers || {};
   const normalizedPolicy = normalizePolicyConfig(policy);
   const strictMode = policy?.includeOWASPCRS !== false;
@@ -362,7 +443,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
       blocked: true,
       matchedRules: ipCheck.matchedRules,
       severity: 'CRITICAL',
-      engine: 'fallback',
+      engine: engineLabel,
     };
   }
 
@@ -373,7 +454,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
       blocked: true,
       matchedRules: geoCheck.matchedRules,
       severity: 'CRITICAL',
-      engine: 'fallback',
+      engine: engineLabel,
     };
   }
 
@@ -386,6 +467,9 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
         /\b(?:union(?:\s+all)?\s+select|select\b.{0,80}\bfrom|insert\b.{0,40}\binto|update\b.{0,40}\bset|delete\b.{0,40}\bfrom|drop\b.{0,40}\btable|sleep\s*\(|benchmark\s*\(|waitfor\s+delay)\b/i,
         /(?:^|[\s"'`(])(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|false|1=1)\b/i,
         /(?:--|#|\/\*|\*\/|;\s*(?:select|union|drop|delete|insert|update|exec))/i,
+        /\b(?:or|and)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:true|false|null|\d+|[a-z_][\w$]*)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:=|like|regexp|rlike)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:true|false|null|\d+|[a-z_][\w$]*)/i,
+        /\b(?:pg_sleep|sleep|benchmark|waitfor\s+delay|dbms_pipe\.receive_message)\s*\(/i,
+        /\b(?:information_schema|@@version|version\s*\(|load_file\s*\(|into\s+outfile)\b/i,
       ],
     },
     {
@@ -397,6 +481,9 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
         /on(?:error|load|click|mouseover|focus|blur|mouseenter|mouseleave|animationstart|submit)\s*=/i,
         /<\s*(?:img|svg|iframe|object|embed|math)\b/i,
         /\b(?:alert|prompt|confirm|document\.cookie|document\.domain|window\.location)\s*\(/i,
+        /<(?:script|svg|img|iframe|object|embed|math|video|body|details|input)\b/i,
+        /\bon[a-z]{3,24}\s*=/i,
+        /\b(?:eval|settimeout|setinterval|fetch|atob)\s*\(/i,
       ],
     },
     {
@@ -405,6 +492,9 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
       message: 'Path traversal payload detected',
       regexes: [
         /(?:\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e%5c|\/etc\/passwd|\\windows\\win\.ini|boot\.ini|system32|\/proc\/self\/environ)/i,
+        /(?:^|[\\/])\.\.(?:[\\/]|$)|(?:%2e|\.){2,}(?:%2f|%5c|[\\/])/i,
+        /(?:\/|\\)(?:etc\/(?:passwd|shadow|hosts)|proc\/self\/environ|windows\/(?:win\.ini|system32)|boot\.ini)\b/i,
+        /(?:%00|%252e%252e%252f|%c0%ae%c0%ae%c0%af)/i,
       ],
     },
     {
@@ -499,12 +589,37 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null) {
     });
   }
 
+  const headerEntries = Object.entries(headers);
+  for (const [headerName, headerValue] of headerEntries) {
+    const serialized = Array.isArray(headerValue) ? headerValue.join(',') : String(headerValue || '');
+    if (/[\r\n]/.test(serialized)) {
+      matchedRules.push({
+        id: 100004,
+        message: `Header injection payload detected in ${headerName}`,
+        severity: 'CRITICAL',
+        matchedData: serialized,
+        matchedVar: `REQUEST_HEADERS:${headerName}`,
+      });
+      continue;
+    }
+
+    if (/(?:%0d|%0a|\\r|\\n|content-length\s*:|set-cookie\s*:|location\s*:)/i.test(serialized)) {
+      matchedRules.push({
+        id: 100005,
+        message: `Suspicious header smuggling payload detected in ${headerName}`,
+        severity: 'CRITICAL',
+        matchedData: serialized,
+        matchedVar: `REQUEST_HEADERS:${headerName}`,
+      });
+    }
+  }
+
   return {
     allowed: matchedRules.length === 0,
     blocked: matchedRules.length > 0,
     matchedRules,
     severity: matchedRules.length ? 'CRITICAL' : 'INFO',
-    engine: 'fallback',
+    engine: engineLabel,
   };
 }
 

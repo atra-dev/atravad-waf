@@ -58,6 +58,24 @@ function withWafFingerprintHeaders(headers = {}) {
   };
 }
 
+function sanitizeHeaderValue(value) {
+  return String(value ?? "").replace(/[\r\n]+/g, " ").trim();
+}
+
+function sanitizeHeaderMap(headers = {}) {
+  const nextHeaders = {};
+  for (const [key, value] of Object.entries(headers || {})) {
+    const safeKey = String(key || "").trim();
+    if (!safeKey) continue;
+    if (Array.isArray(value)) {
+      nextHeaders[safeKey] = value.map((entry) => sanitizeHeaderValue(entry));
+      continue;
+    }
+    nextHeaders[safeKey] = sanitizeHeaderValue(value);
+  }
+  return nextHeaders;
+}
+
 function renderCustomNotFoundHtml(host, path) {
   const safeHost = host || "unknown-host";
   const safePath = path || "/";
@@ -325,7 +343,7 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
     return headers;
   }
 
-  const nextHeaders = { ...headers };
+  const nextHeaders = sanitizeHeaderMap(headers);
   delete nextHeaders.etag;
   delete nextHeaders.ETag;
   delete nextHeaders["last-modified"];
@@ -334,6 +352,10 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
   delete nextHeaders.Expires;
   delete nextHeaders.age;
   delete nextHeaders.Age;
+  delete nextHeaders["x-frame-options"];
+  delete nextHeaders["x-xss-protection"];
+  delete nextHeaders["content-security-policy"];
+  delete nextHeaders["strict-transport-security"];
 
   nextHeaders["Cache-Control"] =
     "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, private";
@@ -350,6 +372,38 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
     "CF-IPCountry",
     "X-Vercel-IP-Country",
   ]);
+  nextHeaders["X-Content-Type-Options"] = "nosniff";
+  nextHeaders["Referrer-Policy"] = "strict-origin-when-cross-origin";
+  nextHeaders["Permissions-Policy"] =
+    'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()';
+  nextHeaders["X-Frame-Options"] =
+    sanitizeHeaderValue(nextHeaders["X-Frame-Options"] || nextHeaders["x-frame-options"]) ||
+    "DENY";
+
+  const xssProtection = sanitizeHeaderValue(
+    nextHeaders["X-XSS-Protection"] || nextHeaders["x-xss-protection"],
+  );
+  if (!xssProtection || xssProtection === "0") {
+    nextHeaders["X-XSS-Protection"] = "1; mode=block";
+  }
+
+  const csp = sanitizeHeaderValue(
+    nextHeaders["Content-Security-Policy"] || nextHeaders["content-security-policy"],
+  );
+  if (!csp) {
+    nextHeaders["Content-Security-Policy"] =
+      "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; form-action 'self'; upgrade-insecure-requests";
+  }
+
+  if (req?.secure || req?.socket?.encrypted) {
+    const existingHsts = sanitizeHeaderValue(
+      nextHeaders["Strict-Transport-Security"] || nextHeaders["strict-transport-security"],
+    );
+    if (!existingHsts) {
+      nextHeaders["Strict-Transport-Security"] =
+        "max-age=63072000; includeSubDomains; preload";
+    }
+  }
 
   return nextHeaders;
 }
@@ -687,7 +741,7 @@ function buildOriginRequestOptions(clientReq, origin) {
   const tlsServername =
     origin?.tlsServername ||
     getDefaultOriginServername(originUrlObj.toString(), upstreamHostHeader);
-  const headers = { ...clientReq.headers };
+  const headers = sanitizeHeaderMap({ ...clientReq.headers });
   const clientIpInfo = getClientIpInfo(clientReq);
 
   delete headers["connection"];
@@ -715,7 +769,7 @@ function buildOriginRequestOptions(clientReq, origin) {
   headers["x-atravad-upstream-host"] = upstreamHostHeader;
 
   if (origin?.authHeader?.name && origin?.authHeader?.value) {
-    headers[origin.authHeader.name] = origin.authHeader.value;
+    headers[sanitizeHeaderValue(origin.authHeader.name)] = sanitizeHeaderValue(origin.authHeader.value);
   }
 
   const requestOptions = {
