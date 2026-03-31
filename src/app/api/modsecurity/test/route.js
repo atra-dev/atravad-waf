@@ -302,6 +302,10 @@ function detectXSS(input) {
     /<iframe[^>]*>/i,
     /<img[^>]*onerror/i,
     /<svg[^>]*onload/i,
+    /\\?\$\{[^}]{1,256}\}/i,
+    /(?:&#(?:x[0-9a-f]{1,7}|[0-9]{1,7});){2,}/i,
+    /&lt;\s*(?:script|svg|img)/i,
+    /livescript:/i,
   ];
 
   return xssPatterns.some(pattern => pattern.test(input));

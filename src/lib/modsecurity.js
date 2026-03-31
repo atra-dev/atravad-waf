@@ -404,8 +404,26 @@ function generateXSSRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
     setvar:'tx.xss_score=+1'"\n\n`;
 
-  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_URI|QUERY_STRING "@rx (?i)(?:\\$\\{\\s*(?:alert|prompt|confirm|document\\.|window\\.|fetch\\()|&#(?:x0*3c|0*60);\\s*(?:script|svg|img)|&lt;\\s*(?:script|svg|img)|livescript:)" \\
+  rules += `SecRule ARGS|ARGS_NAMES|REQUEST_URI|QUERY_STRING "@rx (?i)(?:\\\\?\\$\\{\\s*(?:alert|prompt|confirm|document\\.|window\\.|fetch\\(|location\\b)|&#(?:x0*3c|0*60);\\s*(?:script|svg|img)|&lt;\\s*(?:script|svg|img)|livescript:)" \\
     "id:${ruleIdBase + 4},phase:2,block,msg:'XSS Attack: Encoded or Template-Literal Payload Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-xss',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.xss_score=+1'"\n\n`;
+
+  rules += `SecRule REQUEST_URI|ARGS "@rx (?i)\\\\?\\$\\{[^}]{1,256}\\}" \\
+    "id:${ruleIdBase + 5},phase:2,block,msg:'XSS Attack: Template Literal Injection Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-xss',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
+    setvar:'tx.xss_score=+1'"\n\n`;
+
+  rules += `SecRule REQUEST_URI|ARGS "@rx (?i)(?:&#(?:x[0-9a-f]{1,7}|[0-9]{1,7});){2,}" \\
+    "id:${ruleIdBase + 6},phase:2,block,msg:'XSS Attack: Numeric HTML Entity Encoding Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
     tag:'attack-xss',\\
