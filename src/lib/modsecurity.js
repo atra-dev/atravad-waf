@@ -431,6 +431,14 @@ function generateXSSRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}',\\
     setvar:'tx.xss_score=+1'"\n\n`;
 
+  rules += `SecRule REQUEST_HEADERS:X-Forwarded-Host|REQUEST_HEADERS:Forwarded "@rx (?i).+" \\
+    "id:${ruleIdBase + 7},phase:1,block,msg:'Protocol Attack: Spoofed Forwarding Header Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-protocol',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
   return rules;
 }
 
@@ -679,6 +687,14 @@ function generateSSRFRules(ruleIdBase) {
 
   rules += `SecRule REQUEST_URI|QUERY_STRING|ARGS_NAMES|ARGS "@rx (?i)(?:^|[?&])(?:redirect|redir|url|next|return|returnto|continue|dest|destination|callback|target)=(?:(?:https?:)?//|%2f%2f)" \\
     "id:${ruleIdBase + 3},phase:2,block,msg:'SSRF Attack: Open Redirect Style Destination Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-ssrf',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
+  rules += `SecRule REQUEST_HEADERS:X-Forwarded-Host|REQUEST_HEADERS:Forwarded "@rx (?i).+" \\
+    "id:${ruleIdBase + 4},phase:1,block,msg:'SSRF Attack: Forwarding Header Override Detected',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'CRITICAL',\\
     tag:'attack-ssrf',\\

@@ -314,6 +314,16 @@ function decodeHtmlEntities(value) {
   );
 }
 
+function decodeHtmlEntitiesRecursively(value, maxDepth = 3) {
+  let current = String(value ?? '');
+  for (let i = 0; i < maxDepth; i += 1) {
+    const next = decodeHtmlEntities(current);
+    if (next === current) break;
+    current = next;
+  }
+  return current;
+}
+
 function decodeUnicodeEscapes(value) {
   return String(value ?? '')
     .replace(/%u([0-9a-fA-F]{4})/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
@@ -350,7 +360,7 @@ function pushInspectionValue(target, source, value) {
 
   const seen = new Set();
   for (const variant of decodeVariants(raw, 5)) {
-    const base = decodeHtmlEntities(decodeUnicodeEscapes(variant)).replace(/\0/g, '');
+    const base = decodeHtmlEntitiesRecursively(decodeUnicodeEscapes(variant), 5).replace(/\0/g, '');
     if (!base) continue;
 
     const candidates = [
@@ -374,6 +384,102 @@ function pushInspectionValue(target, source, value) {
       });
     }
   }
+}
+
+function matchSupplementalRule(req, inputs, rule) {
+  if (!rule) return null;
+
+  if (typeof rule.when === 'function' && !rule.when(req)) {
+    return null;
+  }
+
+  if (!Array.isArray(rule.regexes) || rule.regexes.length === 0) {
+    return null;
+  }
+
+  return matchInspectionRule(inputs, rule.regexes);
+}
+
+function hasAnyHeader(headers, names = []) {
+  return names.some((name) => {
+    const value = headers?.[name];
+    if (Array.isArray(value)) return value.some((entry) => String(entry || '').trim());
+    return String(value || '').trim();
+  });
+}
+
+function runSupplementalInspectRequest(req, bodyBuffer = null) {
+  const headers = req?.headers || {};
+  const inputs = collectInspectionInputs(req, bodyBuffer);
+  const matchedRules = [];
+  const clientIpInfo = resolveClientIp({
+    headers,
+    remoteAddress: req?.socket?.remoteAddress,
+  });
+
+  const supplementalRules = [
+    {
+      id: 109001,
+      message: 'Cross-site scripting bypass payload detected',
+      regexes: [
+        /(?:^|[^\w])\\?\$\{[^}]{1,256}\}/i,
+        /<\s*(?:script|svg|img|iframe|object|embed|math)\b/i,
+        /(?:javascript|vbscript|livescript|data:text\/html)\s*:/i,
+      ],
+    },
+    {
+      id: 109002,
+      message: 'Encoded HTML entity XSS payload detected',
+      regexes: [
+        /(?:&#(?:x[0-9a-f]{1,7}|[0-9]{1,7});?){2,}/i,
+        /&(?:lt|#x0*3c|#0*60);?\s*(?:script|svg|img|iframe)\b/i,
+      ],
+    },
+    {
+      id: 109003,
+      message: 'Brace expansion command injection payload detected',
+      regexes: [
+        /\{\s*(?:cat|bash|sh|curl|wget|nc|python|perl|php|node|powershell)\s*,[^{}]{1,256}\}/i,
+      ],
+    },
+    {
+      id: 109004,
+      message: 'Spoofed proxy forwarding header detected',
+      when: () => !clientIpInfo.trustedProxy && hasAnyHeader(headers, [
+        'x-forwarded-host',
+        'x-forwarded-for',
+        'x-real-ip',
+        'true-client-ip',
+        'x-client-ip',
+        'cf-connecting-ip',
+        'forwarded',
+      ]),
+      regexes: [
+        /.+/i,
+      ],
+    },
+  ];
+
+  for (const rule of supplementalRules) {
+    const match = matchSupplementalRule(req, inputs, rule);
+    if (!match) continue;
+
+    matchedRules.push({
+      id: rule.id,
+      message: `${rule.message} (supplemental)`,
+      severity: 'CRITICAL',
+      matchedData: match.matchedData,
+      matchedVar: match.matchedVar,
+    });
+  }
+
+  return {
+    allowed: matchedRules.length === 0,
+    blocked: matchedRules.length > 0,
+    matchedRules,
+    severity: matchedRules.length ? 'CRITICAL' : 'INFO',
+    engine: 'supplemental',
+  };
 }
 
 function collectInspectionInputs(req, bodyBuffer = null) {
@@ -739,6 +845,11 @@ export class ModSecurityProxy {
     const policy = this.policies.get(policyId);
     if (!policy || !policy.modSecurityConfig) {
       return { allowed: true, blocked: false, matchedRules: [], engine: 'none' };
+    }
+
+    const supplementalInspection = runSupplementalInspectRequest(req, bodyBuffer);
+    if (!supplementalInspection.allowed || supplementalInspection.blocked) {
+      return supplementalInspection;
     }
 
     if (useNativeModSecurity && this.modsec) {

@@ -757,6 +757,14 @@ function buildOriginRequestOptions(clientReq, origin) {
   delete headers["host"];
   delete headers["transfer-encoding"];
   delete headers["upgrade"];
+  delete headers["forwarded"];
+  delete headers["x-forwarded-for"];
+  delete headers["x-forwarded-host"];
+  delete headers["x-forwarded-proto"];
+  delete headers["x-real-ip"];
+  delete headers["x-client-ip"];
+  delete headers["true-client-ip"];
+  delete headers["cf-connecting-ip"];
 
   headers["host"] = upstreamHostHeader;
   headers["x-forwarded-for"] = buildForwardedForHeader({
