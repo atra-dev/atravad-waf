@@ -612,6 +612,9 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       regexes: [
         /\b(?:cmd(?:\.exe)?|powershell(?:\.exe)?|bash|sh|zsh|ksh|nc|netcat|curl|wget|perl|python|php|ruby|node)\b/i,
         /(?:\$\(|`[^`]+`|\|\||&&|;\s*(?:cat|ls|id|whoami|uname|curl|wget|powershell|bash|sh))/i,
+        /(?:^|[?&][^=]{1,48}=)[^\s]{0,256}(?:\|{1,2}|&&|;)[^=&]{0,64}/i,
+        /(?:^|[?&][^=]{1,48}=)(?:%0a|%0d|%09|\\n|\\r|\\t)/i,
+        /\|\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\b/i,
         /\{\s*(?:cat|bash|sh|curl|wget|nc|python|perl|php|node|powershell)\s*,[^{}]{1,128}\}/i,
         /<\([^)]{1,128}\)/i,
       ],

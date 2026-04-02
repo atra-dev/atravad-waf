@@ -551,6 +551,28 @@ function generateRCERules(ruleIdBase) {
     t:none,t:urlDecodeUni,t:normalizePathWin,t:lowercase,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
+  // Raw URI and query-string command operator probes that may not populate
+  // ARGS reliably in edge-only inspection.
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:\\$\\([^)]{1,128}\\)|` + "`[^`]{1,128}`" + `|(?:^|[?&][^=]{1,48}=)[^\\s]{0,256}(?:\\|\\|?|&&|;)(?:[^=&]{0,48})|(?:^|[?&][^=]{1,48}=)(?:%0a|%0d|%09|\\\\n|\\\\r|\\\\t))" \\
+    "id:${ruleIdBase + 1},phase:2,block,msg:'Remote Code Execution Attempt: Raw URI/Query Command Operator Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-rce',\\
+    tag:'OWASP_CRS',\\
+    tag:'OWASP_CRS/WEB_ATTACK/RCE',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:\\|\\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\\b|(?:;|&&|\\|\\|)\\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\\b)" \\
+    "id:${ruleIdBase + 2},phase:2,block,msg:'Remote Code Execution Attempt: Raw URI/Query Command Chain Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-rce',\\
+    tag:'OWASP_CRS',\\
+    tag:'OWASP_CRS/WEB_ATTACK/RCE',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
   return rules;
 }
 
