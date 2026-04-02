@@ -268,31 +268,31 @@ export default function PolicyVersionsPage() {
         ) : (
           <>
         <div>
-          <h1 className="text-2xl font-bold text-slate-950 dark:text-slate-100">{policyName}</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Policy Versions</p>
-          <p className="mt-2 text-xs text-blue-600 dark:text-blue-300">
+          <h1 className="text-2xl font-bold theme-text-primary">{policyName}</h1>
+          <p className="mt-1 text-sm theme-text-secondary">Policy Versions</p>
+          <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
             Tip: Assign this policy to an application in the Applications page to use it with the proxy WAF.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-            <h2 className="mb-4 text-lg font-medium text-slate-900 dark:text-slate-100">Versions</h2>
+          <div className="theme-surface rounded-3xl p-6">
+            <h2 className="mb-4 text-lg font-medium theme-text-primary">Versions</h2>
             <div className="space-y-2">
               {versions.map((version) => (
                 <div
                   key={version.id}
                   className={`cursor-pointer rounded-lg border p-4 ${
                     selectedVersion?.id === version.id
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30'
-                      : 'border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700'
+                      ? 'border-indigo-500 bg-indigo-100 dark:bg-indigo-950/30'
+                      : 'border-[var(--border-soft)] hover:border-[var(--border-strong)]'
                   }`}
                   onClick={() => setSelectedVersion(version)}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">Version {version.version}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{new Date(version.createdAt).toLocaleString()}</p>
+                      <p className="font-medium theme-text-primary">Version {version.version}</p>
+                      <p className="text-sm theme-text-muted">{new Date(version.createdAt).toLocaleString()}</p>
                     </div>
                     {version.version !== versions[0]?.version ? (
                       <button
@@ -300,7 +300,7 @@ export default function PolicyVersionsPage() {
                           e.stopPropagation();
                           setPendingRollbackVersionId(version.id);
                         }}
-                        className="rounded-lg bg-slate-100 px-3 py-1 text-sm text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        className="theme-button-neutral rounded-lg px-3 py-1 text-sm transition"
                       >
                         Rollback
                       </button>
@@ -312,48 +312,48 @@ export default function PolicyVersionsPage() {
           </div>
 
           {selectedVersion ? (
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-              <h2 className="mb-4 text-lg font-medium text-slate-900 dark:text-slate-100">Version {selectedVersion.version} Details</h2>
+            <div className="theme-surface rounded-3xl p-6">
+              <h2 className="mb-4 text-lg font-medium theme-text-primary">Version {selectedVersion.version} Details</h2>
               <div className="space-y-4">
                 <div>
-                  <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Protections</h3>
+                  <h3 className="mb-2 text-sm font-medium theme-text-secondary">Protections</h3>
                   <div className="space-y-2">
                     <div className="flex items-center">
                       <span
                         className={`mr-2 h-3 w-3 rounded-full ${
-                          selectedVersion.policy.sqlInjection ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'
+                          selectedVersion.policy.sqlInjection ? 'bg-green-500' : 'bg-[var(--border-strong)]'
                         }`}
                       />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">SQL Injection Protection</span>
+                      <span className="text-sm theme-text-secondary">SQL Injection Protection</span>
                     </div>
                     <div className="flex items-center">
                       <span
                         className={`mr-2 h-3 w-3 rounded-full ${
-                          selectedVersion.policy.xss ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'
+                          selectedVersion.policy.xss ? 'bg-green-500' : 'bg-[var(--border-strong)]'
                         }`}
                       />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">XSS Protection</span>
+                      <span className="text-sm theme-text-secondary">XSS Protection</span>
                     </div>
                     <div className="flex items-center">
                       <span
                         className={`mr-2 h-3 w-3 rounded-full ${
-                          selectedVersion.policy.fileUpload ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'
+                          selectedVersion.policy.fileUpload ? 'bg-green-500' : 'bg-[var(--border-strong)]'
                         }`}
                       />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">File Upload Protection</span>
+                      <span className="text-sm theme-text-secondary">File Upload Protection</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">ModSecurity Configuration</h3>
-                  <pre className="max-h-64 overflow-auto rounded-xl bg-slate-50 p-4 text-xs text-slate-800 dark:bg-slate-900 dark:text-slate-200">
+                  <h3 className="mb-2 text-sm font-medium theme-text-secondary">ModSecurity Configuration</h3>
+                  <pre className="max-h-64 overflow-auto rounded-xl bg-[var(--surface-3)] p-4 text-xs theme-text-primary ring-1 ring-[var(--border-soft)]">
                     {selectedVersion.modSecurityConfig}
                   </pre>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs theme-text-muted">
                     Created: {new Date(selectedVersion.createdAt).toLocaleString()}
                   </p>
                 </div>
@@ -362,32 +362,32 @@ export default function PolicyVersionsPage() {
           ) : null}
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-          <h2 className="mb-4 text-lg font-medium text-slate-900 dark:text-slate-100">Operational Audit Trail</h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        <div className="theme-surface rounded-3xl p-6">
+          <h2 className="mb-4 text-lg font-medium theme-text-primary">Operational Audit Trail</h2>
+          <p className="mb-4 text-sm theme-text-secondary">
             Daily IP access control and geo blocking changes are tracked here without creating new policy versions.
           </p>
           {auditLogs.length > 0 ? (
             <div className="space-y-4">
-              <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/80 lg:grid-cols-[minmax(0,1.4fr)_220px_180px_160px_150px]">
+              <div className="grid gap-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-3)] p-4 lg:grid-cols-[minmax(0,1.4fr)_220px_180px_160px_150px]">
                 <input
                   type="text"
                   value={auditSearch}
                   onChange={(e) => setAuditSearch(e.target.value)}
                   placeholder="Search actor, version, IP, CIDR, or country"
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  className="theme-input rounded-md px-3 py-2 text-sm shadow-sm"
                 />
                 <input
                   type="text"
                   value={auditActorFilter}
                   onChange={(e) => setAuditActorFilter(e.target.value)}
                   placeholder="Filter by actor email"
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  className="theme-input rounded-md px-3 py-2 text-sm shadow-sm"
                 />
                 <select
                   value={auditChangeFilter}
                   onChange={(e) => setAuditChangeFilter(e.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
+                  className="theme-input rounded-md px-3 py-2 text-sm shadow-sm"
                 >
                   <option value="all">All changes</option>
                   <option value="ip_">IP and CIDR changes</option>
@@ -396,7 +396,7 @@ export default function PolicyVersionsPage() {
                 <select
                   value={auditDateFilter}
                   onChange={(e) => setAuditDateFilter(e.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
+                  className="theme-input rounded-md px-3 py-2 text-sm shadow-sm"
                 >
                   <option value="all">All dates</option>
                   <option value="7d">Last 7 days</option>
@@ -407,13 +407,13 @@ export default function PolicyVersionsPage() {
                   type="button"
                   onClick={exportAuditLogs}
                   disabled={exportingAudit || searchedAuditLogs.length === 0}
-                  className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
                 >
                   {exportingAudit ? 'Exporting...' : 'Export CSV'}
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs theme-text-muted">
                 <span>
                   Showing {searchedAuditLogs.length} entr{searchedAuditLogs.length === 1 ? 'y' : 'ies'} on this page.
                 </span>
@@ -423,19 +423,19 @@ export default function PolicyVersionsPage() {
               </div>
 
               {auditLoading ? (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
+                <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-3)] p-6 text-sm theme-text-muted">
                   Loading audit entries...
                 </div>
               ) : null}
 
               {searchedAuditLogs.map((log) => (
-                <div key={log.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                <div key={log.id} className="rounded-2xl border border-[var(--border-soft)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-slate-100">
+                      <p className="font-medium theme-text-primary">
                         {log.eventType === 'operational_list_update' ? 'Operational list update' : 'Audit event'}
                       </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                      <p className="text-sm theme-text-muted">
                         {log.actor?.email || 'Unknown user'} • {log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Unknown time'}
                       </p>
                     </div>
@@ -445,9 +445,9 @@ export default function PolicyVersionsPage() {
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">IP Access Control</p>
-                      <ul className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                    <div className="rounded-xl bg-[var(--surface-3)] p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide theme-text-muted">IP Access Control</p>
+                      <ul className="mt-2 space-y-2 text-sm theme-text-secondary">
                         <li>Whitelist added: {(log.changes?.ipAccessControl?.whitelist?.added || []).join(', ') || 'None'}</li>
                         <li>Whitelist removed: {(log.changes?.ipAccessControl?.whitelist?.removed || []).join(', ') || 'None'}</li>
                         <li>Blacklist added: {(log.changes?.ipAccessControl?.blacklist?.added || []).join(', ') || 'None'}</li>
@@ -459,9 +459,9 @@ export default function PolicyVersionsPage() {
                       </ul>
                     </div>
 
-                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Geo Blocking</p>
-                      <ul className="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                    <div className="rounded-xl bg-[var(--surface-3)] p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide theme-text-muted">Geo Blocking</p>
+                      <ul className="mt-2 space-y-2 text-sm theme-text-secondary">
                         <li>Blocked countries added: {(log.changes?.geoBlocking?.blockedCountries?.added || []).join(', ') || 'None'}</li>
                         <li>Blocked countries removed: {(log.changes?.geoBlocking?.blockedCountries?.removed || []).join(', ') || 'None'}</li>
                         <li>Allowed countries added: {(log.changes?.geoBlocking?.allowedCountries?.added || []).join(', ') || 'None'}</li>
@@ -470,9 +470,9 @@ export default function PolicyVersionsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-950/70">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Compliance Summary</p>
-                    <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+                  <div className="mt-4 rounded-xl border border-dashed border-[var(--border-soft)] bg-[var(--surface-1)] p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide theme-text-muted">Compliance Summary</p>
+                    <p className="mt-2 text-sm theme-text-secondary">
                       {flattenAuditChanges(log).length > 0 ? flattenAuditChanges(log).join(' | ') : 'No itemized add/remove delta recorded.'}
                     </p>
                   </div>
@@ -480,7 +480,7 @@ export default function PolicyVersionsPage() {
               ))}
 
               {(!auditLoading && searchedAuditLogs.length === 0) ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <div className="rounded-2xl border border-dashed border-[var(--border-soft)] p-6 text-sm theme-text-muted">
                   No audit entries matched the current filters on this page.
                 </div>
               ) : null}
@@ -495,7 +495,7 @@ export default function PolicyVersionsPage() {
                       setAuditCurrentCursor(auditPageCursors[nextPage] || null);
                     }}
                     disabled={auditPage === 1}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="theme-button-neutral rounded-md px-3 py-2 text-sm disabled:opacity-50"
                   >
                     Previous
                   </button>
@@ -508,7 +508,7 @@ export default function PolicyVersionsPage() {
                       setAuditCurrentCursor(auditPageCursors[nextPage] || null);
                     }}
                     disabled={!auditHasMore}
-                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className="theme-button-neutral rounded-md px-3 py-2 text-sm disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -516,7 +516,7 @@ export default function PolicyVersionsPage() {
               ) : null}
             </div>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">No operational audit entries recorded yet.</p>
+            <p className="text-sm theme-text-muted">No operational audit entries recorded yet.</p>
           )}
         </div>
           </>

@@ -701,23 +701,23 @@ export default function PolicyEditor({
       </div>
 
       <div className="min-h-[calc(100vh-16rem)] p-6 lg:p-8">
-        <div className="mb-6 rounded-xl border border-blue-300/60 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
-          <div className="flex items-start">
-            <div className="shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3 flex-1">
-              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">OWASP Core Rule Set (CRS) Enabled by Default</h3>
-              <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
-                <p>
-                  All policies automatically include <strong>OWASP CRS 3.3.0</strong> with 25 rule sets providing comprehensive protection. The protections below are <strong>additional custom rules</strong> that complement OWASP CRS.
-                </p>
+          <div className="mb-6 rounded-xl border border-blue-400/70 bg-blue-100 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
+            <div className="flex items-start">
+              <div className="shrink-0">
+                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-semibold text-blue-950 dark:text-blue-200">OWASP Core Rule Set (CRS) Enabled by Default</h3>
+                <div className="mt-2 text-sm text-blue-900 dark:text-blue-300">
+                  <p>
+                    All policies automatically include <strong>OWASP CRS 3.3.0</strong> with 25 rule sets providing comprehensive protection. The protections below are <strong>additional custom rules</strong> that complement OWASP CRS.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
@@ -736,7 +736,7 @@ export default function PolicyEditor({
                 disabled={Boolean(editingPolicyName)}
               />
               {editingPolicyName ? (
-                <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">Versioned edit keeps the same policy name and creates a new version.</p>
+                  <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">Versioned edit keeps the same policy name and creates a new version.</p>
               ) : null}
             </div>
 
