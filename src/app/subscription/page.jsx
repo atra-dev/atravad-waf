@@ -49,7 +49,7 @@ function FeatureBadge({ enabled, children }) {
     <div
       className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
         enabled
-          ? 'border-emerald-500 bg-emerald-100 text-emerald-900 shadow-[0_10px_24px_rgba(5,150,105,0.10)] dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300'
+          ? 'border-emerald-600 bg-emerald-100 text-emerald-950 shadow-[0_10px_24px_rgba(5,150,105,0.10)] dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300'
           : 'border-[var(--border-soft)] bg-[var(--surface-3)] theme-text-muted'
       }`}
     >
@@ -87,18 +87,18 @@ function ComparisonCard({ plan, active }) {
     <div
         className={`rounded-[26px] border p-5 shadow-sm transition-colors ${
           active
-          ? 'border-cyan-500 bg-[linear-gradient(145deg,#dff6ff,#e9f8ff_48%,#f3fbff)] text-slate-950 shadow-[0_20px_60px_rgba(14,116,144,0.16)] ring-1 ring-cyan-400/35 dark:bg-[linear-gradient(145deg,color-mix(in_srgb,var(--surface-2)_92%,#0f172a),color-mix(in_srgb,var(--surface-3)_88%,#0b1f33))] dark:text-[var(--text-primary)] dark:shadow-[0_20px_60px_rgba(8,15,29,0.22)] dark:ring-cyan-500/20'
+          ? 'border-cyan-500 bg-[linear-gradient(145deg,#d9f4ff,#e7f7ff_48%,#effbff)] text-slate-950 shadow-[0_20px_60px_rgba(14,116,144,0.16)] ring-1 ring-cyan-500/40 dark:bg-[linear-gradient(145deg,color-mix(in_srgb,var(--surface-2)_92%,#0f172a),color-mix(in_srgb,var(--surface-3)_88%,#0b1f33))] dark:text-[var(--text-primary)] dark:shadow-[0_20px_60px_rgba(8,15,29,0.22)] dark:ring-cyan-500/20'
           : 'theme-surface text-[var(--text-primary)]'
         }`}
       >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-900 dark:text-cyan-300' : 'theme-text-muted'}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-950 dark:text-cyan-300' : 'theme-text-muted'}`}>
             {plan.name}
           </p>
-          <p className={`mt-3 text-3xl font-semibold tracking-tight ${active ? 'text-slate-950 dark:text-white' : 'theme-text-primary'}`}>
+          <p className={`mt-3 text-3xl font-semibold tracking-tight ${active ? 'text-slate-950 dark:text-white [text-shadow:0_1px_0_rgba(255,255,255,0.65)] dark:[text-shadow:none]' : 'theme-text-primary'}`}>
             {plan.websitePrice}
-            {plan.websiteCadence ? <span className={`ml-1 text-base font-medium ${active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}`}>{plan.websiteCadence}</span> : null}
+            {plan.websiteCadence ? <span className={`ml-1 text-base font-medium ${active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}`}>{plan.websiteCadence}</span> : null}
           </p>
         </div>
         {active ? (
@@ -107,20 +107,20 @@ function ComparisonCard({ plan, active }) {
           </span>
         ) : null}
       </div>
-      <p className={`mt-4 text-sm leading-7 ${active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-secondary'}`}>
+      <p className={`mt-4 text-sm leading-7 ${active ? 'text-slate-900 dark:text-slate-300' : 'theme-text-secondary'}`}>
         {plan.description}
       </p>
       <div className="mt-5 space-y-3">
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}>Sites</span>
+          <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Sites</span>
           <span className="font-semibold">{plan.limits.maxApps}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}>Policies</span>
+          <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Policies</span>
           <span className="font-semibold">{plan.limits.maxPolicies}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}>Logs</span>
+          <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Logs</span>
           <span className="font-semibold">{plan.limits.logRetentionDays} days</span>
         </div>
       </div>

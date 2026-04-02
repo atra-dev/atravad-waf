@@ -58,6 +58,8 @@ export default function LogsPage() {
   );
   const [selectedLogStoredCount, setSelectedLogStoredCount] = useState(null);
   const [selectedLogExactCount, setSelectedLogExactCount] = useState(null);
+  const filterSelectClassName =
+    'block w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-3)] px-4 py-2 shadow-sm theme-text-primary focus:border-[var(--accent-strong)] focus:ring-[var(--accent-strong)] sm:text-sm';
   
   // Multi-tenancy state
   const [hasTenant, setHasTenant] = useState(false);
@@ -738,42 +740,42 @@ export default function LogsPage() {
                 <div>
                   <label className="mb-2 block text-sm font-medium theme-text-secondary">Severity</label>
                   <select
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className={filterSelectClassName}
                     value={filters.severity}
                     onChange={(e) => updateFilters({ severity: e.target.value })}
                   >
-                    <option value="">All Severities</option>
-                    <option value="critical">Critical</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="warning">Warning</option>
-                    <option value="low">Low</option>
-                    <option value="info">Info</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="">All Severities</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="critical">Critical</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="high">High</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="medium">Medium</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="warning">Warning</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="low">Low</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="info">Info</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Action</label>
+                  <label className="mb-2 block text-sm font-medium theme-text-secondary">Action</label>
                   <select
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className={filterSelectClassName}
                     value={filters.action}
                     onChange={(e) => updateFilters({ action: e.target.value })}
                   >
-                    <option value="">All Actions</option>
-                    <option value="waf_blocked">Blocked by WAF</option>
-                    <option value="origin_denied">Blocked by Origin</option>
-                    <option value="allowed">Allowed</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="">All Actions</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="waf_blocked">Blocked by WAF</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="origin_denied">Blocked by Origin</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="allowed">Allowed</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Site</label>
+                  <label className="mb-2 block text-sm font-medium theme-text-secondary">Site</label>
                   <select
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className={filterSelectClassName}
                     value={filters.site}
                     onChange={(e) => updateFilters({ site: e.target.value })}
                   >
-                    <option value="">All Sites</option>
+                    <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" value="">All Sites</option>
                     {sites.map((site) => (
-                      <option key={site} value={site}>{site}</option>
+                      <option className="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={site} value={site}>{site}</option>
                     ))}
                   </select>
                 </div>
