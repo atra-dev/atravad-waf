@@ -443,6 +443,13 @@ function runSupplementalInspectRequest(req, bodyBuffer = null) {
       ],
     },
     {
+      id: 109005,
+      message: 'Encoded control-character command injection payload detected',
+      regexes: [
+        /(?:%0a|%0d|%09|\\n|\\r|\\t|[\r\n\t])+\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\b/i,
+      ],
+    },
+    {
       id: 109004,
       message: 'Spoofed proxy forwarding header detected',
       when: () => !clientIpInfo.trustedProxy && hasAnyHeader(headers, [
