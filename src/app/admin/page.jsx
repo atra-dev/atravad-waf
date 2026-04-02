@@ -654,9 +654,9 @@ export default function SuperAdminPage() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-            <p className="text-gray-600 mb-4">You do not have permission to access this page.</p>
-            <p className="text-sm text-gray-500">Super Admin access is required.</p>
+            <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Access Denied</h2>
+            <p className="mb-4 text-slate-600 dark:text-slate-400">You do not have permission to access this page.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Super Admin access is required.</p>
           </div>
         </div>
       </Layout>
@@ -680,7 +680,7 @@ export default function SuperAdminPage() {
 
         {/* Header */}
         <div>
-          <div className="flex items-center justify-between mb-2">
+          <div className="mb-2 flex items-center justify-between">
             {loading ? (
               <SkeletonLoader variant="header" />
             ) : (
@@ -690,22 +690,22 @@ export default function SuperAdminPage() {
                     <ActivityIcon className="h-7 w-7 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900">ATRAVA Defense Super Admin</h1>
-                    <p className="text-sm text-gray-600">Platform-wide oversight and management</p>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">ATRAVA Defense Super Admin</h1>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Platform-wide oversight and management</p>
                   </div>
                 </div>
                 {refreshing && (
-                  <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 dark:border-blue-900/50 dark:bg-blue-950/35">
                     <LoadingSpinner size="sm" />
-                    <span className="text-sm text-blue-800">Refreshing...</span>
+                    <span className="text-sm text-blue-800 dark:text-blue-200">Refreshing...</span>
                   </div>
                 )}
                 {error && !refreshing && (
-                  <div className="flex items-center space-x-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 dark:border-red-900/50 dark:bg-red-950/35">
                     <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm text-red-800">{error}</span>
+                    <span className="text-sm text-red-800 dark:text-red-200">{error}</span>
                     <button
                       onClick={() => fetchData(false)}
                       className="ml-2 text-sm font-medium text-red-600 hover:text-red-800 underline"
@@ -756,7 +756,7 @@ export default function SuperAdminPage() {
         )}
 
         {/* Tabs */}
-        <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f7fbff_60%,#f4faf8_100%)] p-3 shadow-[0_16px_45px_rgba(15,23,42,0.06)]">
+        <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(145deg,#ffffff_0%,#f7fbff_60%,#f4faf8_100%)] p-3 shadow-[0_16px_45px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.98)_0%,rgba(15,23,42,0.95)_60%,rgba(17,24,39,0.98)_100%)] dark:shadow-none">
           <nav className="grid grid-cols-1 gap-2 md:grid-cols-4">
             {ADMIN_TABS.map((tab) => (
               <button
@@ -765,7 +765,7 @@ export default function SuperAdminPage() {
                 className={`${
                   activeTab === tab.id
                     ? 'border-slate-950 bg-slate-950 text-white shadow-[0_16px_35px_rgba(15,23,42,0.16)]'
-                    : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900'
+                    : 'border-transparent bg-white/70 text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-100'
                 } rounded-[22px] border px-4 py-4 text-left transition`}
               >
                 <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] opacity-70">
@@ -797,14 +797,14 @@ export default function SuperAdminPage() {
                   </div>
                   <div className="space-y-3">
                     {tenants.slice(0, 5).map((tenant) => (
-                  <div key={tenant.id} className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm">
+                  <div key={tenant.id} className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium text-gray-900">{tenant.name}</p>
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{tenant.name}</p>
                         <PlanBadge planName={tenant.plan?.name || tenant.planId || 'essential'} />
                         <CommercialStatusBadge status={tenant.subscriptionStatus} />
                       </div>
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                         {tenant.userCount || 0} users • {tenant.appCount || 0} sites • {tenant.policyCount || 0} policies
                       </p>
                     </div>
@@ -812,10 +812,10 @@ export default function SuperAdminPage() {
                   </div>
                 ))}
                 {tenants.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">No tenants found</p>
+                  <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">No tenants found</p>
                 )}
                 {tenants.length > 5 && (
-                  <p className="text-xs text-gray-500 text-center pt-2">
+                  <p className="pt-2 text-center text-xs text-slate-500 dark:text-slate-400">
                     Showing 5 of {tenants.length} tenants
                   </p>
                 )}
@@ -1238,11 +1238,11 @@ export default function SuperAdminPage() {
               <SkeletonLoader variant="table" />
             ) : (
               <div className="space-y-4">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Provision Managed User</h3>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Provision Managed User</h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         Create password-based or Google-authorized accounts and bind them to a managed tenant.
                       </p>
                     </div>
@@ -1250,7 +1250,7 @@ export default function SuperAdminPage() {
                       <select
                         value={selectedTenantFilter}
                         onChange={(e) => setSelectedTenantFilter(e.target.value)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                       >
                         <option value="all">All Tenants</option>
                         {tenants.map((tenant) => (
@@ -1267,13 +1267,13 @@ export default function SuperAdminPage() {
                       value={userForm.email}
                       onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
                       placeholder="User email"
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500"
                       required
                     />
                     <select
                       value={userForm.tenantName}
                       onChange={(e) => setUserForm((prev) => ({ ...prev, tenantName: e.target.value }))}
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                       required
                     >
                       <option value="">Select tenant</option>
@@ -1286,7 +1286,7 @@ export default function SuperAdminPage() {
                     <select
                       value={userForm.role}
                       onChange={(e) => setUserForm((prev) => ({ ...prev, role: e.target.value }))}
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                     >
                       <option value="admin">Admin</option>
                       <option value="client">Client</option>
@@ -1300,7 +1300,7 @@ export default function SuperAdminPage() {
                           password: e.target.value === 'password' ? prev.password : '',
                         }))
                       }
-                      className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                     >
                       <option value="password">Email + Password</option>
                       <option value="google">Google</option>
@@ -1312,7 +1312,7 @@ export default function SuperAdminPage() {
                         onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
                         placeholder={userForm.authProvider === 'password' ? 'Password' : 'Not required for Google'}
                         disabled={userForm.authProvider !== 'password'}
-                        className="min-w-0 flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                        className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
                       />
                       <button
                         type="submit"
@@ -1322,7 +1322,7 @@ export default function SuperAdminPage() {
                           !userForm.tenantName ||
                           (userForm.authProvider === 'password' && userForm.password.length < 6)
                         }
-                        className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                        className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-50"
                       >
                         {creatingUser ? 'Creating...' : 'Create User'}
                       </button>
@@ -1330,21 +1330,21 @@ export default function SuperAdminPage() {
                   </form>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
                   <div className="overflow-x-auto">
-                    <table className="min-w-[1120px] divide-y divide-gray-200">
-                      <thead className="bg-gray-50/90">
+                    <table className="min-w-[1120px] divide-y divide-slate-200 dark:divide-slate-800">
+                      <thead className="bg-slate-50/90 dark:bg-slate-900/90">
                         <tr>
-                          <th className="w-[26%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Email</th>
-                          <th className="w-[12%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Role</th>
-                          <th className="w-[18%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tenant</th>
-                          <th className="w-[22%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Auth</th>
-                          <th className="w-[10%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                          <th className="w-[8%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
-                          <th className="w-[14%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                          <th className="w-[26%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Email</th>
+                          <th className="w-[12%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Role</th>
+                          <th className="w-[18%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Tenant</th>
+                          <th className="w-[22%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Auth</th>
+                          <th className="w-[10%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</th>
+                          <th className="w-[8%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Created</th>
+                          <th className="w-[14%] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/75">
                         {users
                           .filter((user) => {
                             if (selectedTenantFilter === 'all') return true;
@@ -1353,7 +1353,7 @@ export default function SuperAdminPage() {
                           .map((user) => (
                             <tr key={user.id} className="align-top transition-colors hover:bg-slate-50/70">
                               <td className="px-6 py-4">
-                                <div className="max-w-[260px] break-words text-sm font-semibold text-gray-900">{user.email}</div>
+                                <div className="max-w-[260px] break-words text-sm font-semibold text-slate-900 dark:text-slate-100">{user.email}</div>
                               </td>
                               <td className="px-6 py-4 align-top">
                                 {user.role === 'super_admin' ? (
@@ -1364,21 +1364,21 @@ export default function SuperAdminPage() {
                                   <select
                                     value={userEdits[user.id]?.role || user.role || 'client'}
                                     onChange={(e) => handleUserEditChange(user.id, 'role', e.target.value)}
-                                    className="w-full min-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full min-w-[120px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                                   >
                                     <option value="admin">admin</option>
                                     <option value="client">client</option>
                                   </select>
                                 )}
                               </td>
-                              <td className="px-6 py-4 align-top text-sm text-gray-900">
+                              <td className="px-6 py-4 align-top text-sm text-slate-900 dark:text-slate-100">
                                 {user.role === 'super_admin' ? (
                                   '-'
                                 ) : (
                                   <select
                                     value={userEdits[user.id]?.tenantName ?? user.tenantName ?? ''}
                                     onChange={(e) => handleUserEditChange(user.id, 'tenantName', e.target.value)}
-                                    className="w-full min-w-[170px] rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                                   >
                                     <option value="">Unassigned</option>
                                     {tenants.map((tenant) => (
@@ -1389,7 +1389,7 @@ export default function SuperAdminPage() {
                                   </select>
                                 )}
                               </td>
-                              <td className="min-w-[260px] px-6 py-4 align-top text-sm text-gray-500">
+                              <td className="min-w-[260px] px-6 py-4 align-top text-sm text-slate-500 dark:text-slate-400">
                                 {user.role === 'super_admin' ? (
                                   user.authProvider || 'password'
                                 ) : (
@@ -1397,7 +1397,7 @@ export default function SuperAdminPage() {
                                     <select
                                       value={userEdits[user.id]?.authProvider || user.authProvider || 'password'}
                                       onChange={(e) => handleUserEditChange(user.id, 'authProvider', e.target.value)}
-                                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                                     >
                                       <option value="password">password</option>
                                       <option value="google">google</option>
@@ -1412,12 +1412,12 @@ export default function SuperAdminPage() {
                                           : 'Not required for Google'
                                       }
                                       disabled={(userEdits[user.id]?.authProvider || user.authProvider || 'password') !== 'password'}
-                                      className="w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                                      className="w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-500"
                                     />
                                   </div>
                                 )}
                               </td>
-                              <td className="px-6 py-4 align-top text-sm text-gray-500">
+                              <td className="px-6 py-4 align-top text-sm text-slate-500 dark:text-slate-400">
                                 <span
                                   className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                                     user.invitationPending
@@ -1428,12 +1428,12 @@ export default function SuperAdminPage() {
                                   {user.invitationPending ? 'Pending activation' : 'Active'}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 align-top text-sm text-gray-500">
+                              <td className="px-6 py-4 align-top text-sm text-slate-500 dark:text-slate-400">
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                               </td>
                               <td className="px-6 py-4 align-top">
                                 {user.role === 'super_admin' ? (
-                                  <span className="text-xs text-gray-400">Protected</span>
+                                  <span className="text-xs text-slate-400 dark:text-slate-500">Protected</span>
                                 ) : (
                                   <div className="flex min-w-[120px] flex-col gap-2">
                                     <button
@@ -1472,7 +1472,7 @@ export default function SuperAdminPage() {
                           return user.tenantName === selectedTenantFilter;
                         }).length === 0 && (
                           <tr>
-                            <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                            <td colSpan="7" className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                               No users found
                             </td>
                           </tr>

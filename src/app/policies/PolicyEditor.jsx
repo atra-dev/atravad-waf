@@ -10,6 +10,12 @@ import {
   validateRuleId,
 } from './policy-form-utils';
 
+const editorInputClassName =
+  'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500';
+
+const editorCardClassName =
+  'rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70';
+
 const PlusIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -131,8 +137,8 @@ function TagListInput({
 
   return (
     <div className="space-y-3">
-      {label && <label className="mb-1 block text-xs text-gray-600">{label}</label>}
-      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+      {label && <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">{label}</label>}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
           {value.length.toLocaleString()} items
         </span>
@@ -143,7 +149,7 @@ function TagListInput({
           </span>
         ) : null}
       </div>
-      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-3">
+      <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/70">
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="text"
@@ -151,12 +157,12 @@ function TagListInput({
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addValue())}
             placeholder={placeholder}
-            className="min-w-[180px] flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            className={`min-w-[180px] flex-1 ${editorInputClassName}`}
           />
           <button
             type="button"
             onClick={addValue}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+            className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             <PlusIcon className="mr-1 h-4 w-4" />
             Add
@@ -164,7 +170,7 @@ function TagListInput({
           <button
             type="button"
             onClick={() => setShowManager(true)}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Manage List
           </button>
@@ -172,7 +178,7 @@ function TagListInput({
             type="button"
             onClick={copyAll}
             disabled={value.length === 0}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Copy All
           </button>
@@ -197,21 +203,21 @@ function TagListInput({
                   setShowAllResults(false);
                 }}
                 placeholder="Filter current entries"
-                className="min-w-[220px] flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className={`min-w-[220px] flex-1 ${editorInputClassName}`}
               />
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 Showing {visibleValues.length.toLocaleString()} of {filteredValues.length.toLocaleString()}
               </span>
             </div>
-            <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 bg-gray-50">
-              <ul className="divide-y divide-gray-200">
+            <div className="max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70">
+              <ul className="divide-y divide-slate-200 dark:divide-slate-800">
                 {visibleValues.map((item) => (
                   <li key={item} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                    <code className="truncate text-gray-800">{item}</code>
+                    <code className="truncate text-slate-800 dark:text-slate-200">{item}</code>
                     <button
                       type="button"
                       onClick={() => removeItem(item)}
-                      className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-red-600"
+                      className="rounded p-1 text-slate-500 transition hover:bg-slate-200 hover:text-red-600 dark:text-slate-400 dark:hover:bg-slate-800"
                       aria-label={`Remove ${item}`}
                     >
                       <XIcon className="h-4 w-4" />
@@ -224,7 +230,7 @@ function TagListInput({
               <button
                 type="button"
                 onClick={() => setShowAllResults(true)}
-                className="text-xs font-medium text-blue-700 hover:text-blue-800"
+                className="text-xs font-medium text-blue-700 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
               >
                 Show remaining {hiddenCount.toLocaleString()} entries
               </button>
@@ -654,8 +660,8 @@ export default function PolicyEditor({
   ];
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#eef2ff_100%)] px-6 py-6 lg:px-8">
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+        <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#eef2ff_100%)] px-6 py-6 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.20),_transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.98)_0%,rgba(15,23,42,0.94)_55%,rgba(30,41,59,0.95)_100%)] lg:px-8">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">Policy Workspace</p>
@@ -707,7 +713,7 @@ export default function PolicyEditor({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="mb-2 block text-sm font-semibold text-gray-700">
+              <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Policy Name *
               </label>
               <input
@@ -715,36 +721,36 @@ export default function PolicyEditor({
                 id="name"
                 required
                 placeholder="e.g., Production Security Policy"
-                className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500"
+                className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 disabled={Boolean(editingPolicyName)}
               />
               {editingPolicyName ? (
-                <p className="mt-1 text-xs text-blue-600">Versioned edit keeps the same policy name and creates a new version.</p>
+                <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">Versioned edit keeps the same policy name and creates a new version.</p>
               ) : null}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="mode" className="mb-2 block text-sm font-medium text-gray-700">
+                <label htmlFor="mode" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Mode *
                 </label>
                 <select
                   id="mode"
                   required
-                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
                   value={formData.mode}
                   onChange={(e) => setFormData({ ...formData, mode: e.target.value })}
                 >
                   <option value="detection">Detection (Log only)</option>
                   <option value="prevention">Prevention (Block attacks)</option>
                 </select>
-                <p className="mt-1 text-xs text-gray-500">Start with Detection mode to identify false positives</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Start with Detection mode to identify false positives</p>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Applications (Optional)
                 </label>
                 <ApplicationAssignmentInput
@@ -756,7 +762,7 @@ export default function PolicyEditor({
             </div>
           </div>
 
-          <div className="border-b border-gray-200">
+          <div className="border-b border-slate-200 dark:border-slate-800">
             <nav className="-mb-px flex space-x-8 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
@@ -765,8 +771,8 @@ export default function PolicyEditor({
                   onClick={() => setActiveTab(tab.id)}
                   className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-300'
+                      : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200'
                   }`}
                 >
                   <span className="inline-flex items-center gap-2">
@@ -784,8 +790,8 @@ export default function PolicyEditor({
                 <div className="mb-3 flex items-center gap-3">
                   <SectionBadge icon={ShieldIcon} tone="blue" />
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900">Essential Protections</h3>
-                    <p className="text-xs text-gray-500">Core request inspection and exploit blocking.</p>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Essential Protections</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Core request inspection and exploit blocking.</p>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -796,7 +802,7 @@ export default function PolicyEditor({
                     { key: 'pathTraversal', label: 'Path Traversal Protection', desc: 'Directory traversal attack prevention' },
                     { key: 'rce', label: 'Remote Code Execution (RCE) Protection', desc: 'Command injection and code execution attempt detection' },
                   ].map((protection) => (
-                    <label key={protection.key} className="flex cursor-pointer items-start rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                    <label key={protection.key} className="flex cursor-pointer items-start rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/70">
                       <input
                         type="checkbox"
                         className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -804,8 +810,8 @@ export default function PolicyEditor({
                         onChange={(e) => setFormData({ ...formData, [protection.key]: e.target.checked })}
                       />
                       <div className="ml-3 flex-1">
-                        <div className="text-sm font-medium text-gray-900">{protection.label}</div>
-                        <div className="mt-1 text-xs text-gray-500">{protection.desc}</div>
+                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{protection.label}</div>
+                        <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{protection.desc}</div>
                       </div>
                     </label>
                   ))}
@@ -819,8 +825,8 @@ export default function PolicyEditor({
                   <div className="mb-3 flex items-center gap-3">
                     <SectionBadge icon={SparkIcon} tone="amber" />
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">OWASP Top 10 Protections</h3>
-                      <p className="text-xs text-gray-500">Focused protections for the most common web attack classes.</p>
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">OWASP Top 10 Protections</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Focused protections for the most common web attack classes.</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -836,7 +842,7 @@ export default function PolicyEditor({
                       { key: 'brokenAccessControl', label: 'Broken Access Control Protection', desc: 'Privilege escalation detection' },
                       { key: 'securityHeaders', label: 'Security Headers Monitoring', desc: 'Passive security header monitoring' },
                     ].map((protection) => (
-                      <label key={protection.key} className="flex cursor-pointer items-start rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                      <label key={protection.key} className="flex cursor-pointer items-start rounded-xl border border-slate-200 p-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-900/70">
                         <input
                           type="checkbox"
                           className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -844,15 +850,15 @@ export default function PolicyEditor({
                           onChange={(e) => setFormData({ ...formData, [protection.key]: e.target.checked })}
                         />
                         <div className="ml-3 flex-1">
-                          <div className="text-sm font-medium text-gray-900">{protection.label}</div>
-                          <div className="mt-1 text-xs text-gray-500">{protection.desc}</div>
+                          <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{protection.label}</div>
+                          <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{protection.desc}</div>
                         </div>
                       </label>
                     ))}
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -865,15 +871,15 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Rate Limiting</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Rate Limiting</span>
                   </label>
                   {formData.rateLimiting.enabled ? (
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
                       <div>
-                        <label className="mb-1 block text-xs text-gray-600">Requests/Minute</label>
+                        <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Requests/Minute</label>
                         <input
                           type="number"
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className={editorInputClassName}
                           value={formData.rateLimiting.requestsPerMinute}
                           onChange={(e) =>
                             setFormData({
@@ -884,10 +890,10 @@ export default function PolicyEditor({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-xs text-gray-600">Requests/Hour</label>
+                        <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Requests/Hour</label>
                         <input
                           type="number"
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className={editorInputClassName}
                           value={formData.rateLimiting.requestsPerHour}
                           onChange={(e) =>
                             setFormData({
@@ -898,10 +904,10 @@ export default function PolicyEditor({
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-xs text-gray-600">Burst Size</label>
+                        <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Burst Size</label>
                         <input
                           type="number"
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className={editorInputClassName}
                           value={formData.rateLimiting.burstSize}
                           onChange={(e) =>
                             setFormData({
@@ -923,13 +929,13 @@ export default function PolicyEditor({
                   <div className="flex items-center gap-3">
                     <SectionBadge icon={CogIcon} tone="violet" />
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Advanced Security Features</h3>
-                      <p className="text-xs text-gray-600">Enterprise-grade access control, bot handling, exceptions, and patching.</p>
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Advanced Security Features</h3>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Enterprise-grade access control, bot handling, exceptions, and patching.</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -942,9 +948,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">IP Access Control</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">IP Access Control</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">IP whitelisting/blacklisting with CIDR block support</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">IP whitelisting/blacklisting with CIDR block support</p>
                   {formData.ipAccessControl.enabled ? (
                     <div className="ml-8 mt-3 space-y-4">
                       <TagListInput
@@ -1015,7 +1021,7 @@ export default function PolicyEditor({
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1028,9 +1034,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Geographic Blocking</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Geographic Blocking</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">
                     Country-based access control using trusted edge headers such as <code>CF-IPCountry</code> or <code>X-Vercel-IP-Country</code>.
                   </p>
                   {formData.geoBlocking.enabled ? (
@@ -1071,7 +1077,7 @@ export default function PolicyEditor({
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1084,9 +1090,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Advanced Rate Limiting</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Advanced Rate Limiting</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">Per-endpoint and adaptive rate limiting for embedded proxy deployments.</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">Per-endpoint and adaptive rate limiting for embedded proxy deployments.</p>
                   {formData.advancedRateLimiting.enabled ? (
                     <div className="ml-8 mt-3 space-y-2">
                       <label className="flex items-center">
@@ -1101,13 +1107,13 @@ export default function PolicyEditor({
                             })
                           }
                         />
-                        <span className="ml-2 text-xs text-gray-700">Adaptive Rate Limiting</span>
+                        <span className="ml-2 text-xs text-slate-700 dark:text-slate-300">Adaptive Rate Limiting</span>
                       </label>
                       <div className="mt-2">
-                        <label className="mb-1 block text-xs text-gray-600">Per-Endpoint Rules (JSON format: {`{"endpoint": "requests_per_minute"}`})</label>
+                        <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Per-Endpoint Rules (JSON format: {`{"endpoint": "requests_per_minute"}`})</label>
                         <textarea
                           placeholder='{"\/api\/users": 100, "\/api\/admin": 50}'
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className={`${editorInputClassName} font-mono text-xs`}
                           rows={3}
                           onChange={(e) => {
                             try {
@@ -1125,7 +1131,7 @@ export default function PolicyEditor({
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1138,9 +1144,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Bot Detection & Mitigation</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Bot Detection & Mitigation</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">User-Agent filtering, bot signature detection, crawler blocking</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">User-Agent filtering, bot signature detection, crawler blocking</p>
                   {formData.botDetection.enabled ? (
                     <div className="ml-8 mt-3 space-y-2">
                       <label className="flex items-center">
@@ -1155,7 +1161,7 @@ export default function PolicyEditor({
                             })
                           }
                         />
-                        <span className="ml-2 text-xs text-gray-700">User-Agent Filtering</span>
+                        <span className="ml-2 text-xs text-slate-700 dark:text-slate-300">User-Agent Filtering</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -1169,7 +1175,7 @@ export default function PolicyEditor({
                             })
                           }
                         />
-                        <span className="ml-2 text-xs text-gray-700">Bot Signature Detection</span>
+                        <span className="ml-2 text-xs text-slate-700 dark:text-slate-300">Bot Signature Detection</span>
                       </label>
                       <label className="flex items-center">
                         <input
@@ -1183,13 +1189,13 @@ export default function PolicyEditor({
                             })
                           }
                         />
-                        <span className="ml-2 text-xs text-gray-700">Crawler Blocking</span>
+                        <span className="ml-2 text-xs text-slate-700 dark:text-slate-300">Crawler Blocking</span>
                       </label>
                     </div>
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1202,9 +1208,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Advanced File Upload Validation</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Advanced File Upload Validation</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">MIME type, file size, and extension validation.</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">MIME type, file size, and extension validation.</p>
                   {formData.advancedFileUpload.enabled ? (
                     <div className="ml-8 mt-3 space-y-3">
                       <label className="flex items-center">
@@ -1222,13 +1228,13 @@ export default function PolicyEditor({
                             })
                           }
                         />
-                        <span className="ml-2 text-xs text-gray-700">MIME Type Validation</span>
+                        <span className="ml-2 text-xs text-slate-700 dark:text-slate-300">MIME Type Validation</span>
                       </label>
                       <div>
-                        <label className="mb-1 block text-xs text-gray-600">Max File Size (bytes)</label>
+                        <label className="mb-1 block text-xs text-slate-600 dark:text-slate-400">Max File Size (bytes)</label>
                         <input
                           type="number"
-                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className={editorInputClassName}
                           value={formData.advancedFileUpload.maxFileSize}
                           onChange={(e) =>
                             setFormData({
@@ -1269,7 +1275,7 @@ export default function PolicyEditor({
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1282,9 +1288,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">API-Specific Protections</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">API-Specific Protections</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">API key checks plus OAuth/JWT format validation and API version enforcement.</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">API key checks plus OAuth/JWT format validation and API version enforcement.</p>
                   {formData.apiProtection.enabled ? (
                     <div className="ml-8 mt-3 space-y-2">
                       {[
@@ -1304,14 +1310,14 @@ export default function PolicyEditor({
                               })
                             }
                           />
-                          <span className="ml-2 text-xs text-gray-700">{label}</span>
+                          <span className="ml-2 text-xs text-slate-700 dark:text-slate-300">{label}</span>
                         </label>
                       ))}
                     </div>
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1324,9 +1330,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Exception Handling</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Exception Handling</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">Path-based rule exclusions and wildcard support</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">Path-based rule exclusions and wildcard support</p>
                   <p className="mb-3 ml-8 text-xs text-amber-700">
                     Explicit rule IDs are required. Full path-level engine disable is not allowed in production mode.
                   </p>
@@ -1365,7 +1371,7 @@ export default function PolicyEditor({
                   ) : null}
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div className={editorCardClassName}>
                   <label className="mb-3 flex items-center">
                     <input
                       type="checkbox"
@@ -1378,9 +1384,9 @@ export default function PolicyEditor({
                         })
                       }
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-900">Virtual Patching</span>
+                    <span className="ml-2 text-sm font-medium text-slate-900 dark:text-slate-100">Virtual Patching</span>
                   </label>
-                  <p className="mb-3 ml-8 text-xs text-gray-600">CVE-specific rules for zero-day protection</p>
+                  <p className="mb-3 ml-8 text-xs text-slate-600 dark:text-slate-400">CVE-specific rules for zero-day protection</p>
                   {formData.virtualPatching.enabled ? (
                     <div className="ml-8 mt-3">
                       <TagListInput
@@ -1402,11 +1408,11 @@ export default function PolicyEditor({
             ) : null}
           </div>
 
-          <div className="flex justify-end space-x-3 border-t border-gray-200 pt-6">
+          <div className="flex justify-end space-x-3 border-t border-slate-200 pt-6 dark:border-slate-800">
             <button
               type="button"
               onClick={closePolicyForm}
-              className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Cancel
             </button>
@@ -1433,7 +1439,7 @@ export default function PolicyEditor({
         </form>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 text-xs text-gray-500">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-400">
         <div className="flex items-center space-x-4">
           <span className="flex items-center">
             <svg className="mr-1 h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">

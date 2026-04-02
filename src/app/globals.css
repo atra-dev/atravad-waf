@@ -1,8 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
+  --background: #f3f7fb;
+  --foreground: #0f172a;
+  --surface-1: rgba(255, 255, 255, 0.92);
+  --surface-2: #ffffff;
+  --surface-3: #f8fafc;
+  --border-soft: rgba(226, 232, 240, 0.9);
+  --text-primary: #111827;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent-soft: rgba(59, 130, 246, 0.12);
+  --accent-strong: #2563eb;
+  --success-soft: rgba(34, 197, 94, 0.14);
+  --success-strong: #15803d;
+  --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.08);
+  --shadow-medium: 0 24px 60px rgba(15, 23, 42, 0.14);
+  --shell-gradient:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 26%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.1), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+}
+
+:root[data-theme="dark"] {
+  --background: #07111f;
+  --foreground: #e5eef8;
+  --surface-1: rgba(10, 19, 34, 0.9);
+  --surface-2: #0b1627;
+  --surface-3: #122033;
+  --border-soft: rgba(51, 65, 85, 0.9);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent-soft: rgba(56, 189, 248, 0.16);
+  --accent-strong: #38bdf8;
+  --success-soft: rgba(34, 197, 94, 0.18);
+  --success-strong: #4ade80;
+  --shadow-soft: 0 24px 70px rgba(2, 6, 23, 0.45);
+  --shadow-medium: 0 28px 85px rgba(2, 6, 23, 0.55);
+  --shell-gradient:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.16), transparent 26%),
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 24%),
+    linear-gradient(180deg, #06101e 0%, #091525 100%);
 }
 
 @theme inline {
@@ -17,6 +56,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-image: var(--shell-gradient);
+  background-attachment: fixed;
 }
 
 /* Custom scrollbar */
@@ -26,16 +67,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: color-mix(in srgb, var(--text-muted) 48%, transparent);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: color-mix(in srgb, var(--text-muted) 70%, transparent);
 }
 
 /* Sidebar-specific scrollbar styling */
@@ -48,12 +89,12 @@ aside nav::-webkit-scrollbar-track {
 }
 
 aside nav::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: color-mix(in srgb, var(--text-muted) 48%, transparent);
   border-radius: 3px;
 }
 
 aside nav::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: color-mix(in srgb, var(--text-muted) 70%, transparent);
 }
 
 /* Smooth transitions */
@@ -61,6 +102,92 @@ aside nav::-webkit-scrollbar-thumb:hover {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.theme-surface {
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.theme-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-medium);
+}
+
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-text-muted {
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .bg-white {
+  background-color: var(--surface-2) !important;
+}
+
+:root[data-theme="dark"] .bg-gray-50,
+:root[data-theme="dark"] .bg-slate-50 {
+  background-color: var(--surface-3) !important;
+}
+
+:root[data-theme="dark"] .bg-gray-100,
+:root[data-theme="dark"] .bg-slate-100 {
+  background-color: color-mix(in srgb, var(--surface-3) 82%, white 6%) !important;
+}
+
+:root[data-theme="dark"] .border-gray-200,
+:root[data-theme="dark"] .border-slate-200,
+:root[data-theme="dark"] .border-gray-300,
+:root[data-theme="dark"] .border-slate-300 {
+  border-color: var(--border-soft) !important;
+}
+
+:root[data-theme="dark"] .text-gray-900,
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-950,
+:root[data-theme="dark"] .text-gray-800,
+:root[data-theme="dark"] .text-slate-800 {
+  color: var(--text-primary) !important;
+}
+
+:root[data-theme="dark"] .text-gray-700,
+:root[data-theme="dark"] .text-slate-700,
+:root[data-theme="dark"] .text-gray-600,
+:root[data-theme="dark"] .text-slate-600 {
+  color: var(--text-secondary) !important;
+}
+
+:root[data-theme="dark"] .text-gray-500,
+:root[data-theme="dark"] .text-slate-500,
+:root[data-theme="dark"] .text-gray-400,
+:root[data-theme="dark"] .text-slate-400 {
+  color: var(--text-muted) !important;
+}
+
+:root[data-theme="dark"] .shadow-sm,
+:root[data-theme="dark"] .shadow,
+:root[data-theme="dark"] .shadow-md {
+  box-shadow: var(--shadow-soft) !important;
+}
+
+:root[data-theme="dark"] .hover\:bg-gray-50:hover,
+:root[data-theme="dark"] .hover\:bg-slate-50:hover,
+:root[data-theme="dark"] .hover\:bg-gray-100:hover,
+:root[data-theme="dark"] .hover\:bg-slate-100:hover {
+  background-color: color-mix(in srgb, var(--surface-3) 88%, white 4%) !important;
+}
+
+:root[data-theme="dark"] .ring-gray-200,
+:root[data-theme="dark"] .ring-slate-200 {
+  --tw-ring-color: var(--border-soft) !important;
 }
 
 @keyframes homepageFadeUp {

@@ -36,16 +36,16 @@ export default function FeedbackModal({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-start gap-4 border-b border-slate-100 px-6 py-5">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex items-start gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800">
           <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${styles.icon}`}>
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={iconPath} />
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{description}</p>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+            <p className="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600 dark:text-slate-400">{description}</p>
           </div>
         </div>
 

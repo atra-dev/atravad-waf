@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 
+const userInputClassName =
+  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500';
+
+const userModalShellClassName =
+  'w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950';
+
 export default function TenantUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,10 +83,10 @@ export default function TenantUsersPage() {
   return (
     <Layout>
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Tenant Users</h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-100">Tenant Users</h1>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
               Invite and manage members for your organization.
             </p>
           </div>
@@ -89,29 +95,29 @@ export default function TenantUsersPage() {
               setCreateFormData({ email: '', role: 'client' });
               setShowCreateModal(true);
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             + Invite Member
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-            <p className="text-sm text-red-800">{error}</p>
+          <div className="rounded-2xl border-l-4 border-red-400 bg-red-50 p-4 dark:border-red-500 dark:bg-red-950/35">
+            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
           </div>
         )}
 
         {feedback && (
           <div
-            className={`rounded-lg border-l-4 p-4 ${
+            className={`rounded-2xl border-l-4 p-4 ${
               feedback.tone === 'success'
-                ? 'border-emerald-400 bg-emerald-50'
-                : 'border-amber-400 bg-amber-50'
+                ? 'border-emerald-400 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/35'
+                : 'border-amber-400 bg-amber-50 dark:border-amber-500 dark:bg-amber-950/35'
             }`}
           >
             <p
               className={`text-sm ${
-                feedback.tone === 'success' ? 'text-emerald-800' : 'text-amber-800'
+                feedback.tone === 'success' ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'
               }`}
             >
               {feedback.message}
@@ -126,54 +132,54 @@ export default function TenantUsersPage() {
             message="Preparing managed access, user roles, and organization members."
           />
         ) : (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+                <thead className="bg-slate-50 dark:bg-slate-900/90">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Email
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Created
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/75">
                   {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
+                    <tr key={user.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-900/70">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">{user.email}</div>
+                        <div className="font-medium text-slate-900 dark:text-slate-100">{user.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             user.role === 'admin'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+                              : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
                           }`}
                         >
                           {user.role || 'client'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             user.invitationPending
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-emerald-100 text-emerald-800'
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
                           }`}
                         >
                           {user.invitationPending ? 'Invite Pending' : 'Active'}
@@ -189,7 +195,7 @@ export default function TenantUsersPage() {
                               });
                               setShowEditModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-900 focus:outline-none"
+                            className="text-blue-600 transition hover:text-blue-900 focus:outline-none dark:text-blue-300 dark:hover:text-blue-200"
                             title="Edit user"
                           >
                             <svg
@@ -211,7 +217,7 @@ export default function TenantUsersPage() {
                               setSelectedUser(user);
                               setShowDeleteModal(true);
                             }}
-                            className="text-red-600 hover:text-red-900 focus:outline-none"
+                            className="text-red-600 transition hover:text-red-900 focus:outline-none dark:text-red-300 dark:hover:text-red-200"
                             title="Delete user"
                           >
                             <svg
@@ -236,7 +242,7 @@ export default function TenantUsersPage() {
                     <tr>
                       <td
                         colSpan={5}
-                        className="px-6 py-4 text-center text-sm text-gray-500"
+                        className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400"
                       >
                         No users found
                       </td>
@@ -250,13 +256,13 @@ export default function TenantUsersPage() {
 
         {/* Create User Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+            <div className={userModalShellClassName}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Invite New Member</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Invite New Member</h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="text-slate-400 transition hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-200"
                 >
                   <svg
                     className="h-6 w-6"
@@ -337,7 +343,7 @@ export default function TenantUsersPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Role
                   </label>
                   <select
@@ -345,7 +351,7 @@ export default function TenantUsersPage() {
                     onChange={(e) =>
                       setCreateFormData({ ...createFormData, role: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={userInputClassName}
                   >
                     <option value="client">Client</option>
                     <option value="admin">Admin</option>
@@ -355,20 +361,20 @@ export default function TenantUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     disabled={actionLoading}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     disabled={actionLoading}
                   >
                     {actionLoading ? 'Sending Invite...' : 'Send Invite'}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   The system sends a Firebase password setup email and also keeps a copyable fallback link.
                 </p>
               </form>
@@ -378,13 +384,13 @@ export default function TenantUsersPage() {
 
         {/* Edit User Modal */}
         {showEditModal && selectedUser && (
-          <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+            <div className={userModalShellClassName}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Edit User</h3>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="text-slate-400 transition hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-200"
                 >
                   <svg
                     className="h-6 w-6"
@@ -402,9 +408,9 @@ export default function TenantUsersPage() {
                 </button>
               </div>
               <div className="mb-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
                   Email:{' '}
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
                     {selectedUser.email}
                   </span>
                 </p>
@@ -438,7 +444,7 @@ export default function TenantUsersPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                     Role
                   </label>
                   <select
@@ -446,7 +452,7 @@ export default function TenantUsersPage() {
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, role: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={userInputClassName}
                   >
                     <option value="client">Client</option>
                     <option value="admin">Admin</option>
@@ -456,14 +462,14 @@ export default function TenantUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     disabled={actionLoading}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     disabled={actionLoading}
                   >
                     {actionLoading ? 'Updating...' : 'Update User'}
@@ -476,13 +482,13 @@ export default function TenantUsersPage() {
 
         {/* Delete User Modal */}
         {showDeleteModal && selectedUser && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+            <div className={userModalShellClassName}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-red-600">Delete User</h3>
+                <h3 className="text-lg font-semibold text-red-600 dark:text-red-300">Delete User</h3>
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="text-slate-400 transition hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-200"
                 >
                   <svg
                     className="h-6 w-6"
@@ -500,12 +506,12 @@ export default function TenantUsersPage() {
                 </button>
               </div>
               <div className="mb-4">
-                <p className="text-sm text-gray-700 mb-2">
+                <p className="mb-2 text-sm text-slate-700 dark:text-slate-300">
                   Are you sure you want to delete this user? This action cannot be undone.
                 </p>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="font-medium text-gray-900">{selectedUser.email}</p>
-                  <p className="text-sm text-gray-600">
+                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{selectedUser.email}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
                     Role: {selectedUser.role || 'client'}
                   </p>
                 </div>
@@ -513,7 +519,7 @@ export default function TenantUsersPage() {
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                   disabled={actionLoading}
                 >
                   Cancel
@@ -540,7 +546,7 @@ export default function TenantUsersPage() {
                       setActionLoading(false);
                     }
                   }}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                  className="rounded-xl bg-red-600 px-4 py-2 text-white transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
                   disabled={actionLoading}
                 >
                   {actionLoading ? 'Deleting...' : 'Delete User'}

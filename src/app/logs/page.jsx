@@ -512,24 +512,24 @@ export default function LogsPage() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Security Logs & Audit</h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1 className="text-2xl font-bold theme-text-primary">Security Logs & Audit</h1>
+              <p className="mt-1 text-sm theme-text-secondary">
                 View and analyze security events and audit logs
               </p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8">
+          <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-8">
             <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 shadow-sm">
-                <BuildingIcon className="h-8 w-8 text-amber-700" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15 shadow-sm">
+                <BuildingIcon className="h-8 w-8 text-amber-300" />
               </div>
               <div className="max-w-2xl">
-                <h2 className="text-2xl font-bold text-gray-900">Tenant assignment required</h2>
-                <p className="mt-3 text-sm leading-7 text-gray-700">
+                <h2 className="text-2xl font-bold theme-text-primary">Tenant assignment required</h2>
+                <p className="mt-3 text-sm leading-7 theme-text-secondary">
                   Security logs and analytics are available only after the ATRAVA Defense super admin team provisions your tenant and assigns your account.
                 </p>
-                <p className="mt-2 text-sm leading-7 text-gray-600">
+                <p className="mt-2 text-sm leading-7 theme-text-muted">
                   Contact the ATRAVA Defense operations team to complete managed onboarding and enable access to your security data.
                 </p>
               </div>
@@ -636,11 +636,11 @@ export default function LogsPage() {
           <>
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Security Logs & Analytics</h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <h1 className="text-3xl font-bold theme-text-primary">Security Logs & Analytics</h1>
+            <p className="mt-2 text-sm theme-text-secondary">
               View and analyze security events, blocked attacks, and rollup-based traffic patterns
             </p>
-            {tenantName && <p className="mt-1 text-xs text-gray-500">Organization: <span className="font-medium text-gray-700">{tenantName}</span></p>}
+            {tenantName && <p className="mt-1 text-xs theme-text-muted">Organization: <span className="font-medium theme-text-secondary">{tenantName}</span></p>}
           </div>
           <div className="flex items-center gap-3">
             {activeTab === 'logs' && (
@@ -648,7 +648,7 @@ export default function LogsPage() {
                 <button
                   onClick={handleRefresh}
                   disabled={refreshing || loading}
-                  className="flex items-center space-x-2 px-4 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center space-x-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 font-medium theme-text-secondary hover:bg-[var(--surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m14.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-14.357-2m14.357 2H15" />
@@ -658,7 +658,7 @@ export default function LogsPage() {
                 <button
                   onClick={handleExport}
                   disabled={exporting || logs.length === 0}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center space-x-2 rounded-lg bg-[var(--accent-strong)] px-4 py-2 font-medium text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -671,15 +671,15 @@ export default function LogsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="border-b border-gray-200">
+        <div className="theme-surface rounded-xl">
+          <div className="border-b border-[var(--border-soft)]">
             <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab('logs')}
                 className={`${
                   activeTab === 'logs'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-[var(--accent-strong)] text-[var(--accent-strong)]'
+                    : 'border-transparent theme-text-muted hover:text-[var(--text-primary)] hover:border-[var(--border-soft)]'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -691,8 +691,8 @@ export default function LogsPage() {
                 onClick={() => setActiveTab('geographic')}
                 className={`${
                   activeTab === 'geographic'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-[var(--accent-strong)] text-[var(--accent-strong)]'
+                    : 'border-transparent theme-text-muted hover:text-[var(--text-primary)] hover:border-[var(--border-soft)]'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -704,8 +704,8 @@ export default function LogsPage() {
                 onClick={() => setActiveTab('traffic')}
                 className={`${
                   activeTab === 'traffic'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-[var(--accent-strong)] text-[var(--accent-strong)]'
+                    : 'border-transparent theme-text-muted hover:text-[var(--text-primary)] hover:border-[var(--border-soft)]'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -722,21 +722,21 @@ export default function LogsPage() {
           <>
 
             {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
+            <div className="theme-surface rounded-xl p-6">
+              <h2 className="mb-4 text-lg font-semibold theme-text-primary">Filters</h2>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                  <label className="mb-2 block text-sm font-medium theme-text-secondary">Search</label>
                   <input
                     type="text"
-                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
+                    className="block w-full rounded-lg border border-[var(--border-soft)] bg-[var(--surface-3)] px-4 py-2 shadow-sm theme-text-primary focus:border-[var(--accent-strong)] focus:ring-[var(--accent-strong)] sm:text-sm"
                     placeholder="Search logs..."
                     value={filters.search}
                     onChange={(e) => updateFilters({ search: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
+                  <label className="mb-2 block text-sm font-medium theme-text-secondary">Severity</label>
                   <select
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm px-4 py-2 border"
                     value={filters.severity}

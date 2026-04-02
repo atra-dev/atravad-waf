@@ -217,13 +217,13 @@ const allSecurityRules = {
 
 function RuleSection({ section, countLabel }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <div className="mb-6 flex flex-col gap-3 border-b border-gray-100 pb-5">
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+      <div className="mb-6 flex flex-col gap-3 border-b border-slate-100 pb-5 dark:border-slate-800">
         <div>
-          <h3 className="text-xl font-semibold text-gray-900">{section.title}</h3>
-          <p className="mt-1 text-sm text-gray-600">{section.description}</p>
+          <h3 className="text-xl font-semibold text-slate-950 dark:text-slate-100">{section.title}</h3>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{section.description}</p>
         </div>
-        <div className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+        <div className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {section.rules.length} {countLabel}
         </div>
       </div>
@@ -232,7 +232,7 @@ function RuleSection({ section, countLabel }) {
         {section.rules.map((rule) => {
           const RuleIcon = rule.iconType ? ruleIcons[rule.iconType] : null;
           return (
-            <div key={rule.name} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div key={rule.name} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/80">
               <div className="flex items-start gap-3">
                 {RuleIcon ? (
                   <span
@@ -244,8 +244,8 @@ function RuleSection({ section, countLabel }) {
                   </span>
                 ) : null}
                 <div className="min-w-0">
-                  <h4 className="text-sm font-semibold text-gray-900">{rule.name}</h4>
-                  <p className="mt-1 text-sm text-gray-600">{rule.description}</p>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{rule.name}</h4>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{rule.description}</p>
                 </div>
               </div>
             </div>
@@ -269,33 +269,33 @@ export default function PoliciesList({
 
   return (
     <div className="space-y-8">
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm lg:p-8">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none lg:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
-            <h2 className="text-2xl font-bold text-gray-900">Available Security Rules & Protections</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <h2 className="text-2xl font-bold text-slate-950 dark:text-slate-100">Available Security Rules & Protections</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
               Complete list of all security rules and protections provided by ATRAVA Defense.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-center">
+            <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-center dark:border-green-900/50 dark:bg-green-950/35">
               <div className="text-3xl font-bold text-green-700">{allSecurityRules.owaspCRS.rules.length}</div>
               <div className="mt-1 text-sm text-green-900">OWASP CRS Rules</div>
               <div className="mt-1 text-xs text-green-700">Enabled by default</div>
             </div>
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-center">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-center dark:border-blue-900/50 dark:bg-blue-950/35">
               <div className="text-3xl font-bold text-blue-700">{allSecurityRules.owaspTop10.rules.length}</div>
               <div className="mt-1 text-sm text-blue-900">OWASP Top 10 Protections</div>
               <div className="mt-1 text-xs text-blue-700">Available for policies</div>
             </div>
-            <div className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-center">
+            <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-center dark:border-purple-900/50 dark:bg-purple-950/35">
               <div className="text-3xl font-bold text-purple-700">{allSecurityRules.advanced.rules.length}</div>
               <div className="mt-1 text-sm text-purple-900">Advanced Features</div>
               <div className="mt-1 text-xs text-purple-700">Enterprise capabilities</div>
             </div>
           </div>
         </div>
-        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
           Total: {totalProtections} Security Rules & Protections
         </div>
       </div>
@@ -305,9 +305,9 @@ export default function PoliciesList({
       <RuleSection section={allSecurityRules.advanced} countLabel="Features" />
 
       {policyCount > 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Active Policies</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Active Policies</h2>
             <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
               {policyCount} {policyCount === 1 ? 'policy' : 'policies'}
             </span>
@@ -317,12 +317,12 @@ export default function PoliciesList({
 
       <div className="grid grid-cols-1 gap-6">
         {Object.keys(groupedPolicies).length === 0 ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+            <svg className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            <h3 className="mt-4 text-sm font-medium text-gray-900">No policies</h3>
-            <p className="mt-2 text-sm text-gray-500">Get started by creating your first security policy.</p>
+            <h3 className="mt-4 text-sm font-medium text-slate-900 dark:text-slate-100">No policies</h3>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Get started by creating your first security policy.</p>
           </div>
         ) : (
           Object.entries(groupedPolicies).map(([name, versions]) => {
@@ -339,18 +339,18 @@ export default function PoliciesList({
                 .filter(Boolean)
             )];
             return (
-              <div key={name} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+              <div key={name} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none dark:hover:shadow-[0_20px_48px_rgba(2,8,23,0.55)]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40">
                         <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{name}</h3>
-                        <p className="text-sm text-gray-500">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{name}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
                           Version {latestVersion.version} (Latest) • {versions.length} {versions.length === 1 ? 'version' : 'versions'}
                         </p>
                       </div>
@@ -359,13 +359,13 @@ export default function PoliciesList({
                   <div className="flex items-center gap-3">
                     <Link
                       href={`/policies/${encodeURIComponent(name)}/edit`}
-                      className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60"
                     >
                       Edit
                     </Link>
                     <Link
                       href={`/policies/${name}`}
-                      className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
                       View Versions & Audit
                     </Link>
@@ -373,7 +373,7 @@ export default function PoliciesList({
                       type="button"
                       onClick={() => handleDeletePolicy(name)}
                       disabled={deletingPolicyName === name}
-                      className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
                     >
                       {deletingPolicyName === name ? 'Deleting...' : 'Delete Policy'}
                     </button>
@@ -382,22 +382,22 @@ export default function PoliciesList({
 
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div>
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Mode</span>
-                    <p className="mt-1 text-sm capitalize text-gray-900">{latestVersion.mode}</p>
+                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Mode</span>
+                    <p className="mt-1 text-sm capitalize text-slate-900 dark:text-slate-100">{latestVersion.mode}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Application</span>
-                    <p className="mt-1 text-sm text-gray-900">
+                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Application</span>
+                    <p className="mt-1 text-sm text-slate-900 dark:text-slate-100">
                       {assignedApplications.length > 0 ? assignedApplications.join(', ') : 'None assigned'}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Updated</span>
-                    <p className="mt-1 text-sm text-gray-900">{formatTimestamp(latestVersion.updatedAt || latestVersion.createdAt)}</p>
+                    <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Updated</span>
+                    <p className="mt-1 text-sm text-slate-900 dark:text-slate-100">{formatTimestamp(latestVersion.updatedAt || latestVersion.createdAt)}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-lg border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
+                <div className="mt-4 rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-900/40 dark:bg-cyan-950/30 dark:text-cyan-200">
                   Operational IP and geo changes are available in the audit trail for this policy.
                 </div>
               </div>

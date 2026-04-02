@@ -95,42 +95,42 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-600 mb-1">Total Requests</div>
-          <div className="text-2xl font-bold text-gray-900">{totalRequests.toLocaleString()}</div>
+        <div className="theme-surface rounded-lg p-4">
+          <div className="mb-1 text-sm theme-text-secondary">Total Requests</div>
+          <div className="text-2xl font-bold theme-text-primary">{totalRequests.toLocaleString()}</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-600 mb-1">Blocked by WAF</div>
+        <div className="theme-surface rounded-lg p-4">
+          <div className="mb-1 text-sm theme-text-secondary">Blocked by WAF</div>
           <div className="text-2xl font-bold text-red-600">{blockedByWafRequests.toLocaleString()}</div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="mt-1 text-xs theme-text-muted">
             {totalRequests > 0 ? ((blockedByWafRequests / totalRequests) * 100).toFixed(1) : 0}%
           </div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-600 mb-1">Blocked by Origin</div>
+        <div className="theme-surface rounded-lg p-4">
+          <div className="mb-1 text-sm theme-text-secondary">Blocked by Origin</div>
           <div className="text-2xl font-bold text-amber-600">{blockedByOriginRequests.toLocaleString()}</div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="mt-1 text-xs theme-text-muted">
             {totalRequests > 0 ? ((blockedByOriginRequests / totalRequests) * 100).toFixed(1) : 0}%
           </div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-600 mb-1">Allowed</div>
+        <div className="theme-surface rounded-lg p-4">
+          <div className="mb-1 text-sm theme-text-secondary">Allowed</div>
           <div className="text-2xl font-bold text-green-600">{allowedRequests.toLocaleString()}</div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="mt-1 text-xs theme-text-muted">
             {totalRequests > 0 ? ((allowedRequests / totalRequests) * 100).toFixed(1) : 0}%
           </div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-600 mb-1">Countries</div>
+        <div className="theme-surface rounded-lg p-4">
+          <div className="mb-1 text-sm theme-text-secondary">Countries</div>
           <div className="text-2xl font-bold text-blue-600">{uniqueCountries}</div>
         </div>
       </div>
 
       {/* World Map Visualization */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Traffic by Country</h3>
+      <div className="theme-surface rounded-xl p-6">
+        <h3 className="mb-4 text-lg font-semibold theme-text-primary">Traffic by Country</h3>
         {ComposableMap ? (
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="rounded-lg bg-[var(--surface-3)] p-4">
             <ComposableMap
               projectionConfig={{
                 scale: 147,
@@ -156,7 +156,7 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
                         key={geo.rsmKey}
                         geography={geo}
                         fill={fillColor}
-                        stroke="#FFFFFF"
+                        stroke="rgba(255,255,255,0.3)"
                         strokeWidth={0.5}
                         style={{
                           default: { outline: 'none' },
@@ -169,7 +169,7 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
                 }
               </Geographies>
             </ComposableMap>
-            <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-600">
+            <div className="mt-4 flex items-center justify-center gap-4 text-xs theme-text-secondary">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-green-200 rounded"></div>
                 <span>Allowed Traffic</span>
@@ -185,21 +185,21 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
             </div>
           </div>
         ) : (
-          <div className="bg-gray-50 rounded-lg p-8 text-center border-2 border-dashed border-gray-300">
-            <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="rounded-lg border-2 border-dashed border-[var(--border-soft)] bg-[var(--surface-3)] p-8 text-center">
+            <svg className="mx-auto mb-4 h-16 w-16 theme-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-gray-600 font-medium mb-2">World Map Visualization</p>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="mb-2 font-medium theme-text-secondary">World Map Visualization</p>
+            <p className="mb-4 text-sm theme-text-muted">
               Install a React 19-compatible map library to enable interactive world map
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left max-w-md mx-auto">
+            <div className="mx-auto max-w-md rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-4 text-left">
               <p className="text-sm font-semibold text-blue-900 mb-2">Option 1: React 19 Fork (Recommended)</p>
-              <code className="block bg-white px-3 py-2 rounded text-xs mb-3">
+              <code className="mb-3 block rounded bg-[var(--surface-2)] px-3 py-2 text-xs theme-text-primary">
                 npm install github:vnedyalk0v/react19-simple-maps --legacy-peer-deps
               </code>
               <p className="text-sm font-semibold text-blue-900 mb-2">Option 2: Original (with legacy deps)</p>
-              <code className="block bg-white px-3 py-2 rounded text-xs">
+              <code className="block rounded bg-[var(--surface-2)] px-3 py-2 text-xs theme-text-primary">
                 npm install react-simple-maps --legacy-peer-deps
               </code>
             </div>
@@ -208,48 +208,48 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
       </div>
 
       {/* Countries Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Countries by Traffic</h3>
+      <div className="theme-surface overflow-hidden rounded-xl">
+        <div className="border-b border-[var(--border-soft)] px-6 py-4">
+          <h3 className="text-lg font-semibold theme-text-primary">Countries by Traffic</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-[var(--border-soft)]">
+            <thead className="bg-[var(--surface-3)]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Rank
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Country
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Total Requests
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Blocked by WAF
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Blocked by Origin
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Allowed
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                   Block Rate
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--surface-2)]">
               {countryData.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="7" className="px-6 py-8 text-center theme-text-muted">
                     No geographic data available yet. New logs will include country metadata for SOC analysis.
                   </td>
                 </tr>
               ) : (
                 countryData.map((country, index) => (
-                  <tr key={country.code} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={country.code} className="hover:bg-[var(--surface-3)]">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium theme-text-primary">
                       #{index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -261,15 +261,15 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
                             <img
                               src={getFlagImageUrl(country.code)}
                               alt={`${country.code} flag`}
-                              className="w-5 h-4 rounded-sm border border-gray-200 object-cover"
+                            className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
                               loading="lazy"
                             />
                           )}
                         </span>
-                        <span className="text-sm font-medium text-gray-900">{country.name}</span>
+                        <span className="text-sm font-medium theme-text-primary">{country.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                       {country.count.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
@@ -283,13 +283,13 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                        <div className="mr-2 h-2 w-16 rounded-full bg-[var(--border-soft)]">
                           <div
                             className="bg-red-500 h-2 rounded-full"
                             style={{ width: `${(country.blocked / country.count) * 100}%` }}
                           />
                         </div>
-                        <span className="text-sm text-gray-600">
+                        <span className="text-sm theme-text-secondary">
                           {((country.blocked / country.count) * 100).toFixed(1)}%
                         </span>
                       </div>

@@ -155,6 +155,12 @@ const createDefaultAppFormData = () => ({
   customFullchain: '',
 });
 
+const inputClassName =
+  'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-400 dark:focus:ring-teal-400/20';
+
+const mutedPanelClassName =
+  'rounded-xl border border-slate-200 bg-slate-50/90 p-4 dark:border-slate-700 dark:bg-slate-900/80';
+
 export default function AppsPage() {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -656,26 +662,26 @@ const getTrafficBarHeight = (value, maxValue) => {
     return (
       <Layout>
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Websites</h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <h1 className="text-2xl font-bold text-slate-950 dark:text-slate-100">Websites</h1>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 Manage and protect your websites with ATRAVA Defense
               </p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-8">
+          <div className="rounded-3xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50 p-8 shadow-sm dark:border-amber-900/60 dark:from-amber-950/50 dark:to-orange-950/35 dark:shadow-none">
             <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 shadow-sm">
-                <BuildingIcon className="h-8 w-8 text-amber-700" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100 shadow-sm dark:bg-amber-900/50 dark:shadow-none">
+                <BuildingIcon className="h-8 w-8 text-amber-700 dark:text-amber-300" />
               </div>
               <div className="max-w-2xl">
-                <h2 className="text-2xl font-bold text-gray-900">Tenant assignment required</h2>
-                <p className="mt-3 text-sm leading-7 text-gray-700">
+                <h2 className="text-2xl font-bold text-slate-950 dark:text-slate-100">Tenant assignment required</h2>
+                <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-300">
                   Website onboarding is handled by the ATRAVA Defense super admin team. Your account must be assigned to a managed tenant before you can add or manage protected sites.
                 </p>
-                <p className="mt-2 text-sm leading-7 text-gray-600">
+                <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-400">
                   Contact the ATRAVA Defense operations team to provision your organization, create user access, and complete managed onboarding.
                 </p>
               </div>
@@ -698,15 +704,15 @@ const getTrafficBarHeight = (value, maxValue) => {
         ) : (
           <>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">All Websites ({filteredApps.length}/{apps.length})</h1>
-            <p className="mt-1 text-xs text-gray-500">Organization: <span className="font-medium text-gray-700">{tenantName}</span></p>
+            <h1 className="text-2xl font-bold text-slate-950 dark:text-slate-100">All Websites ({filteredApps.length}/{apps.length})</h1>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Organization: <span className="font-medium text-slate-700 dark:text-slate-200">{tenantName}</span></p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleAddSite}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-500 text-white font-medium rounded-lg hover:bg-teal-600 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 font-medium text-white shadow-[0_10px_25px_rgba(20,184,166,0.24)] transition hover:bg-teal-400 dark:bg-teal-500 dark:hover:bg-teal-400"
             >
               <PlusIcon className="h-4 w-4" />
               Add Site
@@ -716,28 +722,28 @@ const getTrafficBarHeight = (value, maxValue) => {
 
         {/* Search Bar */}
         <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
+          <div className="relative flex-1">
             <input
               type="text"
               placeholder="Search for a website..."
-              className="w-full pl-4 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-12 text-slate-900 shadow-sm transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-400 dark:focus:ring-teal-400/20"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600">
+            <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-teal-500 p-2 text-white transition hover:bg-teal-400">
               <SearchIcon className="h-5 w-5" />
             </button>
           </div>
-          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+          <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-950/70">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2.5 ${viewMode === 'grid' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`p-2.5 transition ${viewMode === 'grid' ? 'bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'}`}
             >
               <GridIcon className="h-5 w-5" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2.5 ${viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`p-2.5 transition ${viewMode === 'list' ? 'bg-slate-100 text-slate-950 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900'}`}
             >
               <ListIcon className="h-5 w-5" />
             </button>
@@ -746,18 +752,18 @@ const getTrafficBarHeight = (value, maxValue) => {
 
         {/* Sites Grid/List */}
         {filteredApps.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
-            <GlobeIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-sm font-medium text-gray-900">
+          <div className="rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950/70 dark:shadow-none">
+            <GlobeIcon className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-600" />
+            <h3 className="mt-4 text-sm font-medium text-slate-950 dark:text-slate-100">
               {searchQuery ? 'No sites found' : 'No websites yet'}
             </h3>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               {searchQuery ? 'Try a different search term' : 'Get started by adding your first website.'}
             </p>
             {!searchQuery && (
               <button
                 onClick={handleAddSite}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white font-medium rounded-lg hover:bg-teal-600"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 font-medium text-white transition hover:bg-teal-400"
               >
                 <PlusIcon className="h-4 w-4" />
                 Add Site
@@ -777,8 +783,8 @@ const getTrafficBarHeight = (value, maxValue) => {
               return (
                 <div
                   key={app.id}
-                  className={`overflow-hidden rounded-[22px] border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_24px_rgba(15,23,42,0.06)] transition-shadow hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)] ${
-                    activated ? 'border-slate-200/90' : 'border-red-200'
+                  className={`overflow-hidden rounded-[22px] border bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_10px_24px_rgba(15,23,42,0.06)] transition-shadow hover:shadow-[0_10px_30px_rgba(15,23,42,0.12)] dark:bg-slate-950/75 dark:shadow-none dark:hover:shadow-[0_20px_48px_rgba(2,8,23,0.55)] ${
+                    activated ? 'border-slate-200/90 dark:border-slate-800' : 'border-red-200 dark:border-red-900/60'
                   }`}
                 >
                   <div className="px-5 pb-0 pt-5 sm:px-6 sm:pt-6">
@@ -787,14 +793,14 @@ const getTrafficBarHeight = (value, maxValue) => {
                         href={`https://${app.domain}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="max-w-[calc(100%-2.5rem)] break-all text-[1.15rem] font-semibold leading-[1.22] text-cyan-700 underline decoration-cyan-300/70 underline-offset-2 hover:text-cyan-800 sm:text-[1.3rem]"
+                        className="max-w-[calc(100%-2.5rem)] break-all text-[1.15rem] font-semibold leading-[1.22] text-cyan-700 underline decoration-cyan-300/70 underline-offset-2 hover:text-cyan-800 dark:text-cyan-300 dark:decoration-cyan-500/50 dark:hover:text-cyan-200 sm:text-[1.3rem]"
                       >
                         {app.domain}
                       </a>
                       <div className="relative">
                         <button 
                           onClick={(e) => openSettingsWithPosition(e, app.id)}
-                          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 sm:p-1.5"
+                          className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200 sm:p-1.5"
                           aria-label="Site settings"
                         >
                           <SettingsIcon className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -804,20 +810,20 @@ const getTrafficBarHeight = (value, maxValue) => {
                     
                     <div className="mt-4 space-y-2.5 text-[14px] leading-5.5 sm:text-[15px] sm:leading-6">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-slate-500">Hosting IP:</span>
-                        <span className="font-mono text-slate-800">{hostingIp}</span>
+                        <span className="text-slate-500 dark:text-slate-400">Hosting IP:</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{hostingIp}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-slate-500">Firewall IP:</span>
-                        <span className="font-mono text-slate-800">{app.firewallIp || 'Not assigned'}</span>
+                        <span className="text-slate-500 dark:text-slate-400">Firewall IP:</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{app.firewallIp || 'Not assigned'}</span>
                         {app.wafRegion && (
-                          <span className="ml-1 rounded-md bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700 uppercase">
+                          <span className="ml-1 rounded-md bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700 uppercase dark:bg-blue-950/60 dark:text-blue-300">
                             {app.wafRegion.toUpperCase()}
                           </span>
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-slate-500">SSL:</span>
+                        <span className="text-slate-500 dark:text-slate-400">SSL:</span>
                         <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-semibold tracking-wide ${sslMeta.tone}`}>
                           {sslMeta.label}
                         </span>
@@ -826,25 +832,25 @@ const getTrafficBarHeight = (value, maxValue) => {
 
                     {activated && (
                       <div className="mt-5 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[13px] font-medium text-slate-600 sm:text-[14px]">
-                        <Link href="/logs" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700">Reports</Link>
+                        <Link href="/logs" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700 dark:hover:text-cyan-300">Reports</Link>
                         <span className="text-slate-300">•</span>
-                        <Link href="/logs" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700">Audit Trails</Link>
+                        <Link href="/logs" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700 dark:hover:text-cyan-300">Audit Trails</Link>
                         <span className="text-slate-300">•</span>
                         <button
                           type="button"
                           onClick={() => handleClearCache(app)}
                           disabled={clearingCacheAppId === app.id}
-                          className="rounded-md px-1 py-0.5 transition hover:text-cyan-700 disabled:cursor-not-allowed disabled:text-slate-400"
+                          className="rounded-md px-1 py-0.5 transition hover:text-cyan-700 disabled:cursor-not-allowed disabled:text-slate-400 dark:hover:text-cyan-300 dark:disabled:text-slate-600"
                         >
                           {clearingCacheAppId === app.id ? 'Clearing...' : 'Clear Cache'}
                         </button>
                         <span className="text-slate-300">•</span>
-                        <Link href="/policies" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700">IP Access Control</Link>
+                        <Link href="/policies" className="rounded-md px-1 py-0.5 transition hover:text-cyan-700 dark:hover:text-cyan-300">IP Access Control</Link>
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-5 border-t border-slate-200/80 bg-slate-50/35 px-6 py-5">
+                  <div className="mt-5 border-t border-slate-200/80 bg-slate-50/35 px-6 py-5 dark:border-slate-800 dark:bg-slate-900/80">
                     {activated ? (
                       hasRealStats ? (
                         <div className="flex items-end justify-between gap-5">
@@ -863,14 +869,14 @@ const getTrafficBarHeight = (value, maxValue) => {
                               <div className="flex items-end gap-6">
                                 <div className="text-center">
                                   <div className="text-[1.9rem] font-semibold leading-none text-red-500">{stats.blocked.toLocaleString()}</div>
-                                  <div className="mt-1 text-[13px] text-slate-700">Blocked</div>
+                                  <div className="mt-1 text-[13px] text-slate-700 dark:text-slate-300">Blocked</div>
                                 </div>
                                 <div className="text-center">
                                   <div className="text-[1.9rem] font-semibold leading-none text-emerald-500">{stats.allowed.toLocaleString()}</div>
-                                  <div className="mt-1 text-[13px] text-slate-700">Allowed</div>
+                                  <div className="mt-1 text-[13px] text-slate-700 dark:text-slate-300">Allowed</div>
                                 </div>
                               </div>
-                              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                                 {formatAnalyticsDisplayWindow()}
                               </div>
                             </div>
@@ -881,7 +887,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-500">No traffic data yet</span>
+                          <span className="text-sm text-slate-500 dark:text-slate-400">No traffic data yet</span>
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500 shadow-[0_6px_14px_rgba(34,197,94,0.25)]">
                             <CheckCircleIcon className="h-6 w-6 text-white" />
                           </div>
@@ -889,7 +895,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                       )
                     ) : (
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-red-600">
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                           <WarningIcon className="h-5 w-5" />
                           <span className="font-medium">Not Activated!</span>
                         </div>
@@ -908,21 +914,21 @@ const getTrafficBarHeight = (value, maxValue) => {
           </div>
         ) : (
           /* List View */
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+              <thead className="bg-slate-50 dark:bg-slate-900/90">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Domain</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Hosting IP</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Firewall IP</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Region</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">SSL</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Stats</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Domain</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Hosting IP</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Firewall IP</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Region</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">SSL</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Stats</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-600 dark:text-slate-400">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {filteredApps.map((app) => {
                   const stats = getRealAppStats(app);
                   const activated = isActivated(app);
@@ -931,26 +937,26 @@ const getTrafficBarHeight = (value, maxValue) => {
                   const sslMeta = getSslStatusMeta(app.ssl);
                   
                   return (
-                    <tr key={app.id} className="hover:bg-gray-50">
+                    <tr key={app.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-900/70">
                       <td className="px-6 py-4">
                         <a
                           href={`https://${app.domain}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-teal-600 hover:text-teal-700 font-medium hover:underline"
+                          className="font-medium text-teal-600 hover:text-teal-700 hover:underline dark:text-teal-300 dark:hover:text-teal-200"
                         >
                           {app.domain}
                         </a>
                       </td>
-                      <td className="px-6 py-4 font-mono text-sm text-gray-700">{hostingIp}</td>
-                      <td className="px-6 py-4 font-mono text-sm text-gray-700">{app.firewallIp || 'Not assigned'}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-slate-700 dark:text-slate-300">{hostingIp}</td>
+                      <td className="px-6 py-4 font-mono text-sm text-slate-700 dark:text-slate-300">{app.firewallIp || 'Not assigned'}</td>
                       <td className="px-6 py-4">
                         {app.wafRegionName ? (
-                          <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                          <span className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                             {app.wafRegionName}
                           </span>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-slate-400 dark:text-slate-600">-</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -960,12 +966,12 @@ const getTrafficBarHeight = (value, maxValue) => {
                       </td>
                       <td className="px-6 py-4">
                         {activated ? (
-                          <span className="inline-flex items-center gap-1 text-green-600">
+                          <span className="inline-flex items-center gap-1 text-green-600 dark:text-emerald-400">
                             <CheckCircleIcon className="h-4 w-4" />
                             Active
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-red-600">
+                          <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
                             <WarningIcon className="h-4 w-4" />
                             Not Activated
                           </span>
@@ -975,7 +981,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                         {hasRealStats ? (
                           <div className="flex items-center gap-2 text-sm">
                             <span className="text-red-500">{stats.blocked} blocked</span>
-                            <span className="text-gray-300">|</span>
+                            <span className="text-slate-300 dark:text-slate-700">|</span>
                             <span className="text-teal-500">{stats.allowed} allowed</span>
                           </div>
                         ) : (
@@ -985,7 +991,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                       <td className="px-6 py-4 text-right">
                         <button 
                           onClick={(e) => openSettingsWithPosition(e, app.id)}
-                          className="text-gray-400 hover:text-gray-600 p-1"
+                          className="p-1 text-slate-400 transition hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-200"
                           aria-label="Site settings"
                         >
                           <SettingsIcon className="h-5 w-5" />
@@ -1014,13 +1020,13 @@ const getTrafficBarHeight = (value, maxValue) => {
                 aria-hidden="true"
               />
               <div
-                className="fixed z-50 w-48 min-w-[12rem] rounded-lg border border-gray-200 bg-white py-1 shadow-xl"
+                className="fixed z-50 w-48 min-w-[12rem] rounded-xl border border-slate-200 bg-white/95 py-1 shadow-2xl backdrop-blur dark:border-slate-800 dark:bg-slate-950/95"
                 style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
                 role="menu"
               >
                 <button
                   onClick={() => handleOpenEdit(app)}
-                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"
                   role="menuitem"
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1033,7 +1039,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                     setSelectedAppForSetup(app);
                     closeSettingsMenu();
                   }}
-                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"
                   role="menuitem"
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1043,7 +1049,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                 </button>
                 <a
                   href="/logs"
-                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900"
                   role="menuitem"
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1051,14 +1057,14 @@ const getTrafficBarHeight = (value, maxValue) => {
                   </svg>
                   View Logs
                 </a>
-                <hr className="my-1 border-gray-200" />
+                <hr className="my-1 border-slate-200 dark:border-slate-800" />
                 <button
                   onClick={() => {
                     handleDeleteSite(app);
                     closeSettingsMenu();
                   }}
                   disabled={deleting}
-                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  className="flex w-full gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/50"
                   role="menuitem"
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1083,18 +1089,18 @@ const getTrafficBarHeight = (value, maxValue) => {
             />
             
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all">
+            <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-950">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-950/60">
                     <GlobeIcon className="h-6 w-6 text-teal-600" />
                   </div>
-                  <span className="text-lg font-semibold text-gray-900">ATRAVAD Setup</span>
+                  <span className="text-lg font-semibold text-slate-950 dark:text-slate-100">ATRAVAD Setup</span>
                 </div>
                 <button
                   onClick={() => !connecting && setShowModal(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200"
                 >
                   <CloseIcon className="h-5 w-5" />
                 </button>
@@ -1104,11 +1110,11 @@ const getTrafficBarHeight = (value, maxValue) => {
               <div className="p-6 overflow-y-auto flex-1 min-h-0">
                 {wizardStep === 1 && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">What&apos;s your domain name?</h2>
+                    <h2 className="text-2xl font-bold text-slate-950 dark:text-slate-100">What&apos;s your domain name?</h2>
                     <input
                       type="text"
                       placeholder="Enter your domain"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-lg"
+                      className={`${inputClassName} text-lg`}
                       value={formData.domain}
                       onChange={(e) => setFormData({ ...formData, domain: e.target.value })}
                       autoFocus
@@ -1118,87 +1124,87 @@ const getTrafficBarHeight = (value, maxValue) => {
 
                 {wizardStep === 2 && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Where is your origin server?</h2>
-                    <p className="text-gray-600">
+                    <h2 className="text-2xl font-bold text-slate-950 dark:text-slate-100">Where is your origin server?</h2>
+                    <p className="text-slate-600 dark:text-slate-400">
                       Enter the URL of your actual web server. Traffic will be forwarded here after WAF inspection.
                     </p>
                     <input
                       type="url"
                       placeholder="https://origin.example.com"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-lg"
+                      className={`${inputClassName} text-lg`}
                       value={formData.originUrl}
                       onChange={(e) => setFormData({ ...formData, originUrl: e.target.value })}
                       autoFocus
                     />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Upstream Host Header
                         </label>
                         <input
                           type="text"
                           placeholder="Optional: app.internal.example or your public domain"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={inputClassName}
                           value={formData.originUpstreamHost}
                           onChange={(e) => setFormData({ ...formData, originUpstreamHost: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           Leave empty to forward the visitor&apos;s original host header. Set this when the origin expects a different host.
                         </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Origin TLS Server Name
                         </label>
                         <input
                           type="text"
                           placeholder="Optional: origin.example.com"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={inputClassName}
                           value={formData.originTlsServername}
                           onChange={(e) => setFormData({ ...formData, originTlsServername: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           Use this when your origin URL is an IP or provider hostname, but the HTTPS certificate expects a different name. Example: connect to `https://1.2.3.4` using `app.example.com` for TLS.
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Origin Auth Header Name
                         </label>
                         <input
                           type="text"
                           placeholder="Optional: X-ATRAVAD-Origin-Auth"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={inputClassName}
                           value={formData.originAuthHeaderName}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderName: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           The header name ATRAVAD will send to your origin, such as `X-ATRAVAD-Origin-Auth`.
                         </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                           Origin Auth Header Value
                         </label>
                         <input
                           type="password"
                           placeholder="Optional shared secret"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={inputClassName}
                           value={formData.originAuthHeaderValue}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderValue: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                           The shared secret value your origin verifies. Use this to block direct bypass traffic that does not come through ATRAVAD.
                         </p>
                       </div>
                     </div>
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/40">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-sm font-medium text-amber-900">Allow WebSockets through ATRAVAD</p>
-                          <p className="mt-1 text-xs text-amber-800">
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Allow WebSockets through ATRAVAD</p>
+                          <p className="mt-1 text-xs text-amber-800 dark:text-amber-300/80">
                             ATRAVAD inspects the WebSocket handshake, then tunnels frames. Post-upgrade frames are not inspected individually.
                           </p>
                         </div>
@@ -1211,24 +1217,24 @@ const getTrafficBarHeight = (value, maxValue) => {
                       </div>
                       {formData.websocketEnabled !== false && (
                         <div className="mt-3">
-                          <label className="block text-sm font-medium text-amber-900 mb-2">
+                          <label className="mb-2 block text-sm font-medium text-amber-900 dark:text-amber-200">
                             WebSocket Idle Timeout (seconds)
                           </label>
                           <input
                             type="number"
                             min="10"
                             max="86400"
-                            className="w-full md:w-60 px-4 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                            className="w-full rounded-xl border border-amber-300 bg-white px-4 py-2 shadow-sm transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-amber-800 dark:bg-slate-950/70 dark:text-slate-100 md:w-60"
                             value={formData.websocketIdleTimeoutSec}
                             onChange={(e) => setFormData({ ...formData, websocketIdleTimeoutSec: e.target.value })}
                           />
                         </div>
                       )}
                     </div>
-                    <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="pr-4 text-sm text-gray-700">
+                    <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+                      <span className="pr-4 text-sm text-slate-700 dark:text-slate-300">
                         Inspect and buffer origin responses
-                        <span className="block text-xs text-gray-500">
+                        <span className="block text-xs text-slate-500 dark:text-slate-400">
                           Disable this for SSE, AI streaming, or serverless responses that must stay streamed.
                         </span>
                       </span>
@@ -1240,11 +1246,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                       />
                     </label>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
                         Security Policy (Optional)
                       </label>
                         <select
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={inputClassName}
                           value={formData.policyId}
                           onChange={(e) => setFormData({ ...formData, policyId: e.target.value })}
                         >
@@ -1257,9 +1263,9 @@ const getTrafficBarHeight = (value, maxValue) => {
                         </select>
                     </div>
                     <div className="space-y-4">
-                      <label className="block text-sm font-medium text-gray-700">SSL Certificate</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">SSL Certificate</label>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${formData.sslMode === SSL_MODE.AUTO ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                        <label className={`cursor-pointer rounded-2xl border p-4 transition-colors ${formData.sslMode === SSL_MODE.AUTO ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/35' : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-teal-700'}`}>
                           <div className="flex items-start gap-3">
                             <input
                               type="radio"
@@ -1272,12 +1278,12 @@ const getTrafficBarHeight = (value, maxValue) => {
                               className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
                             />
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">Managed SSL (Recommended)</p>
-                              <p className="text-xs text-gray-600 mt-1">Let&apos;s Encrypt certificate issued and renewed automatically.</p>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Managed SSL (Recommended)</p>
+                              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Let&apos;s Encrypt certificate issued and renewed automatically.</p>
                             </div>
                           </div>
                         </label>
-                        <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${formData.sslMode === SSL_MODE.CUSTOM ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                        <label className={`cursor-pointer rounded-2xl border p-4 transition-colors ${formData.sslMode === SSL_MODE.CUSTOM ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/35' : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-teal-700'}`}>
                           <div className="flex items-start gap-3">
                             <input
                               type="radio"
@@ -1290,16 +1296,16 @@ const getTrafficBarHeight = (value, maxValue) => {
                               className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
                             />
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">Custom SSL</p>
-                              <p className="text-xs text-gray-600 mt-1">Paste PEM or import certificate/key files.</p>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Custom SSL</p>
+                              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Paste PEM or import certificate/key files.</p>
                             </div>
                           </div>
                         </label>
                       </div>
 
                       {formData.sslMode === SSL_MODE.AUTO && (
-                        <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                          <span className="text-sm text-gray-700">Automatically provision and renew SSL certificate</span>
+                        <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+                          <span className="text-sm text-slate-700 dark:text-slate-300">Automatically provision and renew SSL certificate</span>
                           <input
                             type="checkbox"
                             checked={formData.autoProvisionSSL !== false}
@@ -1310,9 +1316,9 @@ const getTrafficBarHeight = (value, maxValue) => {
                       )}
 
                       {formData.sslMode === SSL_MODE.CUSTOM && (
-                        <div className="mt-3 space-y-3 pl-4 border-l-2 border-teal-200">
+                        <div className="mt-3 space-y-3 border-l-2 border-teal-200 pl-4 dark:border-teal-900">
                           <div className="flex flex-wrap gap-2">
-                            <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                            <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                               Import Certificate File
                               <input
                                 type="file"
@@ -1321,7 +1327,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                                 onChange={(e) => importPemFile(e.target.files?.[0], 'customCert', setFormData, setCreateSslUiError)}
                               />
                             </label>
-                            <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                            <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                               Import Private Key File
                               <input
                                 type="file"
@@ -1330,7 +1336,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                                 onChange={(e) => importPemFile(e.target.files?.[0], 'customKey', setFormData, setCreateSslUiError)}
                               />
                             </label>
-                            <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                            <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                               Import Full Chain File
                               <input
                                 type="file"
@@ -1341,7 +1347,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                             </label>
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Certificate (PEM)</label>
+                            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Certificate (PEM)</label>
                             <textarea
                               placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
                               value={formData.customCert}
@@ -1350,11 +1356,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                                 setFormData({ ...formData, customCert: e.target.value });
                               }}
                               rows={4}
-                              className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                              className={`${inputClassName} min-h-[6rem] resize-y px-3 py-2 text-sm font-mono`}
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">Private key (PEM)</label>
+                            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Private key (PEM)</label>
                             <textarea
                               placeholder="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
                               value={formData.customKey}
@@ -1363,11 +1369,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                                 setFormData({ ...formData, customKey: e.target.value });
                               }}
                               rows={4}
-                              className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                              className={`${inputClassName} min-h-[6rem] resize-y px-3 py-2 text-sm font-mono`}
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">CA chain / full chain (optional)</label>
+                            <label className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">CA chain / full chain (optional)</label>
                             <textarea
                               placeholder="-----BEGIN CERTIFICATE-----\n... (intermediate + root)\n-----END CERTIFICATE-----"
                               value={formData.customFullchain}
@@ -1376,7 +1382,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                                 setFormData({ ...formData, customFullchain: e.target.value });
                               }}
                               rows={2}
-                              className="w-full min-h-[4rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                              className={`${inputClassName} min-h-[4rem] resize-y px-3 py-2 text-sm font-mono`}
                             />
                           </div>
                           {(createSslUiError || formData.customCert || formData.customKey || formData.customFullchain) && (
@@ -1396,7 +1402,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                       <div className="absolute inset-0 border-4 border-gray-200 rounded-full" />
                       <div className="absolute inset-0 border-4 border-teal-500 rounded-full border-t-transparent animate-spin" />
                     </div>
-                    <p className="mt-6 text-lg text-gray-700">Connecting your domain...</p>
+                    <p className="mt-6 text-lg text-slate-700 dark:text-slate-300">Connecting your domain...</p>
                   </div>
                 )}
 
@@ -1404,58 +1410,58 @@ const getTrafficBarHeight = (value, maxValue) => {
                   <div className="space-y-6">
                     <div className="text-center">
                       <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500" />
-                      <h2 className="mt-4 text-2xl font-bold text-gray-900">Almost done!</h2>
-                      <p className="mt-2 text-gray-600">
+                      <h2 className="mt-4 text-2xl font-bold text-slate-950 dark:text-slate-100">Almost done!</h2>
+                      <p className="mt-2 text-slate-600 dark:text-slate-400">
                         Point your domain&apos;s DNS to activate protection.
                       </p>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                    <div className={`${mutedPanelClassName} space-y-3`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Domain:</span>
-                        <span className="font-mono font-medium">{formData.domain}</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Domain:</span>
+                        <span className="font-mono font-medium text-slate-900 dark:text-slate-100">{formData.domain}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Origin:</span>
-                        <span className="font-mono text-sm">{formData.originUrl}</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Origin:</span>
+                        <span className="font-mono text-sm text-slate-900 dark:text-slate-100">{formData.originUrl}</span>
                       </div>
                       {formData.originUpstreamHost && (
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Upstream Host:</span>
-                          <span className="font-mono text-sm">{formData.originUpstreamHost}</span>
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Upstream Host:</span>
+                          <span className="font-mono text-sm text-slate-900 dark:text-slate-100">{formData.originUpstreamHost}</span>
                         </div>
                       )}
                       {formData.originTlsServername && (
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Origin TLS SNI:</span>
-                          <span className="font-mono text-sm">{formData.originTlsServername}</span>
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Origin TLS SNI:</span>
+                          <span className="font-mono text-sm text-slate-900 dark:text-slate-100">{formData.originTlsServername}</span>
                         </div>
                       )}
                       {formData.originAuthHeaderName && (
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Origin Auth:</span>
-                          <span className="font-mono text-sm">{formData.originAuthHeaderName}</span>
+                          <span className="text-sm text-slate-600 dark:text-slate-400">Origin Auth:</span>
+                          <span className="font-mono text-sm text-slate-900 dark:text-slate-100">{formData.originAuthHeaderName}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">WebSockets:</span>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm text-slate-600 dark:text-slate-400">WebSockets:</span>
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                           {formData.websocketEnabled !== false
                             ? `Handshake-only protection, ${formData.websocketIdleTimeoutSec || '900'}s timeout`
                             : 'Disabled'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">SSL:</span>
-                        <span className="text-sm font-medium">{formData.sslMode === SSL_MODE.CUSTOM ? 'Custom certificate' : 'Let\'s Encrypt (auto)'}</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">SSL:</span>
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{formData.sslMode === SSL_MODE.CUSTOM ? 'Custom certificate' : 'Let\'s Encrypt (auto)'}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Response Inspection:</span>
-                        <span className="text-sm font-medium">{formData.responseInspectionEnabled !== false ? 'Enabled' : 'Streaming-safe mode'}</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">Response Inspection:</span>
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{formData.responseInspectionEnabled !== false ? 'Enabled' : 'Streaming-safe mode'}</span>
                       </div>
-                      <hr className="border-gray-200" />
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
-                        <p className="text-sm text-blue-800">
+                      <hr className="border-slate-200 dark:border-slate-800" />
+                      <div className="mt-2 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/50 dark:bg-blue-950/35">
+                        <p className="text-sm text-blue-800 dark:text-blue-200">
                           <strong>Next Step:</strong> After adding your site, you&apos;ll receive a Firewall IP address based on your origin server&apos;s location. Update your DNS to point to this IP.
                         </p>
                       </div>
@@ -1466,7 +1472,7 @@ const getTrafficBarHeight = (value, maxValue) => {
 
               {/* Progress Bar */}
               <div className="px-6 shrink-0">
-                <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div className="h-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                   <div 
                     className="h-full bg-teal-500 transition-all duration-300"
                     style={{ width: `${(wizardStep / 4) * 100}%` }}
@@ -1475,11 +1481,11 @@ const getTrafficBarHeight = (value, maxValue) => {
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
+              <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
                 {wizardStep > 1 && wizardStep !== 3 && (
                   <button
                     onClick={() => setWizardStep(wizardStep - 1)}
-                    className="px-6 py-2.5 text-gray-700 font-medium rounded-lg hover:bg-gray-100"
+                    className="rounded-xl px-6 py-2.5 font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
                   >
                     Back
                   </button>
@@ -1517,35 +1523,35 @@ const getTrafficBarHeight = (value, maxValue) => {
               onClick={() => setSelectedAppForEdit(null)}
             />
             
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-950">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-950/60">
                     <SettingsIcon className="h-6 w-6 text-teal-600" />
                   </div>
-                  <span className="text-lg font-semibold text-gray-900">Edit Site</span>
+                  <span className="text-lg font-semibold text-slate-950 dark:text-slate-100">Edit Site</span>
                 </div>
                 <button
                   onClick={() => setSelectedAppForEdit(null)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200"
                 >
                   <CloseIcon className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Tabs: General | SSL Certificate (Sucuri-style separation) */}
-              <div className="flex border-b border-gray-200 px-6 shrink-0">
+              <div className="flex shrink-0 border-b border-slate-200 px-6 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditModalTab('general')}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${editModalTab === 'general' ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                  className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors ${editModalTab === 'general' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200'}`}
                 >
                   General
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditModalTab('ssl')}
-                  className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${editModalTab === 'ssl' ? 'border-teal-500 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                  className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors ${editModalTab === 'ssl' ? 'border-teal-500 text-teal-600 dark:text-teal-300' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:text-slate-200'}`}
                 >
                   SSL Certificate
                 </button>
@@ -1556,77 +1562,77 @@ const getTrafficBarHeight = (value, maxValue) => {
                 {/* General tab - keep in DOM so form submit includes all fields */}
                 <div className={editModalTab !== 'general' ? 'hidden' : 'space-y-5'}>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Domain</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Domain</label>
                   <input
                     type="text"
                     disabled
                     value={selectedAppForEdit.domain}
-                    className="w-full px-4 py-2.5 bg-gray-100 border border-gray-300 rounded-lg text-gray-500 cursor-not-allowed"
+                    className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500"
                   />
-                  <p className="mt-1 text-xs text-gray-500">Domain cannot be changed after creation</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Domain cannot be changed after creation</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Origin Server URL</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Origin Server URL</label>
                   <input
                     type="url"
                     required
                     placeholder="https://origin.example.com"
                     value={editFormData.originUrl}
                     onChange={(e) => setEditFormData({ ...editFormData, originUrl: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className={inputClassName}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Upstream Host Header</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Upstream Host Header</label>
                     <input
                       type="text"
                       placeholder="Optional override"
                       value={editFormData.originUpstreamHost}
                       onChange={(e) => setEditFormData({ ...editFormData, originUpstreamHost: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      className={inputClassName}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Leave empty to pass the visitor&apos;s original host header to the origin.</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Leave empty to pass the visitor&apos;s original host header to the origin.</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin TLS Server Name</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Origin TLS Server Name</label>
                     <input
                       type="text"
                       placeholder="Optional SNI override"
                       value={editFormData.originTlsServername}
                       onChange={(e) => setEditFormData({ ...editFormData, originTlsServername: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      className={inputClassName}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Set this when the origin URL is an IP or provider host, but HTTPS upstream must present a different certificate name.</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Set this when the origin URL is an IP or provider host, but HTTPS upstream must present a different certificate name.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin Auth Header Name</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Origin Auth Header Name</label>
                     <input
                       type="text"
                       placeholder="Optional shared-secret header"
                       value={editFormData.originAuthHeaderName}
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderName: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      className={inputClassName}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Header name ATRAVAD sends to the origin, for example `X-ATRAVAD-Origin-Auth`.</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Header name ATRAVAD sends to the origin, for example `X-ATRAVAD-Origin-Auth`.</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin Auth Header Value</label>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Origin Auth Header Value</label>
                     <input
                       type="password"
                       placeholder="Optional shared secret"
                       value={editFormData.originAuthHeaderValue}
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderValue: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      className={inputClassName}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                       {selectedAppForEdit?.origins?.[0]?.authHeaderConfigured
                         ? 'Leave blank to keep the existing secret, or enter a new value to rotate it.'
                         : 'Shared secret the origin checks before serving traffic. Requests that bypass ATRAVAD should not have this value.'}
@@ -1634,11 +1640,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/40">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-medium text-amber-900">Allow WebSockets through ATRAVAD</p>
-                      <p className="mt-1 text-xs text-amber-800">
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Allow WebSockets through ATRAVAD</p>
+                      <p className="mt-1 text-xs text-amber-800 dark:text-amber-300/80">
                         The handshake is inspected by the WAF. After the upgrade, frames pass through as a tunnel.
                       </p>
                     </div>
@@ -1651,23 +1657,23 @@ const getTrafficBarHeight = (value, maxValue) => {
                   </div>
                   {editFormData.websocketEnabled !== false && (
                     <div className="mt-3">
-                      <label className="block text-sm font-medium text-amber-900 mb-2">WebSocket Idle Timeout (seconds)</label>
+                      <label className="mb-2 block text-sm font-medium text-amber-900 dark:text-amber-200">WebSocket Idle Timeout (seconds)</label>
                       <input
                         type="number"
                         min="10"
                         max="86400"
                         value={editFormData.websocketIdleTimeoutSec}
                         onChange={(e) => setEditFormData({ ...editFormData, websocketIdleTimeoutSec: e.target.value })}
-                        className="w-full md:w-60 px-4 py-2.5 border border-amber-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
+                        className="w-full rounded-xl border border-amber-300 bg-white px-4 py-2.5 shadow-sm transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 dark:border-amber-800 dark:bg-slate-950/70 dark:text-slate-100 md:w-60"
                       />
                     </div>
                   )}
                 </div>
 
-                <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                  <span className="pr-4 text-sm text-gray-700">
+                <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+                  <span className="pr-4 text-sm text-slate-700 dark:text-slate-300">
                     Inspect and buffer origin responses
-                    <span className="block text-xs text-gray-500">
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">
                       Disable this for streaming SSR, SSE, AI responses, and similar serverless output.
                     </span>
                   </span>
@@ -1680,11 +1686,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                 </label>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Security Policy</label>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Security Policy</label>
                     <select
                       value={editFormData.policyId}
                       onChange={(e) => setEditFormData({ ...editFormData, policyId: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                      className={inputClassName}
                     >
                       <option value="">Default Protection (OWASP CRS)</option>
                       {policyOptions.map((policy) => (
@@ -1699,9 +1705,9 @@ const getTrafficBarHeight = (value, maxValue) => {
                 {/* SSL Certificate tab - Sucuri-style separation */}
                 <div className={editModalTab !== 'ssl' ? 'hidden' : undefined}>
                 <div className="space-y-4">
-                  <p className="text-sm text-gray-600">Choose how SSL/TLS is provided for this site.</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Choose how SSL/TLS is provided for this site.</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${editFormData.sslMode === SSL_MODE.AUTO ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                    <label className={`cursor-pointer rounded-2xl border p-4 transition-colors ${editFormData.sslMode === SSL_MODE.AUTO ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/35' : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-teal-700'}`}>
                       <div className="flex items-start gap-3">
                         <input
                           type="radio"
@@ -1714,12 +1720,12 @@ const getTrafficBarHeight = (value, maxValue) => {
                           className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
                         />
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">Managed SSL</p>
-                          <p className="text-xs text-gray-600 mt-1">Use Let&apos;s Encrypt with automatic renewals.</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Managed SSL</p>
+                          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Use Let&apos;s Encrypt with automatic renewals.</p>
                         </div>
                       </div>
                     </label>
-                    <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${editFormData.sslMode === SSL_MODE.CUSTOM ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white hover:border-teal-300'}`}>
+                    <label className={`cursor-pointer rounded-2xl border p-4 transition-colors ${editFormData.sslMode === SSL_MODE.CUSTOM ? 'border-teal-500 bg-teal-50 dark:bg-teal-950/35' : 'border-slate-200 bg-white hover:border-teal-300 dark:border-slate-800 dark:bg-slate-950/70 dark:hover:border-teal-700'}`}>
                       <div className="flex items-start gap-3">
                         <input
                           type="radio"
@@ -1732,16 +1738,16 @@ const getTrafficBarHeight = (value, maxValue) => {
                           className="mt-0.5 h-4 w-4 text-teal-600 focus:ring-teal-500"
                         />
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">Custom SSL</p>
-                          <p className="text-xs text-gray-600 mt-1">Upload or paste your own PEM certificate set.</p>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Custom SSL</p>
+                          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Upload or paste your own PEM certificate set.</p>
                         </div>
                       </div>
                     </label>
                   </div>
 
                   {editFormData.sslMode === SSL_MODE.AUTO && (
-                    <label className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm text-gray-700">Automatically provision and renew SSL certificate</span>
+                    <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/70">
+                      <span className="text-sm text-slate-700 dark:text-slate-300">Automatically provision and renew SSL certificate</span>
                       <input
                         type="checkbox"
                         checked={editFormData.autoProvisionSSL !== false}
@@ -1752,9 +1758,9 @@ const getTrafficBarHeight = (value, maxValue) => {
                   )}
 
                   {editFormData.sslMode === SSL_MODE.CUSTOM && (
-                    <div className="mt-4 space-y-3 pt-4 border-t border-gray-200">
+                    <div className="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-800">
                       <div className="flex flex-wrap gap-2">
-                        <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                        <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                           Import Certificate File
                           <input
                             type="file"
@@ -1763,7 +1769,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                             onChange={(e) => importPemFile(e.target.files?.[0], 'customCert', setEditFormData, setEditSslUiError)}
                           />
                         </label>
-                        <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                        <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                           Import Private Key File
                           <input
                             type="file"
@@ -1772,7 +1778,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                             onChange={(e) => importPemFile(e.target.files?.[0], 'customKey', setEditFormData, setEditSslUiError)}
                           />
                         </label>
-                        <label className="px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-lg bg-white hover:bg-gray-50 cursor-pointer">
+                        <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
                           Import Full Chain File
                           <input
                             type="file"
@@ -1783,7 +1789,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                         </label>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Certificate (PEM)</label>
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Certificate (PEM)</label>
                         <textarea
                           placeholder={selectedAppForEdit?.ssl?.hasStoredCustomCert ? 'Leave blank to keep the existing certificate, or paste a replacement.' : '-----BEGIN CERTIFICATE-----...'}
                           value={editFormData.customCert}
@@ -1792,11 +1798,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                             setEditFormData({ ...editFormData, customCert: e.target.value });
                           }}
                           rows={4}
-                          className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={`${inputClassName} min-h-[6rem] resize-y px-3 py-2 text-sm font-mono`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Private key (PEM)</label>
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Private key (PEM)</label>
                         <textarea
                           placeholder={selectedAppForEdit?.ssl?.hasStoredCustomCert ? 'Leave blank to keep the existing private key, or paste a replacement.' : '-----BEGIN PRIVATE KEY-----...'}
                           value={editFormData.customKey}
@@ -1805,11 +1811,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                             setEditFormData({ ...editFormData, customKey: e.target.value });
                           }}
                           rows={4}
-                          className="w-full min-h-[6rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={`${inputClassName} min-h-[6rem] resize-y px-3 py-2 text-sm font-mono`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">CA chain / full chain (optional)</label>
+                        <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">CA chain / full chain (optional)</label>
                         <textarea
                           placeholder={selectedAppForEdit?.ssl?.hasStoredCustomCert ? 'Leave blank to keep the existing chain, or paste a replacement.' : 'Optional intermediate + root certificates'}
                           value={editFormData.customFullchain}
@@ -1818,7 +1824,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                             setEditFormData({ ...editFormData, customFullchain: e.target.value });
                           }}
                           rows={2}
-                          className="w-full min-h-[4rem] resize-y px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                          className={`${inputClassName} min-h-[4rem] resize-y px-3 py-2 text-sm font-mono`}
                         />
                       </div>
                       {(editSslUiError || editFormData.customCert || editFormData.customKey || editFormData.customFullchain) && (
@@ -1832,11 +1838,11 @@ const getTrafficBarHeight = (value, maxValue) => {
                 </div>
                 </div>
 
-                <div className="flex justify-end gap-3 px-6 py-4 pt-4 border-t border-gray-200 shrink-0 bg-white">
+                <div className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4 pt-4 dark:border-slate-800 dark:bg-slate-950">
                   <button
                     type="button"
                     onClick={() => setSelectedAppForEdit(null)}
-                    className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     Cancel
                   </button>
@@ -1865,18 +1871,18 @@ const getTrafficBarHeight = (value, maxValue) => {
             />
             
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all">
+            <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl transition-all dark:border-slate-800 dark:bg-slate-950">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-teal-100 rounded-lg">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-950/60">
                     <GlobeIcon className="h-6 w-6 text-teal-600" />
                   </div>
-                  <span className="text-lg font-semibold text-gray-900">Complete Setup</span>
+                  <span className="text-lg font-semibold text-slate-950 dark:text-slate-100">Complete Setup</span>
                 </div>
                 <button
                   onClick={() => setSelectedAppForSetup(null)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-900 dark:hover:text-slate-200"
                 >
                   <CloseIcon className="h-5 w-5" />
                 </button>
@@ -1894,10 +1900,10 @@ const getTrafficBarHeight = (value, maxValue) => {
                   ) : (
                     <WarningIcon className="mx-auto h-12 w-12 text-yellow-500" />
                   )}
-                  <h2 className="mt-4 text-xl font-bold text-gray-900">
+                  <h2 className="mt-4 text-xl font-bold text-slate-950 dark:text-slate-100">
                     {setupActivated ? 'DNS Configured' : 'DNS Not Configured'}
                   </h2>
-                  <p className="mt-2 text-gray-600">
+                  <p className="mt-2 text-slate-600 dark:text-slate-400">
                     {setupActivated ? (
                       <>Your domain is pointing to ATRAVA Defense and protection is active for <strong>{selectedAppForSetup.domain}</strong></>
                     ) : (
@@ -1907,21 +1913,21 @@ const getTrafficBarHeight = (value, maxValue) => {
                 </div>
 
                 {/* DNS Instructions */}
-                <div className="bg-gray-50 rounded-xl p-5 space-y-4">
-                  <h3 className="font-semibold text-gray-900">DNS Configuration</h3>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-none">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">DNS Configuration</h3>
                   
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
                       <div>
-                        <span className="text-xs text-gray-500 uppercase font-medium">Domain</span>
-                        <p className="font-mono text-sm font-medium text-gray-900">{selectedAppForSetup.domain}</p>
+                        <span className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Domain</span>
+                        <p className="font-mono text-sm font-medium text-slate-900 dark:text-slate-100">{selectedAppForSetup.domain}</p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
                       <div>
-                        <span className="text-xs text-gray-500 uppercase font-medium">Origin Server</span>
-                        <p className="font-mono text-sm text-gray-700">{getHostingDisplay(selectedAppForSetup)}</p>
+                        <span className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Origin Server</span>
+                        <p className="font-mono text-sm text-slate-700 dark:text-slate-300">{getHostingDisplay(selectedAppForSetup)}</p>
                       </div>
                     </div>
 
@@ -1936,7 +1942,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                             {setupActivated ? 'Active A Record' : 'Point A Record To'}
                           </span>
                           {selectedAppForSetup.wafRegionName && (
-                            <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                            <span className="rounded px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                               {selectedAppForSetup.wafRegionName}
                             </span>
                           )}
@@ -1963,17 +1969,17 @@ const getTrafficBarHeight = (value, maxValue) => {
                     </div>
 
                     {selectedAppForSetup.firewallCname && (
-                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/70">
                         <div className="flex-1">
-                          <span className="text-xs text-gray-500 uppercase font-medium">Or CNAME To</span>
-                          <p className="font-mono text-sm text-gray-700">{selectedAppForSetup.firewallCname}</p>
+                          <span className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Or CNAME To</span>
+                          <p className="font-mono text-sm text-slate-700 dark:text-slate-300">{selectedAppForSetup.firewallCname}</p>
                         </div>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(selectedAppForSetup.firewallCname);
                             alert('CNAME copied to clipboard!');
                           }}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                          className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                         >
                           Copy
                         </button>
@@ -2023,7 +2029,7 @@ const getTrafficBarHeight = (value, maxValue) => {
               <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
                 <button
                   onClick={() => setSelectedAppForSetup(null)}
-                  className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="rounded-xl border border-slate-300 bg-white px-6 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Close
                 </button>

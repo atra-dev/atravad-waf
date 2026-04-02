@@ -8,9 +8,9 @@ export default function LoadingSpinner({ size = 'md', className = '' }) {
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <div className="relative">
-        <div className={`${sizeClasses[size]} rounded-full border-cyan-100/80 bg-cyan-100/30`} />
+        <div className={`${sizeClasses[size]} rounded-full border-[color:var(--border-soft)] bg-[var(--accent-soft)]`} />
         <div
-          className={`absolute inset-0 ${sizeClasses[size]} animate-spin rounded-full border-transparent border-t-cyan-500 border-r-slate-900`}
+          className={`absolute inset-0 ${sizeClasses[size]} animate-spin rounded-full border-transparent border-t-[var(--accent-strong)] border-r-[var(--text-primary)]`}
         />
       </div>
     </div>

@@ -110,17 +110,64 @@ export default function AnalyticsPage() {
   );
   const averagePerActiveHour = activeHours > 0 ? totalHourlyAttacks / activeHours : 0;
 
+  const summaryCards = [
+    {
+      title: 'Total Attacks',
+      value: analytics?.totalAttacks || 0,
+      valueClassName: 'text-slate-950 dark:text-slate-100',
+      iconShellClassName: 'bg-red-100 dark:bg-red-950/40',
+      iconClassName: 'text-red-600 dark:text-red-300',
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      ),
+      filled: false,
+    },
+    {
+      title: 'Critical',
+      value: analytics?.severityCounts.critical || 0,
+      valueClassName: 'text-red-600 dark:text-red-300',
+      iconShellClassName: 'bg-red-100 dark:bg-red-950/40',
+      iconClassName: 'text-red-600 dark:text-red-300',
+      icon: (
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+      ),
+      filled: true,
+    },
+    {
+      title: 'High Severity',
+      value: analytics?.severityCounts.high || 0,
+      valueClassName: 'text-orange-600 dark:text-orange-300',
+      iconShellClassName: 'bg-orange-100 dark:bg-orange-950/40',
+      iconClassName: 'text-orange-600 dark:text-orange-300',
+      icon: (
+        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+      ),
+      filled: true,
+    },
+    {
+      title: 'Unique IPs',
+      value: analytics?.uniqueIPs || 0,
+      valueClassName: 'text-blue-600 dark:text-blue-300',
+      iconShellClassName: 'bg-blue-100 dark:bg-blue-950/40',
+      iconClassName: 'text-blue-600 dark:text-blue-300',
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      ),
+      filled: false,
+    },
+  ];
+
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Attack Analytics</h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-100">Attack Analytics</h1>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
               Visualize blocked and denied traffic trends, attack patterns, and security metrics for the {formatAnalyticsDisplayWindow().toLowerCase()}
             </p>
           </div>
-          <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600">
+          <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             {formatAnalyticsDisplayWindow()}
           </div>
         </div>
@@ -135,76 +182,30 @@ export default function AnalyticsPage() {
           <>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Attacks</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
-                  {analytics?.totalAttacks || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Critical</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">
-                  {analytics?.severityCounts.critical || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg className="h-6 w-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
+          {summaryCards.map((card) => (
+            <div key={card.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{card.title}</p>
+                  <p className={`mt-2 text-3xl font-bold ${card.valueClassName}`}>
+                    {card.value}
+                  </p>
+                </div>
+                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.iconShellClassName}`}>
+                  <svg className={`h-6 w-6 ${card.iconClassName}`} fill={card.filled ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+                    {card.icon}
+                  </svg>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">High Severity</p>
-                <p className="text-3xl font-bold text-orange-600 mt-2">
-                  {analytics?.severityCounts.high || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="h-6 w-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Unique IPs</p>
-                <p className="text-3xl font-bold text-blue-600 mt-2">
-                  {analytics?.uniqueIPs || 0}
-                </p>
-              </div>
-              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Attack Types Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Attack Types</h2>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Attack Types</h2>
             {analytics?.attackTypes && analytics.attackTypes.length > 0 ? (
               <div className="space-y-3">
                 {analytics.attackTypes.map(([type, count]) => {
@@ -212,12 +213,12 @@ export default function AnalyticsPage() {
                   return (
                     <div key={type}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-gray-700">{type}</span>
-                        <span className="text-sm text-gray-600">{count} ({percentage.toFixed(1)}%)</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{type}</span>
+                        <span className="text-sm text-slate-600 dark:text-slate-400">{count} ({percentage.toFixed(1)}%)</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
                         <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          className="h-2 rounded-full bg-blue-600 transition-all dark:bg-blue-400"
                           style={{ width: `${percentage}%` }}
                         ></div>
                       </div>
@@ -226,37 +227,37 @@ export default function AnalyticsPage() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 text-center py-8">No attack data available</p>
+              <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No attack data available</p>
             )}
           </div>
 
           {/* Top Attacking IPs */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Attacking IPs</h2>
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Top Attacking IPs</h2>
             {analytics?.topIPs && analytics.topIPs.length > 0 ? (
               <div className="space-y-3">
                 {analytics.topIPs.map(([ip, count], index) => (
-                  <div key={ip} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={ip} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
-                      <span className="text-sm font-mono text-gray-900">{ip}</span>
+                      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">#{index + 1}</span>
+                      <span className="text-sm font-mono text-slate-900 dark:text-slate-100">{ip}</span>
                     </div>
-                    <span className="text-sm font-semibold text-red-600">{count} attacks</span>
+                    <span className="text-sm font-semibold text-red-600 dark:text-red-300">{count} attacks</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 text-center py-8">No IP data available</p>
+              <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No IP data available</p>
             )}
           </div>
         </div>
 
         {/* Hourly Attack Trends */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+          <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Attack Trends by Hour</h2>
-              <p className="mt-1 text-sm text-gray-600">
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Attack Trends by Hour</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 See when blocked and denied requests are most concentrated so your team can spot attack windows faster.
               </p>
               <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
@@ -264,7 +265,7 @@ export default function AnalyticsPage() {
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Peak Hour</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">
                   {peakHourEntry.count > 0 ? peakHourEntry.label : 'No activity'}
@@ -273,14 +274,14 @@ export default function AnalyticsPage() {
                   {peakHourEntry.count.toLocaleString()} attacks
                 </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Active Hours</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">
                   {activeHours} of {ANALYTICS_DISPLAY_HOURS}
                 </div>
                 <div className="mt-1 text-xs text-slate-500">Hours with detected attacks</div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Avg / Active Hour</div>
                 <div className="mt-1 text-sm font-semibold text-slate-900">{averagePerActiveHour.toFixed(1)}</div>
                 <div className="mt-1 text-xs text-slate-500">Attack events per active hour</div>
@@ -290,17 +291,17 @@ export default function AnalyticsPage() {
           {hourlyEntries.length > 0 ? (
             <div className="mt-5">
               <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
+                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-900 dark:text-slate-300">
                   <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
                   Higher bars mean more detected attacks in that hour
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5">
+                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-900 dark:text-slate-300">
                   <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
                   Zero means no attacks recorded for that hour
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/80">
                 <div className="mb-3 flex items-center justify-between text-xs font-medium text-slate-500">
                   <span>Lower activity</span>
                   <span>Hourly attack volume</span>
@@ -326,7 +327,7 @@ export default function AnalyticsPage() {
                         <div className="mb-2 h-5 text-[11px] font-semibold text-slate-500">
                           {hasActivity ? count : ''}
                         </div>
-                        <div className="flex h-52 w-full items-end rounded-xl bg-white/90 px-1.5 py-1 shadow-inner ring-1 ring-slate-200/70">
+                        <div className="flex h-52 w-full items-end rounded-xl bg-white/90 px-1.5 py-1 shadow-inner ring-1 ring-slate-200/70 dark:bg-slate-950/80 dark:ring-slate-800">
                           <div
                             className={`w-full rounded-lg transition-all duration-300 ${barTone}`}
                             style={{ height: `${height}%` }}
@@ -342,11 +343,11 @@ export default function AnalyticsPage() {
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
                 <div>
-                  <span className="font-medium text-slate-900">{totalHourlyAttacks.toLocaleString()}</span> total attacks across the selected range
+                  <span className="font-medium text-slate-900 dark:text-slate-100">{totalHourlyAttacks.toLocaleString()}</span> total attacks across the selected range
                 </div>
                 <div>
                   Peak concentration at{' '}
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
                     {peakHourEntry.count > 0 ? peakHourEntry.label : 'No activity'}
                   </span>
                 </div>
@@ -354,8 +355,8 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <div className="py-10 text-center">
-              <p className="text-sm font-medium text-gray-600">No trend data available</p>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No trend data available</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Once attacks are detected, this section will highlight the busiest hours automatically.
               </p>
             </div>

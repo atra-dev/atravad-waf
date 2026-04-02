@@ -7,7 +7,6 @@ import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { checkAuthStatus, clearAuthAndRedirect, setupAuthInterceptor } from '@/lib/auth-utils';
 
-// Icon Components
 const DashboardIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -75,6 +74,17 @@ const SubscriptionIcon = ({ className }) => (
   </svg>
 );
 
+const SunIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v2.25M12 18.75V21M4.97 4.97l1.59 1.59M17.44 17.44l1.59 1.59M3 12h2.25M18.75 12H21M4.97 19.03l1.59-1.59M17.44 6.56l1.59-1.59M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+  </svg>
+);
+
+const MoonIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
+  </svg>
+);
 
 export default function Layout({ children }) {
   const pathname = usePathname();
@@ -83,61 +93,56 @@ export default function Layout({ children }) {
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
+  const [theme, setTheme] = useState('light');
 
-  // Setup auth interceptor on mount (only once)
   useEffect(() => {
     setupAuthInterceptor();
   }, []);
 
-  // Initialize user document in Firestore on mount and verify session
+  useEffect(() => {
+    const root = document.documentElement;
+    setTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
+  }, []);
+
   useEffect(() => {
     const initUser = async () => {
       try {
-        // Check authentication status
         const { authenticated, user } = await checkAuthStatus();
-        
+
         if (!authenticated || !user || !user.email) {
-          // Session expired or invalid - redirect to login
           clearAuthAndRedirect(pathname);
           return;
         }
-        
+
         setUserEmail(user.email);
         setUserRole(user.role || null);
         setRoleLoaded(true);
       } catch (error) {
         console.error('Error initializing user:', error);
-        // On error, clear token and redirect to login
         clearAuthAndRedirect(pathname);
       }
     };
 
     initUser();
 
-    // Token refresh interval reference
     let tokenRefreshInterval = null;
 
-    // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Clear any existing refresh interval
       if (tokenRefreshInterval) {
         clearInterval(tokenRefreshInterval);
         tokenRefreshInterval = null;
       }
 
       if (!firebaseUser) {
-        // User signed out - clear session
         document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
         if (pathname !== '/login') {
           clearAuthAndRedirect(pathname);
         }
       } else {
-        // User signed in - refresh token and verify session
         try {
-          // Refresh token function
           const refreshToken = async () => {
             try {
-              const newToken = await firebaseUser.getIdToken(true); // Force refresh
+              const newToken = await firebaseUser.getIdToken(true);
               const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
               const secureFlag = isProduction ? '; Secure' : '';
               document.cookie = `authToken=${newToken}; path=/; max-age=3600; SameSite=Lax${secureFlag}`;
@@ -151,13 +156,9 @@ export default function Layout({ children }) {
             }
           };
 
-          // Refresh token immediately
           await refreshToken();
-
-          // Set up periodic token refresh (every 50 minutes)
           tokenRefreshInterval = setInterval(refreshToken, 50 * 60 * 1000);
 
-          // Verify session is still valid
           const { authenticated } = await checkAuthStatus();
           if (!authenticated) {
             if (tokenRefreshInterval) {
@@ -188,23 +189,25 @@ export default function Layout({ children }) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // Clear auth token
       document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
-      // Clear user state
       setUserEmail('');
       setUserRole(null);
-      // Redirect to login
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Force redirect even on error
       document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
       router.push('/login');
     }
   };
 
-  // Define all navigation items (always rendered, conditionally visible)
-  // These are always in the DOM to prevent flickering
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.style.colorScheme = nextTheme;
+    localStorage.setItem('atrava-theme', nextTheme);
+    setTheme(nextTheme);
+  };
+
   const allNavItems = useMemo(() => [
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon, alwaysVisible: true },
     { href: '/apps', label: 'Sites', icon: AppsIcon, requiresRole: true },
@@ -216,12 +219,8 @@ export default function Layout({ children }) {
     { href: '/admin', label: 'Super Admin', icon: SuperAdminIcon, requiresSuperAdmin: true, separator: true },
   ], []);
 
-  // Build the list of nav items allowed for the current role.
-  // CRITICAL: Only compute when roleLoaded — during loading we show ZERO menu labels
-  // so that Super Admin, Admin, Client never see any unrelated menu, even for one frame.
   const visibleNavItems = useMemo(() => {
     if (!roleLoaded) return [];
-    // Super admin sees ONLY the Super Admin link – no Dashboard, Applications, etc.
     if (userRole === 'super_admin') {
       return allNavItems.filter((item) => item.requiresSuperAdmin === true);
     }
@@ -235,60 +234,59 @@ export default function Layout({ children }) {
   }, [roleLoaded, userRole, allNavItems]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+    <div className="min-h-screen">
+      <header className="theme-panel sticky top-0 z-50 border-b">
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex h-16 items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                className="rounded-lg p-2 theme-text-secondary transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--text-primary)]"
                 aria-label="Toggle sidebar"
               >
                 <MenuIcon className="h-6 w-6" />
               </button>
               <div className="flex items-center space-x-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white ring-1 ring-gray-200 overflow-hidden">
-                  <img
-                    src="/logo.png"
-                    alt="ATRAVA Defense logo"
-                    className="w-10 h-10 object-contain"
-                  />
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-[var(--surface-2)] ring-1 ring-[var(--border-soft)]">
+                  <img src="/logo.png" alt="ATRAVA Defense logo" className="h-10 w-10 object-contain" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-                    ATRAVA Defense
-                  </h1>
-                  <p className="text-xs text-gray-500">Managed WAF-as-a-service</p>
+                  <h1 className="text-xl font-bold tracking-tight theme-text-primary">ATRAVA Defense</h1>
+                  <p className="text-xs theme-text-muted">Managed WAF-as-a-service</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="hidden sm:flex items-center space-x-3 px-4 py-2 bg-gray-50 rounded-lg">
-                <UserIcon className="h-5 w-5 text-gray-600" />
+              <button
+                onClick={toggleTheme}
+                className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-3)] px-3 py-2 text-sm font-medium theme-text-secondary hover:border-[var(--accent-strong)] hover:text-[var(--text-primary)]"
+                aria-label="Toggle dark theme"
+              >
+                {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+                <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+              </button>
+              <div className="hidden items-center space-x-3 rounded-lg bg-[var(--surface-3)] px-4 py-2 sm:flex">
+                <UserIcon className="h-5 w-5 theme-text-secondary" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-700 truncate max-w-xs">
-                    {userEmail || 'User'}
-                  </span>
+                  <span className="max-w-xs truncate text-sm font-medium theme-text-primary">{userEmail || 'User'}</span>
                   {userRole && (
                     <span className={`text-xs font-medium ${
-                      userRole === 'super_admin' ? 'text-purple-600' :
-                      userRole === 'admin' ? 'text-blue-600' :
-                      userRole === 'analyst' ? 'text-yellow-600' :
-                      'text-gray-600'
+                      userRole === 'super_admin' ? 'text-purple-400' :
+                      userRole === 'admin' ? 'text-sky-400' :
+                      userRole === 'analyst' ? 'text-amber-400' :
+                      'theme-text-secondary'
                     }`}>
                       {userRole === 'super_admin' ? 'Super Admin' :
-                       userRole === 'admin' ? 'Admin' :
-                       userRole === 'analyst' ? 'Analyst' :
-                       'Client'}
+                        userRole === 'admin' ? 'Admin' :
+                        userRole === 'analyst' ? 'Analyst' :
+                        'Client'}
                     </span>
                   )}
                 </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium theme-text-secondary transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)]"
               >
                 <LogoutIcon className="h-5 w-5" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -299,20 +297,17 @@ export default function Layout({ children }) {
       </header>
 
       <div className="flex">
-        {/* Sidebar Navigation - Sticky */}
         <aside
           className={`${
             sidebarOpen ? 'w-64' : 'w-0'
-          } bg-white border-r border-gray-200 transition-all duration-300 ease-in-out overflow-hidden sticky top-16 self-start h-[calc(100vh-4rem)]`}
+          } theme-panel sticky top-16 h-[calc(100vh-4rem)] self-start overflow-hidden border-r transition-all duration-300 ease-in-out`}
           style={{ maxHeight: 'calc(100vh - 4rem)' }}
         >
-          <nav className="px-3 py-6 space-y-1 h-full overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}>
+          <nav className="h-full space-y-1 overflow-x-hidden overflow-y-auto px-3 py-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#64748b transparent' }}>
             {!roleLoaded ? (
-              /* During load/reload: show no menu labels — only a neutral loading state.
-                 Prevents any unrelated menu from ever appearing for Super Admin, Admin, Client. */
-              <div className="flex flex-col items-center justify-center py-12 px-4" aria-busy="true" aria-label="Loading navigation">
-                <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-                <span className="mt-3 text-sm text-gray-500">Loading…</span>
+              <div className="flex flex-col items-center justify-center px-4 py-12" aria-busy="true" aria-label="Loading navigation">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--border-soft)] border-t-[var(--accent-strong)]" />
+                <span className="mt-3 text-sm theme-text-muted">Loading...</span>
               </div>
             ) : (
               visibleNavItems.map((item, index) => {
@@ -320,34 +315,33 @@ export default function Layout({ children }) {
                 const Icon = item.icon;
                 const prevItem = index > 0 ? visibleNavItems[index - 1] : null;
                 const shouldShowSeparator = item.separator && prevItem;
+
                 return (
                   <div key={item.href} className="relative">
-                    {shouldShowSeparator && (
-                      <div className="my-2 mx-4 border-t border-gray-200" />
-                    )}
+                    {shouldShowSeparator && <div className="mx-4 my-2 border-t border-[var(--border-soft)]" />}
                     <Link
                       href={item.href}
                       tabIndex={0}
                       className={`${
                         isActive
                           ? item.href === '/admin'
-                            ? 'bg-purple-50 text-purple-700 border-l-4 border-purple-600'
-                            : 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 border-l-4 border-transparent'
-                      } group flex items-center px-4 py-3 text-sm font-medium rounded-r-lg transition-colors h-11`}
+                            ? 'border-l-4 border-purple-500 bg-purple-500/12 text-purple-200'
+                            : 'border-l-4 border-cyan-400 bg-cyan-400/12 text-cyan-100'
+                          : 'border-l-4 border-transparent theme-text-secondary hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)]'
+                      } group flex h-11 items-center rounded-r-lg px-4 py-3 text-sm font-medium transition-colors`}
                     >
                       <Icon
                         className={`${
                           isActive
                             ? item.href === '/admin'
-                              ? 'text-purple-600'
-                              : 'text-blue-600'
-                            : 'text-gray-500 group-hover:text-gray-700'
-                        } h-5 w-5 mr-3 flex-shrink-0`}
+                              ? 'text-purple-300'
+                              : 'text-cyan-300'
+                            : 'theme-text-muted group-hover:text-[var(--text-primary)]'
+                        } mr-3 h-5 w-5 flex-shrink-0`}
                       />
                       <span className="flex-1">{item.label}</span>
                       {item.href === '/admin' && (
-                        <span className="ml-auto px-2 py-0.5 text-xs font-semibold bg-purple-100 text-purple-800 rounded flex-shrink-0">
+                        <span className="ml-auto flex-shrink-0 rounded bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-200">
                           SA
                         </span>
                       )}
@@ -359,8 +353,7 @@ export default function Layout({ children }) {
           </nav>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-1 min-w-0">
+        <main className="min-w-0 flex-1">
           <div className="p-6 lg:p-8">
             {children}
           </div>

@@ -218,6 +218,65 @@ npm run dev
 3. Create a user account in Firebase Console > Authentication > Users
 4. After first login, you'll need to create a tenant (this can be automated in production)
 
+## Dark Theme Maintenance
+
+Dark mode is operationalized and safe to ship, but it is still a hybrid of:
+
+- explicit theme-aware page/component styling
+- shared theme tokens
+- compatibility overrides for older light-only utility classes
+
+To keep future UI work dark-mode safe, follow these rules.
+
+### Current Theme Architecture
+
+- Theme is bootstrapped at document load in `src/app/layout.jsx`
+- The active theme is stored in `localStorage` under `atrava-theme`
+- Theme tokens and compatibility overrides live in `src/app/globals.css`
+- Primary shared surface/text helpers are:
+  - `.theme-surface`
+  - `.theme-panel`
+  - `.theme-text-primary`
+  - `.theme-text-secondary`
+  - `.theme-text-muted`
+
+### Preferred Patterns For New UI
+
+- Prefer CSS variables and shared theme helpers over hardcoded light-only colors
+- Prefer `theme-surface` and `theme-panel` for cards, panels, modals, and tables
+- Prefer semantic text helpers or token-backed classes for headings, labels, and secondary text
+- Reuse existing dark-safe shared components before introducing new one-off styling
+- Check both light and dark mode before merging UI changes
+
+### Avoid
+
+- Avoid introducing new hardcoded `bg-white`, `text-gray-*`, and `border-gray-*` patterns when a token-backed alternative exists
+- Avoid page-specific dark fixes when the styling should really live in a shared component
+- Avoid relying only on global compatibility overrides for new features
+- Avoid adding new surfaces without checking hover, focus, disabled, and empty states in dark mode
+
+### When Editing Existing Screens
+
+- If the screen already uses old light-only Tailwind utilities, it is acceptable to keep it working through the global compatibility layer for small fixes
+- If you are doing substantial UI work on a screen, convert the touched area to explicit theme-aware styling instead of adding more light-only utilities
+- When updating modals, tables, badges, charts, and form controls, make sure the shell, borders, text, and interactive states all work together in dark mode
+
+### Release Checklist
+
+- Verify the page in both light and dark themes
+- Verify loading, empty, success, warning, and error states
+- Verify tables, modals, dropdowns, and charts if the page contains them
+- Verify text contrast against panel and page backgrounds
+- Run `npm run build` before shipping UI changes
+
+### Long-Term Cleanup Direction
+
+- Gradually reduce reliance on broad dark overrides in `src/app/globals.css`
+- Move repeated patterns into shared dark-safe primitives
+- Prefer design-token-driven styling over catch-all utility remapping
+
+This keeps the current rollout practical while moving the UI toward a cleaner design-system-based dark theme over time.
+
 ### 6. Run the Application
 
 ```bash
