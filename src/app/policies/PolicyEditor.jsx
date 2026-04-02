@@ -11,10 +11,10 @@ import {
 } from './policy-form-utils';
 
 const editorInputClassName =
-  'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500';
+  'theme-input block w-full rounded-lg px-3 py-2 text-sm shadow-sm transition';
 
 const editorCardClassName =
-  'rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900/70';
+  'theme-surface rounded-2xl p-4';
 
 const PlusIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -660,27 +660,27 @@ export default function PolicyEditor({
   ];
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-        <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(37,99,235,0.16),_transparent_28%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#eef2ff_100%)] px-6 py-6 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.20),_transparent_30%),linear-gradient(135deg,rgba(15,23,42,0.98)_0%,rgba(15,23,42,0.94)_55%,rgba(30,41,59,0.95)_100%)] lg:px-8">
+    <section className="theme-surface overflow-hidden rounded-3xl">
+        <div className="border-b border-[var(--border-soft)] bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.12),transparent_28%),linear-gradient(135deg,color-mix(in_srgb,var(--surface-2)_92%,#eff6ff)_0%,color-mix(in_srgb,var(--surface-3)_95%,#f8fafc)_45%,color-mix(in_srgb,var(--surface-2)_92%,#eef2ff)_100%)] px-6 py-6 lg:px-8">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">Policy Workspace</p>
-            <h2 className="mt-2 text-3xl font-bold text-slate-900">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700 dark:text-blue-300">Policy Workspace</p>
+            <h2 className="mt-2 text-3xl font-bold theme-text-primary">
               {editingPolicyName ? 'Edit Security Policy' : 'Create Security Policy'}
             </h2>
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm theme-text-secondary">
               This full-screen editor is optimized for large policy definitions, bulk access lists, and high-volume exception data.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-xl border border-blue-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm">
-              <div className="text-xs font-medium uppercase tracking-wide text-blue-700">Workspace Mode</div>
-              <div className="mt-1 font-semibold text-slate-900">Dedicated page editor</div>
+            <div className="theme-soft-surface rounded-xl px-4 py-3 text-sm theme-text-secondary">
+              <div className="text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300">Workspace Mode</div>
+              <div className="mt-1 font-semibold theme-text-primary">Dedicated page editor</div>
             </div>
             <button
               type="button"
               onClick={closePolicyForm}
-              className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              className="theme-button-neutral inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-colors"
             >
               <svg className="mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -692,7 +692,7 @@ export default function PolicyEditor({
       </div>
 
       <div className="min-h-[calc(100vh-16rem)] p-6 lg:p-8">
-        <div className="mb-6 rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+        <div className="mb-6 rounded-xl border border-blue-300/60 bg-blue-50/80 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
           <div className="flex items-start">
             <div className="shrink-0">
               <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -700,8 +700,8 @@ export default function PolicyEditor({
               </svg>
             </div>
             <div className="ml-3 flex-1">
-              <h3 className="text-sm font-medium text-blue-800">OWASP Core Rule Set (CRS) Enabled by Default</h3>
-              <div className="mt-2 text-sm text-blue-700">
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">OWASP Core Rule Set (CRS) Enabled by Default</h3>
+              <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
                 <p>
                   All policies automatically include <strong>OWASP CRS 3.3.0</strong> with 25 rule sets providing comprehensive protection. The protections below are <strong>additional custom rules</strong> that complement OWASP CRS.
                 </p>
@@ -713,7 +713,7 @@ export default function PolicyEditor({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <div>
-              <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <label htmlFor="name" className="mb-2 block text-sm font-semibold theme-text-secondary">
                 Policy Name *
               </label>
               <input
@@ -721,7 +721,7 @@ export default function PolicyEditor({
                 id="name"
                 required
                 placeholder="e.g., Production Security Policy"
-                className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm transition-colors focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500"
+                className="theme-input block w-full rounded-lg px-4 py-3 text-sm shadow-sm transition-colors"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 disabled={Boolean(editingPolicyName)}
@@ -733,20 +733,20 @@ export default function PolicyEditor({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="mode" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="mode" className="mb-2 block text-sm font-medium theme-text-secondary">
                   Mode *
                 </label>
                 <select
                   id="mode"
                   required
-                  className="block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
+                  className="theme-input block w-full rounded-lg px-4 py-3 text-sm shadow-sm"
                   value={formData.mode}
                   onChange={(e) => setFormData({ ...formData, mode: e.target.value })}
                 >
                   <option value="detection">Detection (Log only)</option>
                   <option value="prevention">Prevention (Block attacks)</option>
                 </select>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Start with Detection mode to identify false positives</p>
+                <p className="mt-1 text-xs theme-text-muted">Start with Detection mode to identify false positives</p>
               </div>
 
               <div>
@@ -762,7 +762,7 @@ export default function PolicyEditor({
             </div>
           </div>
 
-          <div className="border-b border-slate-200 dark:border-slate-800">
+          <div className="border-b border-[var(--border-soft)]">
             <nav className="-mb-px flex space-x-8 overflow-x-auto">
               {tabs.map((tab) => (
                 <button

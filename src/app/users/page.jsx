@@ -5,10 +5,10 @@ import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 
 const userInputClassName =
-  'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100 dark:placeholder:text-slate-500';
+  'theme-input w-full rounded-xl px-3 py-2 transition';
 
 const userModalShellClassName =
-  'w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950';
+  'theme-modal w-full max-w-md rounded-3xl p-6';
 
 export default function TenantUsersPage() {
   const [users, setUsers] = useState([]);
@@ -85,8 +85,8 @@ export default function TenantUsersPage() {
       <div className="space-y-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-100">Tenant Users</h1>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+            <h1 className="text-3xl font-bold theme-text-primary">Tenant Users</h1>
+            <p className="mt-2 text-sm theme-text-secondary">
               Invite and manage members for your organization.
             </p>
           </div>
@@ -132,12 +132,12 @@ export default function TenantUsersPage() {
             message="Preparing managed access, user roles, and organization members."
           />
         ) : (
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+          <div className="theme-surface overflow-hidden rounded-3xl">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-                <thead className="bg-slate-50 dark:bg-slate-900/90">
+              <table className="min-w-full divide-y divide-[var(--border-soft)]">
+                <thead className="bg-[var(--surface-3)]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                       Email
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -154,11 +154,11 @@ export default function TenantUsersPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-950/75">
+                <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--surface-2)]">
                   {users.map((user) => (
-                    <tr key={user.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-900/70">
+                    <tr key={user.id} className="transition hover:bg-[var(--surface-3)]">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium text-slate-900 dark:text-slate-100">{user.email}</div>
+                        <div className="font-medium theme-text-primary">{user.email}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -171,7 +171,7 @@ export default function TenantUsersPage() {
                           {user.role || 'client'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -242,7 +242,7 @@ export default function TenantUsersPage() {
                     <tr>
                       <td
                         colSpan={5}
-                        className="px-6 py-4 text-center text-sm text-slate-500 dark:text-slate-400"
+                        className="px-6 py-4 text-center text-sm theme-text-secondary"
                       >
                         No users found
                       </td>
@@ -259,10 +259,10 @@ export default function TenantUsersPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
             <div className={userModalShellClassName}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Invite New Member</h3>
+                <h3 className="text-lg font-semibold theme-text-primary">Invite New Member</h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="text-slate-400 transition hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-200"
+                  className="theme-text-muted transition hover:text-[var(--text-primary)] focus:outline-none"
                 >
                   <svg
                     className="h-6 w-6"

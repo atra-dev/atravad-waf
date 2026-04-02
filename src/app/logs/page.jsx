@@ -476,8 +476,8 @@ export default function LogsPage() {
   const renderDetailRow = (label, value, options = {}) => {
     const { mono = false, breakAll = false, breakWords = false } = options;
     const isLongContent = breakAll || breakWords || mono;
-    const valueClassName = [
-      'min-w-0 text-sm leading-5 text-slate-900',
+      const valueClassName = [
+        'min-w-0 text-sm leading-5 theme-text-primary',
       mono ? 'font-mono' : '',
       breakAll ? 'break-all sm:break-normal' : '',
       breakWords ? 'break-words sm:break-normal' : '',
@@ -486,15 +486,15 @@ export default function LogsPage() {
       .join(' ');
 
     return (
-      <div className="border-b border-slate-100 py-2.5 last:border-b-0">
-        <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">{label}</dt>
-        <dd
-          className={
-            isLongContent
-              ? 'overflow-hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5'
-              : ''
-          }
-        >
+        <div className="border-b border-[var(--border-soft)] py-2.5 last:border-b-0">
+          <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">{label}</dt>
+          <dd
+            className={
+              isLongContent
+                ? 'theme-inset-surface overflow-hidden rounded-xl px-3 py-2.5'
+                : ''
+            }
+          >
           <div
             className={`${valueClassName}${isLongContent ? ' overflow-x-auto whitespace-pre-wrap sm:whitespace-pre sm:[scrollbar-width:thin]' : ''}`}
           >
@@ -781,12 +781,12 @@ export default function LogsPage() {
             </div>
 
             {/* Logs Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Logs (Page {pagination.page})
-            </h2>
-          </div>
+            <div className="theme-surface overflow-hidden rounded-xl">
+            <div className="border-b border-[var(--border-soft)] px-6 py-4">
+              <h2 className="text-lg font-semibold theme-text-primary">
+                Logs (Page {pagination.page})
+              </h2>
+            </div>
 
           {authLoading || loading ? (
             <AppLoadingState
@@ -830,14 +830,14 @@ export default function LogsPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--surface-2)]">
                     {logs.map((log) => (
                       <tr
                         key={log.id}
-                        className="cursor-pointer hover:bg-gray-50"
+                        className="cursor-pointer hover:bg-[var(--surface-3)]"
                         onClick={() => setSelectedLog(log)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
                           {new Date(log.timestamp).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -857,21 +857,21 @@ export default function LogsPage() {
                             );
                           })()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
                           {getLogSource(log)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
                           {deriveRuleId(log)}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-6 py-4 text-sm theme-text-primary">
                           <div
-                            className="max-w-[34rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-900"
+                            className="max-w-[34rem] overflow-hidden text-ellipsis whitespace-nowrap text-sm theme-text-primary"
                             title={log.message || 'No message'}
                           >
                             {log.message || 'No message'}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
                           {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
                         </td>
                       </tr>
@@ -879,15 +879,15 @@ export default function LogsPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="px-6 py-4 border-t border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <p className="text-sm text-gray-600">
+              <div className="flex flex-col gap-3 border-t border-[var(--border-soft)] px-6 py-4 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm theme-text-secondary">
                   Showing up to {logs.length} stored raw events from the {formatAnalyticsDisplayWindow().toLowerCase()}.
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => handlePageChange('previous')}
                     disabled={pagination.page <= 1}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="theme-button-neutral rounded-lg px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Previous
                   </button>
@@ -897,7 +897,7 @@ export default function LogsPage() {
                   <button
                     onClick={() => handlePageChange('next')}
                     disabled={!pagination.nextCursor}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="theme-button-neutral rounded-lg px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -910,7 +910,7 @@ export default function LogsPage() {
         )}
 
         {activeTab === 'geographic' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="theme-surface rounded-xl p-6">
             {authLoading || loading ? (
               <AppLoadingState
                 variant="panel"
@@ -924,7 +924,7 @@ export default function LogsPage() {
         )}
 
         {activeTab === 'traffic' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="theme-surface rounded-xl p-6">
             {authLoading || loading ? (
               <AppLoadingState
                 variant="panel"
@@ -944,21 +944,21 @@ export default function LogsPage() {
                 className="fixed inset-0 bg-black/50"
                 onClick={() => setSelectedLog(null)}
               />
-              <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200/80">
-                <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef5ff_100%)] px-5 py-5 sm:px-6">
+              <div className="theme-modal relative w-full max-w-4xl overflow-hidden rounded-2xl">
+                <div className="flex items-start justify-between gap-4 border-b border-[var(--border-soft)] bg-[var(--surface-1)] px-5 py-5 sm:px-6">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-700">Security Event</p>
-                    <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-[2rem]">Log Details</h2>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Security Event</p>
+                    <h2 className="mt-1 text-2xl font-semibold tracking-tight theme-text-primary sm:text-[2rem]">Log Details</h2>
+                    <p className="mt-1 text-sm theme-text-secondary">
                       {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
                     </p>
-                    <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
+                    <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] theme-text-muted">
                       {formatAnalyticsDisplayWindow()}
                     </p>
                   </div>
                   <button
                     onClick={() => setSelectedLog(null)}
-                    className="shrink-0 rounded-xl p-2 text-slate-400 transition hover:bg-white/80 hover:text-slate-700"
+                    className="theme-button-neutral shrink-0 rounded-xl p-2 transition"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -966,7 +966,7 @@ export default function LogsPage() {
                   </button>
                 </div>
 
-                <div className="max-h-[72vh] overflow-y-auto bg-slate-50 px-4 py-4 sm:px-5 sm:py-5">
+                <div className="max-h-[72vh] overflow-y-auto bg-[var(--surface-3)] px-4 py-4 sm:px-5 sm:py-5">
                   <div className="flex flex-wrap gap-2">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getSeverityColor(selectedLog.severity)}`}>
                       {String(selectedLog.severity || 'info').toUpperCase()}
@@ -974,17 +974,17 @@ export default function LogsPage() {
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getActionDisplay(selectedLog).className}`}>
                       {getActionDisplay(selectedLog).label}
                     </span>
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                    <span className="theme-soft-surface inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium theme-text-secondary">
                       Rule {deriveRuleId(selectedLog)}
                     </span>
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                    <span className="theme-soft-surface inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium theme-text-secondary">
                       {getLogMethod(selectedLog)} {selectedLog.statusCode ?? '-'}
                     </span>
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Event Summary</h3>
+                    <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Event Summary</h3>
                       <dl className="mt-3">
                         {renderDetailRow('Rule ID', deriveRuleId(selectedLog), { mono: true })}
                         {renderDetailRow('Rule Message', simplifyRuleMessage(selectedLog), { breakWords: true })}
@@ -994,8 +994,8 @@ export default function LogsPage() {
                       </dl>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Request Context</h3>
+                    <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Request Context</h3>
                       <dl className="mt-3">
                         {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}
                         {renderDetailRow('Client IP', normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-', { mono: true })}

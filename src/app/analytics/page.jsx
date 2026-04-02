@@ -162,12 +162,12 @@ export default function AnalyticsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-100">Attack Analytics</h1>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+            <h1 className="text-3xl font-bold theme-text-primary">Attack Analytics</h1>
+            <p className="mt-2 text-sm theme-text-secondary">
               Visualize blocked and denied traffic trends, attack patterns, and security metrics for the {formatAnalyticsDisplayWindow().toLowerCase()}
             </p>
           </div>
-          <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+          <div className="theme-soft-surface rounded-full px-4 py-2 text-sm font-medium theme-text-secondary">
             {formatAnalyticsDisplayWindow()}
           </div>
         </div>
@@ -184,10 +184,10 @@ export default function AnalyticsPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
           {summaryCards.map((card) => (
-            <div key={card.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+            <div key={card.title} className="theme-surface rounded-3xl p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{card.title}</p>
+                  <p className="text-sm font-medium theme-text-secondary">{card.title}</p>
                   <p className={`mt-2 text-3xl font-bold ${card.valueClassName}`}>
                     {card.value}
                   </p>
@@ -204,8 +204,8 @@ export default function AnalyticsPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Attack Types Chart */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Attack Types</h2>
+          <div className="theme-surface rounded-3xl p-6">
+            <h2 className="mb-4 text-lg font-semibold theme-text-primary">Attack Types</h2>
             {analytics?.attackTypes && analytics.attackTypes.length > 0 ? (
               <div className="space-y-3">
                 {analytics.attackTypes.map(([type, count]) => {
@@ -213,10 +213,10 @@ export default function AnalyticsPage() {
                   return (
                     <div key={type}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{type}</span>
-                        <span className="text-sm text-slate-600 dark:text-slate-400">{count} ({percentage.toFixed(1)}%)</span>
+                        <span className="text-sm font-medium theme-text-secondary">{type}</span>
+                        <span className="text-sm theme-text-secondary">{count} ({percentage.toFixed(1)}%)</span>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-800">
+                      <div className="h-2 w-full rounded-full bg-[var(--border-soft)]">
                         <div
                           className="h-2 rounded-full bg-blue-600 transition-all dark:bg-blue-400"
                           style={{ width: `${percentage}%` }}
@@ -227,64 +227,64 @@ export default function AnalyticsPage() {
                 })}
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No attack data available</p>
+              <p className="py-8 text-center text-sm theme-text-muted">No attack data available</p>
             )}
           </div>
 
           {/* Top Attacking IPs */}
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-            <h2 className="mb-4 text-lg font-semibold text-slate-900 dark:text-slate-100">Top Attacking IPs</h2>
+          <div className="theme-surface rounded-3xl p-6">
+            <h2 className="mb-4 text-lg font-semibold theme-text-primary">Top Attacking IPs</h2>
             {analytics?.topIPs && analytics.topIPs.length > 0 ? (
               <div className="space-y-3">
                 {analytics.topIPs.map(([ip, count], index) => (
-                  <div key={ip} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
+                  <div key={ip} className="theme-inset-surface flex items-center justify-between rounded-xl p-3">
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">#{index + 1}</span>
-                      <span className="text-sm font-mono text-slate-900 dark:text-slate-100">{ip}</span>
+                      <span className="text-sm font-medium theme-text-muted">#{index + 1}</span>
+                      <span className="text-sm font-mono theme-text-primary">{ip}</span>
                     </div>
                     <span className="text-sm font-semibold text-red-600 dark:text-red-300">{count} attacks</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No IP data available</p>
+              <p className="py-8 text-center text-sm theme-text-muted">No IP data available</p>
             )}
           </div>
         </div>
 
         {/* Hourly Attack Trends */}
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
-          <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between">
+        <div className="theme-surface rounded-3xl p-6">
+          <div className="flex flex-col gap-4 border-b border-[var(--border-soft)] pb-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Attack Trends by Hour</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              <h2 className="text-lg font-semibold theme-text-primary">Attack Trends by Hour</h2>
+              <p className="mt-1 text-sm theme-text-secondary">
                 See when blocked and denied requests are most concentrated so your team can spot attack windows faster.
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+              <p className="mt-1 text-xs font-medium uppercase tracking-[0.12em] theme-text-muted">
                 Timezone: {ANALYTICS_TIME_ZONE}
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Peak Hour</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="theme-inset-surface rounded-2xl px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] theme-text-muted">Peak Hour</div>
+                <div className="mt-1 text-sm font-semibold theme-text-primary">
                   {peakHourEntry.count > 0 ? peakHourEntry.label : 'No activity'}
                 </div>
-                <div className="mt-1 text-xs text-slate-500">
+                <div className="mt-1 text-xs theme-text-muted">
                   {peakHourEntry.count.toLocaleString()} attacks
                 </div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Active Hours</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="theme-inset-surface rounded-2xl px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] theme-text-muted">Active Hours</div>
+                <div className="mt-1 text-sm font-semibold theme-text-primary">
                   {activeHours} of {ANALYTICS_DISPLAY_HOURS}
                 </div>
-                <div className="mt-1 text-xs text-slate-500">Hours with detected attacks</div>
+                <div className="mt-1 text-xs theme-text-muted">Hours with detected attacks</div>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Avg / Active Hour</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">{averagePerActiveHour.toFixed(1)}</div>
-                <div className="mt-1 text-xs text-slate-500">Attack events per active hour</div>
+              <div className="theme-inset-surface rounded-2xl px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] theme-text-muted">Avg / Active Hour</div>
+                <div className="mt-1 text-sm font-semibold theme-text-primary">{averagePerActiveHour.toFixed(1)}</div>
+                <div className="mt-1 text-xs theme-text-muted">Attack events per active hour</div>
               </div>
             </div>
           </div>

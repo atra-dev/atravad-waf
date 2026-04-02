@@ -235,7 +235,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen">
-      <header className="theme-panel sticky top-0 z-50 border-b">
+      <header className="theme-panel sticky top-0 z-50 border-b border-[var(--border-soft)]">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -259,13 +259,13 @@ export default function Layout({ children }) {
             <div className="flex items-center space-x-4">
               <button
                 onClick={toggleTheme}
-                className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-soft)] bg-[var(--surface-3)] px-3 py-2 text-sm font-medium theme-text-secondary hover:border-[var(--accent-strong)] hover:text-[var(--text-primary)]"
+                className="theme-button-neutral inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:border-[var(--accent-strong)]"
                 aria-label="Toggle dark theme"
               >
                 {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
                 <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
               </button>
-              <div className="hidden items-center space-x-3 rounded-lg bg-[var(--surface-3)] px-4 py-2 sm:flex">
+              <div className="theme-soft-surface hidden items-center space-x-3 rounded-lg px-4 py-2 sm:flex">
                 <UserIcon className="h-5 w-5 theme-text-secondary" />
                 <div className="flex flex-col">
                   <span className="max-w-xs truncate text-sm font-medium theme-text-primary">{userEmail || 'User'}</span>
@@ -286,7 +286,7 @@ export default function Layout({ children }) {
               </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium theme-text-secondary transition-colors hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)]"
+                className="theme-button-neutral flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               >
                 <LogoutIcon className="h-5 w-5" />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -300,7 +300,7 @@ export default function Layout({ children }) {
         <aside
           className={`${
             sidebarOpen ? 'w-64' : 'w-0'
-          } theme-panel sticky top-16 h-[calc(100vh-4rem)] self-start overflow-hidden border-r transition-all duration-300 ease-in-out`}
+          } theme-panel sticky top-16 h-[calc(100vh-4rem)] self-start overflow-hidden border-r border-[var(--border-soft)] transition-all duration-300 ease-in-out`}
           style={{ maxHeight: 'calc(100vh - 4rem)' }}
         >
           <nav className="h-full space-y-1 overflow-x-hidden overflow-y-auto px-3 py-6" style={{ scrollbarWidth: 'thin', scrollbarColor: '#64748b transparent' }}>
@@ -325,8 +325,8 @@ export default function Layout({ children }) {
                       className={`${
                         isActive
                           ? item.href === '/admin'
-                            ? 'border-l-4 border-purple-500 bg-purple-500/12 text-purple-200'
-                            : 'border-l-4 border-cyan-400 bg-cyan-400/12 text-cyan-100'
+                            ? 'theme-sidebar-admin-active'
+                            : 'theme-sidebar-active'
                           : 'border-l-4 border-transparent theme-text-secondary hover:bg-[var(--surface-3)] hover:text-[var(--text-primary)]'
                       } group flex h-11 items-center rounded-r-lg px-4 py-3 text-sm font-medium transition-colors`}
                     >
@@ -334,14 +334,14 @@ export default function Layout({ children }) {
                         className={`${
                           isActive
                             ? item.href === '/admin'
-                              ? 'text-purple-300'
-                              : 'text-cyan-300'
+                              ? 'text-inherit'
+                              : 'text-inherit'
                             : 'theme-text-muted group-hover:text-[var(--text-primary)]'
                         } mr-3 h-5 w-5 flex-shrink-0`}
                       />
                       <span className="flex-1">{item.label}</span>
                       {item.href === '/admin' && (
-                        <span className="ml-auto flex-shrink-0 rounded bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-200">
+                        <span className="ml-auto flex-shrink-0 rounded bg-purple-500/15 px-2 py-0.5 text-xs font-semibold text-purple-500">
                           SA
                         </span>
                       )}
