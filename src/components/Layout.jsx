@@ -86,12 +86,47 @@ const MoonIcon = ({ className }) => (
   </svg>
 );
 
+function deriveDisplayName(email = '') {
+  const localPart = String(email).split('@')[0] || '';
+  const parts = localPart
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return 'ATRAVA User';
+
+  return parts
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function deriveInitials(name = '') {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  if (parts.length === 0) return 'AU';
+  return parts.map((part) => part.charAt(0).toUpperCase()).join('');
+}
+
+function buildAvatarFallback(name = '', photoUrl = '') {
+  if (photoUrl) return photoUrl;
+  const encoded = encodeURIComponent(name || 'ATRAVA User');
+  return `https://ui-avatars.com/api/?name=${encoded}&background=0f172a&color=ffffff&bold=true&format=svg`;
+}
+
+function getRoleLabel(role) {
+  if (role === 'super_admin') return 'Super Admin';
+  if (role === 'admin') return 'Admin';
+  if (role === 'analyst') return 'Analyst';
+  return 'Client';
+}
+
 export default function Layout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState(null);
+  const [userPhotoUrl, setUserPhotoUrl] = useState('');
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [theme, setTheme] = useState('light');
 
@@ -116,6 +151,7 @@ export default function Layout({ children }) {
 
         setUserEmail(user.email);
         setUserRole(user.role || null);
+        setUserPhotoUrl(user.photoURL || user.avatarUrl || '');
         setRoleLoaded(true);
       } catch (error) {
         console.error('Error initializing user:', error);
@@ -192,6 +228,7 @@ export default function Layout({ children }) {
       document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
       setUserEmail('');
       setUserRole(null);
+      setUserPhotoUrl('');
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -207,6 +244,19 @@ export default function Layout({ children }) {
     localStorage.setItem('atrava-theme', nextTheme);
     setTheme(nextTheme);
   };
+
+  const userDisplayName = deriveDisplayName(userEmail);
+  const userInitials = deriveInitials(userDisplayName);
+  const userAvatarUrl = buildAvatarFallback(userDisplayName, userPhotoUrl);
+  const roleLabel = getRoleLabel(userRole);
+  const roleToneClassName =
+    userRole === 'super_admin'
+      ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950/40 dark:text-fuchsia-300'
+      : userRole === 'admin'
+        ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300'
+        : userRole === 'analyst'
+          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+          : 'bg-[var(--surface-3)] theme-text-secondary';
 
   const allNavItems = useMemo(() => [
     { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon, alwaysVisible: true },
@@ -256,42 +306,76 @@ export default function Layout({ children }) {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={toggleTheme}
-                className="theme-button-neutral inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium hover:border-[var(--accent-strong)]"
-                aria-label="Toggle dark theme"
-              >
-                {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
-                <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
-              </button>
-              <div className="theme-soft-surface hidden items-center space-x-3 rounded-lg px-4 py-2 sm:flex">
-                <UserIcon className="h-5 w-5 theme-text-secondary" />
-                <div className="flex flex-col">
-                  <span className="max-w-xs truncate text-sm font-medium theme-text-primary">{userEmail || 'User'}</span>
-                  {userRole && (
-                    <span className={`text-xs font-medium ${
-                      userRole === 'super_admin' ? 'text-purple-400' :
-                      userRole === 'admin' ? 'text-sky-400' :
-                      userRole === 'analyst' ? 'text-amber-400' :
-                      'theme-text-secondary'
-                    }`}>
-                      {userRole === 'super_admin' ? 'Super Admin' :
-                        userRole === 'admin' ? 'Admin' :
-                        userRole === 'analyst' ? 'Analyst' :
-                        'Client'}
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={toggleTheme}
+                  className="theme-button-neutral inline-flex h-12 items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition hover:border-[var(--accent-strong)]"
+                  aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                  aria-pressed={theme === 'dark'}
+                >
+                  <span className="hidden text-left sm:block">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] theme-text-muted">
+                      Dark Mode
                     </span>
-                  )}
+                    <span className="block text-sm theme-text-primary">{theme === 'dark' ? 'On' : 'Off'}</span>
+                  </span>
+                  <span
+                    className={`relative flex h-7 w-12 items-center rounded-full border transition-colors ${
+                      theme === 'dark'
+                        ? 'border-sky-400/60 bg-sky-500/90'
+                        : 'border-[var(--border-soft)] bg-[var(--surface-3)]'
+                    }`}
+                  >
+                    <span
+                      className={`absolute flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition-transform dark:bg-slate-950 dark:text-slate-100 ${
+                        theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    >
+                      {theme === 'dark' ? <MoonIcon className="h-3.5 w-3.5" /> : <SunIcon className="h-3.5 w-3.5" />}
+                    </span>
+                  </span>
+                </button>
+                <div className="theme-soft-surface hidden items-center gap-3 rounded-2xl px-3 py-2 sm:flex">
+                  <div className="h-12 w-12 overflow-hidden rounded-2xl ring-1 ring-[var(--border-soft)]">
+                    <img
+                      src={userAvatarUrl}
+                      alt={userDisplayName}
+                      className="h-full w-full object-cover"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                        const fallback = event.currentTarget.nextElementSibling;
+                        if (fallback) fallback.classList.remove('hidden');
+                      }}
+                    />
+                    <span className="hidden h-full w-full items-center justify-center bg-[var(--surface-1)] text-sm font-semibold theme-text-primary">
+                      {userInitials}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="max-w-[180px] truncate text-sm font-semibold theme-text-primary">{userDisplayName}</div>
+                    <div className="max-w-[180px] truncate text-xs theme-text-muted">{userEmail}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${roleToneClassName}`}>
+                        {roleLabel}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+                <button
+                  onClick={handleLogout}
+                  className="theme-button-neutral flex h-12 items-center gap-3 rounded-2xl px-4 py-2 text-sm font-medium transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-3)]">
+                    <LogoutIcon className="h-4 w-4" />
+                  </span>
+                  <span className="hidden text-left sm:block">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] theme-text-muted">
+                      Session
+                    </span>
+                    <span className="block">Sign Out</span>
+                  </span>
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="theme-button-neutral flex items-center space-x-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              >
-                <LogoutIcon className="h-5 w-5" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </button>
-            </div>
           </div>
         </div>
       </header>

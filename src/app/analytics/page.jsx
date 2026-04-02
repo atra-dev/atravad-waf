@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
     {
       title: 'Total Attacks',
       value: analytics?.totalAttacks || 0,
-      valueClassName: 'text-slate-950 dark:text-slate-100',
+      valueClassName: 'theme-text-primary',
       iconShellClassName: 'bg-red-100 dark:bg-red-950/40',
       iconClassName: 'text-red-600 dark:text-red-300',
       icon: (
@@ -290,19 +290,19 @@ export default function AnalyticsPage() {
           </div>
           {hourlyEntries.length > 0 ? (
             <div className="mt-5">
-              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-900 dark:text-slate-300">
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-xs theme-text-secondary">
+                <span className="theme-inset-surface inline-flex items-center gap-2 rounded-full px-3 py-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
                   Higher bars mean more detected attacks in that hour
                 </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 dark:bg-slate-900 dark:text-slate-300">
-                  <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                <span className="theme-inset-surface inline-flex items-center gap-2 rounded-full px-3 py-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[var(--border-strong)]" />
                   Zero means no attacks recorded for that hour
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/80">
-                <div className="mb-3 flex items-center justify-between text-xs font-medium text-slate-500">
+              <div className="theme-inset-surface rounded-2xl border border-[var(--border-soft)] p-4">
+                <div className="mb-3 flex items-center justify-between text-xs font-medium theme-text-muted">
                   <span>Lower activity</span>
                   <span>Hourly attack volume</span>
                   <span>Higher activity</span>
@@ -320,34 +320,34 @@ export default function AnalyticsPage() {
                       ? 'bg-gradient-to-t from-blue-700 to-cyan-400'
                       : hasActivity
                         ? 'bg-gradient-to-t from-blue-600 to-blue-400'
-                        : 'bg-slate-200';
+                        : 'bg-[var(--border-strong)]';
 
                     return (
                       <div key={item.time} className="flex min-w-0 flex-col items-center justify-end">
-                        <div className="mb-2 h-5 text-[11px] font-semibold text-slate-500">
+                        <div className="mb-2 h-5 text-[11px] font-semibold theme-text-muted">
                           {hasActivity ? count : ''}
                         </div>
-                        <div className="flex h-52 w-full items-end rounded-xl bg-white/90 px-1.5 py-1 shadow-inner ring-1 ring-slate-200/70 dark:bg-slate-950/80 dark:ring-slate-800">
+                        <div className="flex h-52 w-full items-end rounded-xl bg-[var(--surface-1)] px-1.5 py-1 shadow-inner ring-1 ring-[var(--border-soft)]">
                           <div
                             className={`w-full rounded-lg transition-all duration-300 ${barTone}`}
                             style={{ height: `${height}%` }}
                             title={`${item.label} - ${count} attacks`}
                           />
                         </div>
-                        <span className="mt-2 text-xs text-slate-500">{item.label}</span>
+                        <span className="mt-2 text-xs theme-text-muted">{item.label}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm theme-text-secondary">
                 <div>
-                  <span className="font-medium text-slate-900 dark:text-slate-100">{totalHourlyAttacks.toLocaleString()}</span> total attacks across the selected range
+                  <span className="font-medium theme-text-primary">{totalHourlyAttacks.toLocaleString()}</span> total attacks across the selected range
                 </div>
                 <div>
                   Peak concentration at{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">
+                  <span className="font-medium theme-text-primary">
                     {peakHourEntry.count > 0 ? peakHourEntry.label : 'No activity'}
                   </span>
                 </div>
@@ -355,8 +355,8 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <div className="py-10 text-center">
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">No trend data available</p>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-medium theme-text-secondary">No trend data available</p>
+              <p className="mt-1 text-sm theme-text-muted">
                 Once attacks are detected, this section will highlight the busiest hours automatically.
               </p>
             </div>

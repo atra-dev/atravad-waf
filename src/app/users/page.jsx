@@ -10,6 +10,44 @@ const userInputClassName =
 const userModalShellClassName =
   'theme-modal w-full max-w-md rounded-3xl p-6';
 
+const userNeutralButtonClassName =
+  'theme-button-neutral rounded-xl px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-slate-500';
+
+function getRoleTone(role) {
+  return role === 'admin'
+    ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
+    : 'bg-[var(--surface-3)] theme-text-secondary';
+}
+
+function getStatusTone(pending) {
+  return pending
+    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300';
+}
+
+function deriveDisplayName(email = '') {
+  const localPart = String(email).split('@')[0] || '';
+  const parts = localPart
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return 'ATRAVA User';
+
+  return parts
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function deriveInitials(email = '') {
+  return deriveDisplayName(email)
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}
+
 export default function TenantUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -138,35 +176,42 @@ export default function TenantUsersPage() {
                 <thead className="bg-[var(--surface-3)]">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
-                      Email
+                      Member
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                       Role
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                       Created
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider theme-text-muted">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider theme-text-muted">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--surface-2)]">
-                  {users.map((user) => (
-                    <tr key={user.id} className="transition hover:bg-[var(--surface-3)]">
+                    {users.map((user) => {
+                      const displayName = deriveDisplayName(user.email);
+                      const initials = deriveInitials(user.email);
+                      return (
+                      <tr key={user.id} className="transition hover:bg-[var(--surface-3)]">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium theme-text-primary">{user.email}</div>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--surface-3)] text-sm font-semibold theme-text-primary ring-1 ring-[var(--border-soft)]">
+                            {initials}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="font-medium theme-text-primary">{displayName}</div>
+                            <div className="max-w-[220px] truncate text-sm theme-text-muted">{user.email}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === 'admin'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300'
-                              : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
-                          }`}
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getRoleTone(user.role)}`}
                         >
                           {user.role || 'client'}
                         </span>
@@ -176,11 +221,7 @@ export default function TenantUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.invitationPending
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
-                              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                          }`}
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusTone(user.invitationPending)}`}
                         >
                           {user.invitationPending ? 'Invite Pending' : 'Active'}
                         </span>
@@ -195,7 +236,7 @@ export default function TenantUsersPage() {
                               });
                               setShowEditModal(true);
                             }}
-                            className="text-blue-600 transition hover:text-blue-900 focus:outline-none dark:text-blue-300 dark:hover:text-blue-200"
+                            className="theme-button-neutral inline-flex h-9 w-9 items-center justify-center rounded-xl p-0 text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
                             title="Edit user"
                           >
                             <svg
@@ -217,7 +258,7 @@ export default function TenantUsersPage() {
                               setSelectedUser(user);
                               setShowDeleteModal(true);
                             }}
-                            className="text-red-600 transition hover:text-red-900 focus:outline-none dark:text-red-300 dark:hover:text-red-200"
+                            className="theme-button-neutral inline-flex h-9 w-9 items-center justify-center rounded-xl p-0 text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200"
                             title="Delete user"
                           >
                             <svg
@@ -237,7 +278,7 @@ export default function TenantUsersPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    )})}
                   {users.length === 0 && (
                     <tr>
                       <td
@@ -328,8 +369,8 @@ export default function TenantUsersPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                  <label className="mb-1 block text-sm font-medium theme-text-secondary">
+                    Email Address
                   </label>
                   <input
                     type="email"
@@ -338,12 +379,12 @@ export default function TenantUsersPage() {
                     onChange={(e) =>
                       setCreateFormData({ ...createFormData, email: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={userInputClassName}
                     placeholder="you@gmail.com"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <label className="mb-1 block text-sm font-medium theme-text-secondary">
                     Role
                   </label>
                   <select
@@ -361,7 +402,7 @@ export default function TenantUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    className={userNeutralButtonClassName}
                     disabled={actionLoading}
                   >
                     Cancel
@@ -374,7 +415,7 @@ export default function TenantUsersPage() {
                     {actionLoading ? 'Sending Invite...' : 'Send Invite'}
                   </button>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs theme-text-muted">
                   The system sends a Firebase password setup email and also keeps a copyable fallback link.
                 </p>
               </form>
@@ -386,12 +427,12 @@ export default function TenantUsersPage() {
         {showEditModal && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
             <div className={userModalShellClassName}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Edit User</h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="text-slate-400 transition hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-200"
-                >
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold theme-text-primary">Edit User</h3>
+                  <button
+                    onClick={() => setShowEditModal(false)}
+                    className="theme-text-muted transition hover:text-[var(--text-primary)] focus:outline-none"
+                  >
                   <svg
                     className="h-6 w-6"
                     fill="none"
@@ -407,14 +448,15 @@ export default function TenantUsersPage() {
                   </svg>
                 </button>
               </div>
-              <div className="mb-4">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Email:{' '}
-                  <span className="font-medium text-slate-900 dark:text-slate-100">
-                    {selectedUser.email}
+                <div className="mb-4 flex items-center gap-3 rounded-2xl bg-[var(--surface-3)] p-3 ring-1 ring-[var(--border-soft)]">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--surface-1)] text-sm font-semibold theme-text-primary">
+                    {deriveInitials(selectedUser.email)}
                   </span>
-                </p>
-              </div>
+                  <div className="min-w-0">
+                    <p className="font-medium theme-text-primary">{deriveDisplayName(selectedUser.email)}</p>
+                    <p className="truncate text-sm theme-text-muted">{selectedUser.email}</p>
+                  </div>
+                </div>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -444,7 +486,7 @@ export default function TenantUsersPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <label className="mb-1 block text-sm font-medium theme-text-secondary">
                     Role
                   </label>
                   <select
@@ -462,7 +504,7 @@ export default function TenantUsersPage() {
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    className={userNeutralButtonClassName}
                     disabled={actionLoading}
                   >
                     Cancel
@@ -484,12 +526,12 @@ export default function TenantUsersPage() {
         {showDeleteModal && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
             <div className={userModalShellClassName}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-red-600 dark:text-red-300">Delete User</h3>
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="text-slate-400 transition hover:text-slate-600 focus:outline-none dark:text-slate-500 dark:hover:text-slate-200"
-                >
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-red-600 dark:text-red-300">Delete User</h3>
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="theme-text-muted transition hover:text-[var(--text-primary)] focus:outline-none"
+                  >
                   <svg
                     className="h-6 w-6"
                     fill="none"
@@ -505,23 +547,27 @@ export default function TenantUsersPage() {
                   </svg>
                 </button>
               </div>
-              <div className="mb-4">
-                <p className="mb-2 text-sm text-slate-700 dark:text-slate-300">
-                  Are you sure you want to delete this user? This action cannot be undone.
-                </p>
-                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/80">
-                  <p className="font-medium text-slate-900 dark:text-slate-100">{selectedUser.email}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Role: {selectedUser.role || 'client'}
+                <div className="mb-4">
+                  <p className="mb-2 text-sm theme-text-secondary">
+                    Are you sure you want to delete this user? This action cannot be undone.
                   </p>
+                  <div className="flex items-center gap-3 rounded-2xl bg-[var(--surface-3)] p-3 ring-1 ring-[var(--border-soft)]">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--surface-1)] text-sm font-semibold theme-text-primary">
+                      {deriveInitials(selectedUser.email)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-medium theme-text-primary">{deriveDisplayName(selectedUser.email)}</p>
+                      <p className="truncate text-sm theme-text-muted">{selectedUser.email}</p>
+                      <p className="text-sm theme-text-muted">Role: {selectedUser.role || 'client'}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
               <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="rounded-xl bg-slate-100 px-4 py-2 text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  disabled={actionLoading}
-                >
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className={userNeutralButtonClassName}
+                    disabled={actionLoading}
+                  >
                   Cancel
                 </button>
                 <button
