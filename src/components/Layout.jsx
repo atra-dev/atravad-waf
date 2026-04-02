@@ -309,16 +309,11 @@ export default function Layout({ children }) {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={toggleTheme}
-                  className="theme-button-neutral inline-flex h-10 items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-medium transition hover:border-[var(--accent-strong)]"
+                  className="theme-button-neutral inline-flex h-10 items-center rounded-xl px-2 py-1.5 transition hover:border-[var(--accent-strong)]"
                   aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                   aria-pressed={theme === 'dark'}
+                  title={`Dark mode ${theme === 'dark' ? 'on' : 'off'}`}
                 >
-                  <span className="hidden text-left md:block">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] theme-text-muted">
-                      Dark Mode
-                    </span>
-                    <span className="block text-xs theme-text-primary">{theme === 'dark' ? 'On' : 'Off'}</span>
-                  </span>
                   <span
                     className={`relative flex h-6 w-10 items-center rounded-full border transition-colors ${
                       theme === 'dark'
@@ -351,7 +346,7 @@ export default function Layout({ children }) {
                       {userInitials}
                     </span>
                   </div>
-                  <div className="min-w-0 max-w-[150px]">
+                  <div className="min-w-0 max-w-[120px]">
                     <div className="truncate text-sm font-semibold theme-text-primary">{userDisplayName}</div>
                     <div className="mt-0.5 flex items-center gap-2">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${roleToneClassName}`}>
@@ -362,12 +357,13 @@ export default function Layout({ children }) {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="theme-button-neutral flex h-10 items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+                  className="theme-button-neutral flex h-10 w-10 items-center justify-center rounded-xl p-0 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+                  aria-label="Sign out"
+                  title="Sign out"
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-3)]">
                     <LogoutIcon className="h-4 w-4" />
                   </span>
-                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
           </div>
