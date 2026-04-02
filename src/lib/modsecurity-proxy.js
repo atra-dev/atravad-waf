@@ -615,6 +615,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /(?:^|[?&][^=]{1,48}=)[^\s]{0,256}(?:\|{1,2}|&&|;)[^=&]{0,64}/i,
         /(?:^|[?&][^=]{1,48}=)(?:%0a|%0d|%09|\\n|\\r|\\t)/i,
         /\|\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\b/i,
+        /(?:%0a|%0d|%09|\\n|\\r|\\t)+\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\b/i,
         /\{\s*(?:cat|bash|sh|curl|wget|nc|python|perl|php|node|powershell)\s*,[^{}]{1,128}\}/i,
         /<\([^)]{1,128}\)/i,
       ],

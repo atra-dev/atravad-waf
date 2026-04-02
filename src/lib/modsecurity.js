@@ -573,6 +573,16 @@ function generateRCERules(ruleIdBase) {
     t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
 
+  rules += `SecRule REQUEST_URI|QUERY_STRING "@rx (?i)(?:(?:%0a|%0d|%09|\\\\n|\\\\r|\\\\t)+\\s*(?:whoami|id|uname|pwd|cat|ls|curl|wget|bash|sh|powershell|python|perl|php|node)\\b)" \\
+    "id:${ruleIdBase + 3},phase:2,block,msg:'Remote Code Execution Attempt: Encoded Control-Character Command Probe Detected',\\
+    logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
+    severity:'CRITICAL',\\
+    tag:'attack-rce',\\
+    tag:'OWASP_CRS',\\
+    tag:'OWASP_CRS/WEB_ATTACK/RCE',\\
+    t:none,t:urlDecodeUni,t:lowercase,t:removeNulls,\\
+    setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
+
   return rules;
 }
 
