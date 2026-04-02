@@ -49,7 +49,7 @@ function FeatureBadge({ enabled, children }) {
     <div
       className={`rounded-2xl border px-4 py-3 text-sm shadow-sm ${
         enabled
-          ? 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300'
+          ? 'border-emerald-400 bg-emerald-100/95 text-emerald-950 dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300'
           : 'border-[var(--border-soft)] bg-[var(--surface-3)] theme-text-muted'
       }`}
     >
@@ -85,15 +85,15 @@ function DetailRow({ label, value }) {
 function ComparisonCard({ plan, active }) {
   return (
     <div
-      className={`rounded-[26px] border p-5 shadow-sm transition-colors ${
-        active
-          ? 'border-cyan-400/80 bg-[linear-gradient(145deg,#ecfeff,#f0f9ff_48%,#ecfeff)] text-slate-950 shadow-[0_20px_60px_rgba(14,116,144,0.14)] dark:bg-[linear-gradient(145deg,color-mix(in_srgb,var(--surface-2)_92%,#0f172a),color-mix(in_srgb,var(--surface-3)_88%,#0b1f33))] dark:text-[var(--text-primary)] dark:shadow-[0_20px_60px_rgba(8,15,29,0.22)]'
+        className={`rounded-[26px] border p-5 shadow-sm transition-colors ${
+          active
+          ? 'border-cyan-500 bg-[linear-gradient(145deg,#ecfeff,#f0f9ff_48%,#ecfeff)] text-slate-950 shadow-[0_20px_60px_rgba(14,116,144,0.14)] dark:bg-[linear-gradient(145deg,color-mix(in_srgb,var(--surface-2)_92%,#0f172a),color-mix(in_srgb,var(--surface-3)_88%,#0b1f33))] dark:text-[var(--text-primary)] dark:shadow-[0_20px_60px_rgba(8,15,29,0.22)]'
           : 'theme-surface text-[var(--text-primary)]'
-      }`}
-    >
+        }`}
+      >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-700 dark:text-cyan-300' : 'theme-text-muted'}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-800 dark:text-cyan-300' : 'theme-text-muted'}`}>
             {plan.name}
           </p>
           <p className={`mt-3 text-3xl font-semibold tracking-tight ${active ? 'text-slate-950 dark:text-white' : 'theme-text-primary'}`}>
@@ -102,7 +102,7 @@ function ComparisonCard({ plan, active }) {
           </p>
         </div>
         {active ? (
-          <span className="rounded-full bg-cyan-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white dark:bg-cyan-400 dark:text-slate-950">
+          <span className="rounded-full bg-cyan-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-sm dark:bg-cyan-400 dark:text-slate-950">
             Current
           </span>
         ) : null}
@@ -371,11 +371,11 @@ export default function SubscriptionPage() {
             <section
               className={`rounded-[30px] border p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)] ${
                 suggestedUpgrade
-                  ? 'border-amber-300 bg-amber-100/90 dark:border-amber-900/60 dark:bg-amber-950/20'
-                  : 'border-emerald-300 bg-emerald-100/90 dark:border-emerald-900/60 dark:bg-emerald-950/20'
+                  ? 'border-amber-400 bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/20'
+                  : 'border-emerald-400 bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/20'
               }`}
             >
-              <p className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${suggestedUpgrade ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+              <p className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${suggestedUpgrade ? 'text-amber-900 dark:text-amber-300' : 'text-emerald-900 dark:text-emerald-300'}`}>
                 Capacity Advisory
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight theme-text-primary">

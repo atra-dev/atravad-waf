@@ -278,20 +278,20 @@ export default function PoliciesList({
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-center dark:border-green-900/50 dark:bg-green-950/35">
-              <div className="text-3xl font-bold text-green-700">{allSecurityRules.owaspCRS.rules.length}</div>
-              <div className="mt-1 text-sm text-green-900">OWASP CRS Rules</div>
-              <div className="mt-1 text-xs text-green-700">Enabled by default</div>
+            <div className="rounded-2xl border border-emerald-300 bg-emerald-100 p-4 text-center dark:border-emerald-900/50 dark:bg-emerald-950/35">
+              <div className="text-3xl font-bold text-emerald-800">{allSecurityRules.owaspCRS.rules.length}</div>
+              <div className="mt-1 text-sm text-emerald-950">OWASP CRS Rules</div>
+              <div className="mt-1 text-xs text-emerald-800">Enabled by default</div>
             </div>
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-center dark:border-blue-900/50 dark:bg-blue-950/35">
-              <div className="text-3xl font-bold text-blue-700">{allSecurityRules.owaspTop10.rules.length}</div>
-              <div className="mt-1 text-sm text-blue-900">OWASP Top 10 Protections</div>
-              <div className="mt-1 text-xs text-blue-700">Available for policies</div>
+            <div className="rounded-2xl border border-blue-300 bg-blue-100 p-4 text-center dark:border-blue-900/50 dark:bg-blue-950/35">
+              <div className="text-3xl font-bold text-blue-800">{allSecurityRules.owaspTop10.rules.length}</div>
+              <div className="mt-1 text-sm text-blue-950">OWASP Top 10 Protections</div>
+              <div className="mt-1 text-xs text-blue-800">Available for policies</div>
             </div>
-            <div className="rounded-2xl border border-purple-200 bg-purple-50 p-4 text-center dark:border-purple-900/50 dark:bg-purple-950/35">
-              <div className="text-3xl font-bold text-purple-700">{allSecurityRules.advanced.rules.length}</div>
-              <div className="mt-1 text-sm text-purple-900">Advanced Features</div>
-              <div className="mt-1 text-xs text-purple-700">Enterprise capabilities</div>
+            <div className="rounded-2xl border border-violet-300 bg-violet-100 p-4 text-center dark:border-violet-900/50 dark:bg-violet-950/35">
+              <div className="text-3xl font-bold text-violet-800">{allSecurityRules.advanced.rules.length}</div>
+              <div className="mt-1 text-sm text-violet-950">Advanced Features</div>
+              <div className="mt-1 text-xs text-violet-800">Enterprise capabilities</div>
             </div>
           </div>
         </div>
@@ -359,7 +359,7 @@ export default function PoliciesList({
                   <div className="flex items-center gap-3">
                     <Link
                       href={`/policies/${encodeURIComponent(name)}/edit`}
-                      className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60"
+                      className="rounded-lg border border-blue-300 bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-800 transition hover:bg-blue-200 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60"
                     >
                       Edit
                     </Link>
@@ -373,7 +373,7 @@ export default function PoliciesList({
                       type="button"
                       onClick={() => handleDeletePolicy(name)}
                       disabled={deletingPolicyName === name}
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+                        className="rounded-lg border border-red-300 bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
                     >
                       {deletingPolicyName === name ? 'Deleting...' : 'Delete Policy'}
                     </button>
@@ -397,7 +397,7 @@ export default function PoliciesList({
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-900/40 dark:bg-cyan-950/30 dark:text-cyan-200">
+                <div className="mt-4 rounded-2xl border border-cyan-300 bg-cyan-100 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-900/40 dark:bg-cyan-950/30 dark:text-cyan-200">
                   Operational IP and geo changes are available in the audit trail for this policy.
                 </div>
               </div>

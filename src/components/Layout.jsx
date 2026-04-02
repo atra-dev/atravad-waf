@@ -330,31 +330,6 @@ export default function Layout({ children }) {
                     </span>
                   </span>
                 </button>
-                <div className="theme-soft-surface hidden items-center gap-2 rounded-xl px-2.5 py-1.5 sm:flex">
-                  <div className="h-10 w-10 overflow-hidden rounded-xl ring-1 ring-[var(--border-soft)]">
-                    <img
-                      src={userAvatarUrl}
-                      alt={userDisplayName}
-                      className="h-full w-full object-cover"
-                      onError={(event) => {
-                        event.currentTarget.style.display = 'none';
-                        const fallback = event.currentTarget.nextElementSibling;
-                        if (fallback) fallback.setAttribute('data-visible', 'true');
-                      }}
-                    />
-                    <span className="hidden h-full w-full items-center justify-center bg-[var(--surface-1)] text-sm font-semibold theme-text-primary data-[visible=true]:flex">
-                      {userInitials}
-                    </span>
-                  </div>
-                  <div className="min-w-0 max-w-[120px]">
-                    <div className="truncate text-sm font-semibold theme-text-primary">{userDisplayName}</div>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${roleToneClassName}`}>
-                        {roleLabel}
-                      </span>
-                    </div>
-                  </div>
-                </div>
                 <button
                   onClick={handleLogout}
                   className="theme-button-neutral flex h-10 w-10 items-center justify-center rounded-xl p-0 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
