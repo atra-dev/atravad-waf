@@ -359,7 +359,7 @@ export default function PoliciesList({
                   <div className="flex items-center gap-3">
                     <Link
                       href={`/policies/${encodeURIComponent(name)}/edit`}
-                      className="rounded-lg border border-blue-300 bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-800 transition hover:bg-blue-200 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60"
+                      className="rounded-lg border border-blue-400 bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-900 transition hover:bg-blue-200 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-950/60"
                     >
                       Edit
                     </Link>
@@ -373,7 +373,7 @@ export default function PoliciesList({
                       type="button"
                       onClick={() => handleDeletePolicy(name)}
                       disabled={deletingPolicyName === name}
-                        className="rounded-lg border border-red-300 bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+                        className="rounded-lg border border-red-400 bg-red-100 px-3 py-1.5 text-xs font-medium text-red-900 transition hover:bg-red-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
                     >
                       {deletingPolicyName === name ? 'Deleting...' : 'Delete Policy'}
                     </button>
@@ -397,7 +397,7 @@ export default function PoliciesList({
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-cyan-300 bg-cyan-100 px-4 py-3 text-sm text-cyan-900 dark:border-cyan-900/40 dark:bg-cyan-950/30 dark:text-cyan-200">
+                <div className="mt-4 rounded-2xl border border-cyan-400 bg-cyan-100 px-4 py-3 text-sm font-medium text-cyan-950 dark:border-cyan-900/40 dark:bg-cyan-950/30 dark:text-cyan-200">
                   Operational IP and geo changes are available in the audit trail for this policy.
                 </div>
               </div>

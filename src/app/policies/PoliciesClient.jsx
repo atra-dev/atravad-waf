@@ -558,18 +558,18 @@ export function PoliciesPageContent({
     return (
       <Layout>
         <div className="mx-auto max-w-2xl py-16">
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-950/75 dark:shadow-none">
+          <div className="theme-surface rounded-3xl p-8">
             <div className="mb-6 flex items-center gap-4">
-              <div className="rounded-xl bg-blue-50 p-3 dark:bg-blue-950/40">
+              <div className="rounded-xl bg-blue-100 p-3 dark:bg-blue-950/40">
                 <BuildingIcon className="h-8 w-8 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-950 dark:text-slate-100">Tenant assignment required</h1>
-                <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Policies are available only after the super admin team provisions your managed tenant access.</p>
+                <h1 className="text-2xl font-bold theme-text-primary">Tenant assignment required</h1>
+                <p className="mt-1 text-sm theme-text-secondary">Policies are available only after the super admin team provisions your managed tenant access.</p>
               </div>
             </div>
 
-            <p className="text-sm leading-7 text-slate-700 dark:text-slate-300">
+            <p className="text-sm leading-7 theme-text-secondary">
               ATRAVA Defense is managed under super-admin-controlled RBAC. Contact the ATRAVA Defense operations team to create your tenant, assign your account, and enable policy management access.
             </p>
           </div>
@@ -591,10 +591,10 @@ export function PoliciesPageContent({
           <>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-100">Security Policies</h1>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Manage WAF security policies and protection rules</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Organization: <span className="font-medium text-slate-700 dark:text-slate-200">{tenantName}</span>
+            <h1 className="text-3xl font-bold theme-text-primary">Security Policies</h1>
+            <p className="mt-2 text-sm theme-text-secondary">Manage WAF security policies and protection rules</p>
+            <p className="mt-1 text-xs theme-text-muted">
+              Organization: <span className="font-medium theme-text-secondary">{tenantName}</span>
             </p>
           </div>
           {!editorOnly ? (
