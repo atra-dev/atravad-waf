@@ -306,37 +306,37 @@ export default function Layout({ children }) {
                 </div>
               </div>
             </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <button
                   onClick={toggleTheme}
-                  className="theme-button-neutral inline-flex h-12 items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition hover:border-[var(--accent-strong)]"
+                  className="theme-button-neutral inline-flex h-10 items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-medium transition hover:border-[var(--accent-strong)]"
                   aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
                   aria-pressed={theme === 'dark'}
                 >
-                  <span className="hidden text-left sm:block">
+                  <span className="hidden text-left md:block">
                     <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] theme-text-muted">
                       Dark Mode
                     </span>
-                    <span className="block text-sm theme-text-primary">{theme === 'dark' ? 'On' : 'Off'}</span>
+                    <span className="block text-xs theme-text-primary">{theme === 'dark' ? 'On' : 'Off'}</span>
                   </span>
                   <span
-                    className={`relative flex h-7 w-12 items-center rounded-full border transition-colors ${
+                    className={`relative flex h-6 w-10 items-center rounded-full border transition-colors ${
                       theme === 'dark'
                         ? 'border-sky-400/60 bg-sky-500/90'
                         : 'border-[var(--border-soft)] bg-[var(--surface-3)]'
                     }`}
                   >
                     <span
-                      className={`absolute flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition-transform dark:bg-slate-950 dark:text-slate-100 ${
-                        theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+                      className={`absolute flex h-4.5 w-4.5 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition-transform dark:bg-slate-950 dark:text-slate-100 ${
+                        theme === 'dark' ? 'translate-x-5' : 'translate-x-1'
                       }`}
                     >
-                      {theme === 'dark' ? <MoonIcon className="h-3.5 w-3.5" /> : <SunIcon className="h-3.5 w-3.5" />}
+                      {theme === 'dark' ? <MoonIcon className="h-3 w-3" /> : <SunIcon className="h-3 w-3" />}
                     </span>
                   </span>
                 </button>
-                <div className="theme-soft-surface hidden items-center gap-3 rounded-2xl px-3 py-2 sm:flex">
-                  <div className="h-12 w-12 overflow-hidden rounded-2xl ring-1 ring-[var(--border-soft)]">
+                <div className="theme-soft-surface hidden items-center gap-2 rounded-xl px-2.5 py-1.5 sm:flex">
+                  <div className="h-10 w-10 overflow-hidden rounded-xl ring-1 ring-[var(--border-soft)]">
                     <img
                       src={userAvatarUrl}
                       alt={userDisplayName}
@@ -351,10 +351,9 @@ export default function Layout({ children }) {
                       {userInitials}
                     </span>
                   </div>
-                  <div className="min-w-0">
-                    <div className="max-w-[180px] truncate text-sm font-semibold theme-text-primary">{userDisplayName}</div>
-                    <div className="max-w-[180px] truncate text-xs theme-text-muted">{userEmail}</div>
-                    <div className="mt-1 flex items-center gap-2">
+                  <div className="min-w-0 max-w-[150px]">
+                    <div className="truncate text-sm font-semibold theme-text-primary">{userDisplayName}</div>
+                    <div className="mt-0.5 flex items-center gap-2">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${roleToneClassName}`}>
                         {roleLabel}
                       </span>
@@ -363,17 +362,12 @@ export default function Layout({ children }) {
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="theme-button-neutral flex h-12 items-center gap-3 rounded-2xl px-4 py-2 text-sm font-medium transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+                  className="theme-button-neutral flex h-10 items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-medium transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-3)]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-3)]">
                     <LogoutIcon className="h-4 w-4" />
                   </span>
-                  <span className="hidden text-left sm:block">
-                    <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] theme-text-muted">
-                      Session
-                    </span>
-                    <span className="block">Sign Out</span>
-                  </span>
+                  <span className="hidden sm:inline">Sign Out</span>
                 </button>
               </div>
           </div>
