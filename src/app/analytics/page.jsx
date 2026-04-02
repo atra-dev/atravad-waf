@@ -115,8 +115,8 @@ export default function AnalyticsPage() {
       title: 'Total Attacks',
       value: analytics?.totalAttacks || 0,
       valueClassName: 'theme-text-primary',
-      iconShellClassName: 'bg-red-300 dark:bg-red-950/40',
-      iconClassName: 'text-red-900 dark:text-red-300',
+      iconShellClassName: 'bg-[#fee2e2] dark:bg-red-950/40',
+      iconClassName: 'text-[#b91c1c] dark:text-red-300',
       icon: (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       ),
@@ -125,9 +125,9 @@ export default function AnalyticsPage() {
     {
       title: 'Critical',
       value: analytics?.severityCounts.critical || 0,
-      valueClassName: 'text-red-800 dark:text-red-300',
-      iconShellClassName: 'bg-red-300 dark:bg-red-950/40',
-      iconClassName: 'text-red-900 dark:text-red-300',
+      valueClassName: 'text-[#b91c1c] dark:text-red-300',
+      iconShellClassName: 'bg-[#fee2e2] dark:bg-red-950/40',
+      iconClassName: 'text-[#b91c1c] dark:text-red-300',
       icon: (
         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
       ),
@@ -136,9 +136,9 @@ export default function AnalyticsPage() {
     {
       title: 'High Severity',
       value: analytics?.severityCounts.high || 0,
-      valueClassName: 'text-orange-800 dark:text-orange-300',
-      iconShellClassName: 'bg-orange-300 dark:bg-orange-950/40',
-      iconClassName: 'text-orange-900 dark:text-orange-300',
+      valueClassName: 'text-[#c2410c] dark:text-orange-300',
+      iconShellClassName: 'bg-[#ffedd5] dark:bg-orange-950/40',
+      iconClassName: 'text-[#c2410c] dark:text-orange-300',
       icon: (
         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
       ),
@@ -147,9 +147,9 @@ export default function AnalyticsPage() {
     {
       title: 'Unique IPs',
       value: analytics?.uniqueIPs || 0,
-      valueClassName: 'text-blue-800 dark:text-blue-300',
-      iconShellClassName: 'bg-blue-300 dark:bg-blue-950/40',
-      iconClassName: 'text-blue-900 dark:text-blue-300',
+      valueClassName: 'text-[#1d4ed8] dark:text-blue-300',
+      iconShellClassName: 'bg-[#dbeafe] dark:bg-blue-950/40',
+      iconClassName: 'text-[#1d4ed8] dark:text-blue-300',
       icon: (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
       ),
@@ -242,7 +242,9 @@ export default function AnalyticsPage() {
                       <span className="text-sm font-medium theme-text-muted">#{index + 1}</span>
                       <span className="text-sm font-mono theme-text-primary">{ip}</span>
                     </div>
-                    <span className="text-sm font-semibold text-rose-800 dark:text-red-300">{count} attacks</span>
+                    <span className="rounded-full bg-[#fee2e2] px-3 py-1 text-sm font-semibold text-[#b91c1c] ring-1 ring-[#fecaca] dark:bg-red-950/30 dark:text-red-300 dark:ring-red-900/60">
+                      {count} attacks
+                    </span>
                   </div>
                 ))}
               </div>
