@@ -87,40 +87,40 @@ function ComparisonCard({ plan, active }) {
     <div
         className={`rounded-[26px] border p-5 shadow-sm transition-colors ${
           active
-          ? 'border-cyan-400 bg-[linear-gradient(145deg,#ecfeff_0%,#dff7ff_48%,#f4fbff_100%)] text-slate-950 shadow-[0_20px_60px_rgba(14,116,144,0.16)] ring-1 ring-cyan-500/30 dark:bg-[linear-gradient(145deg,color-mix(in_srgb,var(--surface-2)_92%,#0f172a),color-mix(in_srgb,var(--surface-3)_88%,#0b1f33))] dark:text-[var(--text-primary)] dark:shadow-[0_20px_60px_rgba(8,15,29,0.22)] dark:ring-cyan-500/20'
+          ? 'border-cyan-400 bg-[linear-gradient(145deg,#f0fdff_0%,#dcf5ff_52%,#edfaff_100%)] text-slate-950 shadow-[0_20px_60px_rgba(14,116,144,0.16)] ring-1 ring-cyan-500/30 dark:bg-[linear-gradient(145deg,color-mix(in_srgb,var(--surface-2)_92%,#0f172a),color-mix(in_srgb,var(--surface-3)_88%,#0b1f33))] dark:text-[var(--text-primary)] dark:shadow-[0_20px_60px_rgba(8,15,29,0.22)] dark:ring-cyan-500/20'
           : 'theme-surface text-[var(--text-primary)]'
         }`}
       >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-700 dark:text-cyan-300' : 'theme-text-muted'}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-800 dark:text-cyan-300' : 'theme-text-muted'}`}>
             {plan.name}
           </p>
           <p className={`mt-3 text-3xl font-semibold tracking-tight ${active ? 'text-slate-950 dark:text-white' : 'theme-text-primary'}`}>
             {plan.websitePrice}
-            {plan.websiteCadence ? <span className={`ml-1 text-base font-medium ${active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}`}>{plan.websiteCadence}</span> : null}
+            {plan.websiteCadence ? <span className={`ml-1 text-base font-medium ${active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}`}>{plan.websiteCadence}</span> : null}
           </p>
         </div>
         {active ? (
-          <span className="rounded-full bg-cyan-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-sm dark:bg-cyan-400 dark:text-slate-950">
+          <span className="rounded-full bg-cyan-500 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-950 shadow-sm dark:bg-cyan-400 dark:text-slate-950">
             Current
           </span>
         ) : null}
       </div>
-      <p className={`mt-4 text-sm leading-7 ${active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-secondary'}`}>
+      <p className={`mt-4 text-sm leading-7 ${active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-secondary'}`}>
         {plan.description}
       </p>
       <div className="mt-5 space-y-3">
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}>Sites</span>
+          <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Sites</span>
           <span className="font-semibold">{plan.limits.maxApps}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}>Policies</span>
+          <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Policies</span>
           <span className="font-semibold">{plan.limits.maxPolicies}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-slate-700 dark:text-slate-300' : 'theme-text-muted'}>Logs</span>
+          <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Logs</span>
           <span className="font-semibold">{plan.limits.logRetentionDays} days</span>
         </div>
       </div>
@@ -375,13 +375,13 @@ export default function SubscriptionPage() {
                   : 'border-emerald-300 bg-[linear-gradient(180deg,#f4fbf6_0%,#dcfce7_100%)] dark:border-emerald-900/60 dark:bg-emerald-950/20'
               }`}
             >
-              <p className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${suggestedUpgrade ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+              <p className={`text-[11px] font-semibold uppercase tracking-[0.28em] ${suggestedUpgrade ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
                 Capacity Advisory
               </p>
               <h2 className={`mt-2 text-2xl font-semibold tracking-tight ${suggestedUpgrade ? 'text-slate-950 dark:text-[var(--text-primary)]' : 'text-slate-950 dark:text-[var(--text-primary)]'}`}>
                 {suggestedUpgrade ? 'Upgrade recommended' : 'Capacity is healthy'}
               </h2>
-              <p className={`mt-3 text-sm leading-7 ${suggestedUpgrade ? 'text-slate-700 dark:text-[var(--text-secondary)]' : 'text-slate-700 dark:text-[var(--text-secondary)]'}`}>
+              <p className={`mt-3 text-sm leading-7 ${suggestedUpgrade ? 'text-slate-800 dark:text-[var(--text-secondary)]' : 'text-slate-800 dark:text-[var(--text-secondary)]'}`}>
                 {suggestedUpgrade
                   ? `Your tenant is using ${highestUsage}% of included capacity. The next commercial tier is ${suggestedUpgrade.name}, which increases headroom before service limits begin to affect operations.`
                   : 'Your tenant is operating comfortably inside plan limits. No commercial upgrade is currently recommended based on visible capacity usage.'}
