@@ -344,10 +344,10 @@ export default function Layout({ children }) {
                       onError={(event) => {
                         event.currentTarget.style.display = 'none';
                         const fallback = event.currentTarget.nextElementSibling;
-                        if (fallback) fallback.classList.remove('hidden');
+                        if (fallback) fallback.setAttribute('data-visible', 'true');
                       }}
                     />
-                    <span className="hidden h-full w-full items-center justify-center bg-[var(--surface-1)] text-sm font-semibold theme-text-primary">
+                    <span className="hidden h-full w-full items-center justify-center bg-[var(--surface-1)] text-sm font-semibold theme-text-primary data-[visible=true]:flex">
                       {userInitials}
                     </span>
                   </div>
