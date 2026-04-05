@@ -1,4 +1,4 @@
-# ATRAVAD WAF Proxy - standalone edge server for EC2/ECS deployment
+﻿# ATRAVA Defense Proxy - standalone edge server for EC2/ECS deployment
 # Build: docker build -t atravad-waf-proxy -f Dockerfile.waf .
 # Run:  docker run --rm -p 8080:8080 --env-file .env.waf atravad-waf-proxy
 
@@ -22,3 +22,4 @@ EXPOSE 8080 80 443
 
 # ESM: run with --experimental-vm-modules if package.json has no "type": "module"
 CMD ["node", "--experimental-vm-modules", "proxy-server-standalone.js"]
+

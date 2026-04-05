@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Rate Limiting Middleware
  * 
- * Enterprise-grade rate limiting for ATRAVAD WAF API endpoints.
+ * Enterprise-grade rate limiting for ATRAVA Defense API endpoints.
  * Implements tiered rate limiting strategy:
  * - Edge/middleware level: per-IP and per-route-group limits
  * 
@@ -226,3 +226,4 @@ export async function rateLimit(request, options = {}) {
 export function getRateLimitConfig(routeGroup) {
   return RATE_LIMIT_CONFIG[routeGroup] || RATE_LIMIT_CONFIG['/api'];
 }
+

@@ -1,37 +1,37 @@
-# DNS Setup Guide for ATRAVAD Proxy WAF
+﻿# DNS Setup Guide for ATRAVA Defense
 ## Seamless Traffic Routing - Just Change Your DNS!
 
 ---
 
-## 🎯 Overview
+## ðŸŽ¯ Overview
 
-ATRAVAD WAF works as a **reverse proxy** - all you need to do is point your domain's DNS to our WAF servers, and all traffic will automatically flow through our protection layer before reaching your origin servers.
+ATRAVA Defense works as a **reverse proxy** - all you need to do is point your domain's DNS to our WAF servers, and all traffic will automatically flow through our protection layer before reaching your origin servers.
 
 **It's that simple!** Just like Sucuri and Reblaze.
 
 ---
 
-## 📋 Prerequisites
+## ðŸ“‹ Prerequisites
 
-1. ✅ **ATRAVAD WAF Account** - You have an account and dashboard access
-2. ✅ **Application Created** - You've created an application (site) in the dashboard
-3. ✅ **Origin Server Configured** - Your origin server URL is set in the application settings
-4. ✅ **ATRAVAD WAF IP or CNAME** - Shown when you add a site (like Sucuri: we give you our WAF address to point DNS to)
+1. âœ… **ATRAVA Defense Account** - You have an account and dashboard access
+2. âœ… **Application Created** - You've created an application (site) in the dashboard
+3. âœ… **Origin Server Configured** - Your origin server URL is set in the application settings
+4. âœ… **ATRAVA Defense IP or CNAME** - Shown when you add a site (like Sucuri: we give you our WAF address to point DNS to)
 
-**Like Sucuri:** You do **not** deploy any server or "node." Add your site in the dashboard, then point your domain's A or CNAME to the **ATRAVAD WAF IP or CNAME** we show you.
+**Like Sucuri:** You do **not** deploy any server or "node." Add your site in the dashboard, then point your domain's A or CNAME to the **ATRAVA Defense IP or CNAME** we show you.
 
 ---
 
-## 🚀 Step-by-Step DNS Configuration
+## ðŸš€ Step-by-Step DNS Configuration
 
-### Step 1: Get the ATRAVAD WAF IP or CNAME
+### Step 1: Get the ATRAVA Defense IP or CNAME
 
-1. Log into your ATRAVAD WAF dashboard
+1. Log into your ATRAVA Defense dashboard
 2. Go to **Applications** (or **Sites**)
 3. Add your site (domain, origin, policy) or open an existing one
-4. At the top of the Applications page you'll see **"Point A record → X.X.X.X"** or **"Point CNAME → waf.atravad.com"** — that is the **ATRAVAD WAF** address (our edge). Use that when configuring DNS.
+4. At the top of the Applications page you'll see **"Point A record â†’ X.X.X.X"** or **"Point CNAME â†’ waf.atravad.com"** â€” that is the **ATRAVA Defense** address (our edge). Use that when configuring DNS.
 
-**Important:** This is **ATRAVAD's** WAF IP or CNAME — the same for all customers. You point your domain to it; no server or node to deploy on your side.
+**Important:** This is **ATRAVAD's** WAF IP or CNAME â€” the same for all customers. You point your domain to it; no server or node to deploy on your side.
 
 ---
 
@@ -44,16 +44,16 @@ If you want to protect `example.com` (root domain):
 1. Log into your DNS provider (GoDaddy, Cloudflare, Route53, etc.)
 2. Find your DNS management section
 3. **Delete or update** existing A records for `example.com`
-4. **Create a new A record** pointing to the **ATRAVAD WAF IP** (the IP shown in the dashboard when you add a site):
+4. **Create a new A record** pointing to the **ATRAVA Defense IP** (the IP shown in the dashboard when you add a site):
 
    ```
    Type: A
    Name: @ (or example.com)
-   Value: [ATRAVAD WAF IP from dashboard, e.g. 1.2.3.4]
+   Value: [ATRAVA Defense IP from dashboard, e.g. 1.2.3.4]
    TTL: 300 (5 minutes - for faster propagation)
    ```
 
-5. If your administrator provided multiple ATRAVAD WAF IPs, add A records for each for redundancy.
+5. If your administrator provided multiple ATRAVA Defense IPs, add A records for each for redundancy.
 
 #### Option B: CNAME Records (Recommended for Subdomains)
 
@@ -69,7 +69,7 @@ If you want to protect `www.example.com` or `api.example.com`:
    TTL: 300
    ```
 
-   **Note**: The ATRAVAD WAF CNAME (e.g. `waf.atravad.com`) is shown in the Applications page when you add a site.
+   **Note**: The ATRAVA Defense CNAME (e.g. `waf.atravad.com`) is shown in the Applications page when you add a site.
 
 #### Option C: ALIAS/ANAME Records (For Root Domain with CNAME-like behavior)
 
@@ -102,7 +102,7 @@ After updating DNS, wait for propagation (usually 5-60 minutes):
    nslookup example.com
    ```
 
-3. **Verify** the domain resolves to the ATRAVAD WAF IP (or the CNAME resolves to our edge)
+3. **Verify** the domain resolves to the ATRAVA Defense IP (or the CNAME resolves to our edge)
 
 ---
 
@@ -123,11 +123,11 @@ Once DNS has propagated:
 
 ---
 
-## 🔒 SSL/TLS Configuration
+## ðŸ”’ SSL/TLS Configuration
 
 ### Automatic SSL (Let's Encrypt)
 
-ATRAVAD WAF automatically provisions SSL certificates via Let's Encrypt:
+ATRAVA Defense automatically provisions SSL certificates via Let's Encrypt:
 
 1. **Enable in dashboard**:
    - Go to your application settings
@@ -160,7 +160,7 @@ If you prefer to use your own certificate:
 
 ---
 
-## 🌍 Multiple Domains / Subdomains
+## ðŸŒ Multiple Domains / Subdomains
 
 ### Protecting Multiple Domains
 
@@ -170,9 +170,9 @@ If you prefer to use your own certificate:
    - `app.example.com`
 
 2. **Configure DNS** for each:
-   - `example.com` → A records to WAF IPs
-   - `api.example.com` → CNAME to WAF hostname
-   - `app.example.com` → CNAME to WAF hostname
+   - `example.com` â†’ A records to WAF IPs
+   - `api.example.com` â†’ CNAME to WAF hostname
+   - `app.example.com` â†’ CNAME to WAF hostname
 
 3. **Each domain** can have:
    - Different origin servers
@@ -181,17 +181,17 @@ If you prefer to use your own certificate:
 
 ---
 
-## 🔄 Traffic Flow After DNS Change
+## ðŸ”„ Traffic Flow After DNS Change
 
 ### Before (Direct to Origin)
 ```
-User → DNS → Origin Server (1.2.3.4)
+User â†’ DNS â†’ Origin Server (1.2.3.4)
 ```
 
-### After (Through ATRAVAD WAF)
+### After (Through ATRAVA Defense)
 ```
-User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
-                ↓
+User â†’ DNS â†’ ATRAVA Defense (5.6.7.8) â†’ Origin Server (1.2.3.4)
+                â†“
         ModSecurity Inspection
         Rate Limiting
         Bot Detection
@@ -200,7 +200,7 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 
 ---
 
-## ⚠️ Important Notes
+## âš ï¸ Important Notes
 
 ### 1. DNS Propagation Time
 - **Typical**: 5-60 minutes
@@ -209,8 +209,8 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 
 ### 2. Origin Server Access
 - **Keep origin accessible**: Your origin server should still be accessible (for testing)
-- **Firewall rules**: Ensure ATRAVAD WAF edge can reach your origin servers
-- **IP whitelisting**: If your origin has IP restrictions, whitelist the ATRAVAD WAF IP(s) provided by your administrator
+- **Firewall rules**: Ensure ATRAVA Defense edge can reach your origin servers
+- **IP whitelisting**: If your origin has IP restrictions, whitelist the ATRAVA Defense IP(s) provided by your administrator
 
 ### 3. SSL Certificates
 - **Let's Encrypt**: Automatically renews every 90 days
@@ -224,9 +224,9 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 
 ---
 
-## 🐛 Troubleshooting
+## ðŸ› Troubleshooting
 
-### Issue: DNS not resolving to ATRAVAD WAF
+### Issue: DNS not resolving to ATRAVA Defense
 
 **Solutions**:
 1. Wait longer for propagation (up to 48 hours)
@@ -253,7 +253,7 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 ### Issue: 502 Bad Gateway
 
 **Solutions**:
-1. Check origin server is accessible from the ATRAVAD WAF edge
+1. Check origin server is accessible from the ATRAVA Defense edge
 2. Verify origin URL is correct in dashboard
 3. Check firewall rules on your origin
 4. Verify health checks (if configured) are passing
@@ -268,7 +268,7 @@ User → DNS → ATRAVAD WAF (5.6.7.8) → Origin Server (1.2.3.4)
 
 ---
 
-## 📊 Monitoring After DNS Change
+## ðŸ“Š Monitoring After DNS Change
 
 ### Dashboard Metrics
 
@@ -296,7 +296,7 @@ After DNS change, monitor:
 
 ---
 
-## 🎓 Example: Complete Setup
+## ðŸŽ“ Example: Complete Setup
 
 ### Scenario: Protect `example.com`
 
@@ -308,11 +308,11 @@ After DNS change, monitor:
    Policy: Production Security Policy
    ```
 
-2. **DNS Configuration** (at DNS provider): Point your domain to the ATRAVAD WAF IP or CNAME shown in the dashboard when you add the site:
+2. **DNS Configuration** (at DNS provider): Point your domain to the ATRAVA Defense IP or CNAME shown in the dashboard when you add the site:
    ```
-   A Record: @ → [ATRAVAD WAF IP from dashboard]
+   A Record: @ â†’ [ATRAVA Defense IP from dashboard]
    or
-   CNAME: @ or www → waf.atravad.com (or CNAME provided in dashboard)
+   CNAME: @ or www â†’ waf.atravad.com (or CNAME provided in dashboard)
    ```
 
 3. **Wait for propagation** (check with `dig example.com`)
@@ -331,7 +331,7 @@ After DNS change, monitor:
 
 ---
 
-## ✅ Checklist
+## âœ… Checklist
 
 Before going live:
 
@@ -341,7 +341,7 @@ Before going live:
 - [ ] DNS records updated
 - [ ] DNS propagation verified
 - [ ] SSL certificate provisioned (or uploaded)
-- [ ] Origin server accessible from ATRAVAD WAF edge
+- [ ] Origin server accessible from ATRAVA Defense edge
 - [ ] Health checks passing
 - [ ] Test requests working
 - [ ] Attack protection verified
@@ -350,20 +350,20 @@ Before going live:
 
 ---
 
-## 🚀 You're Done!
+## ðŸš€ You're Done!
 
-Once DNS propagates, **all traffic automatically flows through ATRAVAD WAF**:
+Once DNS propagates, **all traffic automatically flows through ATRAVA Defense**:
 
-- ✅ **Automatic protection** - No code changes needed
-- ✅ **Transparent proxying** - Users don't notice any difference
-- ✅ **Real-time monitoring** - See all traffic and attacks in dashboard
-- ✅ **Easy management** - Update policies without touching DNS
+- âœ… **Automatic protection** - No code changes needed
+- âœ… **Transparent proxying** - Users don't notice any difference
+- âœ… **Real-time monitoring** - See all traffic and attacks in dashboard
+- âœ… **Easy management** - Update policies without touching DNS
 
-**That's it! Your website is now protected by ATRAVAD WAF!** 🎉
+**That's it! Your website is now protected by ATRAVA Defense!** ðŸŽ‰
 
 ---
 
-## 📞 Need Help?
+## ðŸ“ž Need Help?
 
 - **Dashboard**: Check application settings and logs
 - **Documentation**: See other guides in `/docs`
@@ -372,3 +372,4 @@ Once DNS propagates, **all traffic automatically flows through ATRAVAD WAF**:
 ---
 
 **Remember**: The beauty of proxy WAF is that it's **completely transparent**. Just change DNS, and you're protected!
+

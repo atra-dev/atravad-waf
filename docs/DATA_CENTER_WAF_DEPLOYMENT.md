@@ -1,4 +1,4 @@
-# Deploy ATRAVAD WAF EDGE in Your Data Center
+﻿# Deploy ATRAVA Defense EDGE in Your Data Center
 
 Step-by-step instructions to run the WAF proxy server (WAF EDGE) on-premises so customer traffic flows through your data center instead of (or in addition to) AWS.
 
@@ -13,7 +13,7 @@ Step-by-step instructions to run the WAF proxy server (WAF EDGE) on-premises so 
 | **Server** | Linux VM or physical host (e.g. Ubuntu 22.04 LTS, RHEL 8+, Debian 11+). Minimum 2 CPU, 2 GB RAM; scale up for traffic. |
 | **Network** | A **public IP** assigned to this host (or to a load balancer in front of it) so customers can point DNS to it. |
 | **Outbound internet** | Server must reach **Firebase** (Firestore): `firestore.googleapis.com` (and optionally `*.googleapis.com`). |
-| **Ports** | **80** (HTTP) and **443** (HTTPS) available—either on this host or on a reverse proxy in front of it. |
+| **Ports** | **80** (HTTP) and **443** (HTTPS) availableâ€”either on this host or on a reverse proxy in front of it. |
 | **Firebase** | Same Firebase project as your Dashboard. You will use a **service account** with Firestore read access. |
 | **Node.js** | Version **18+** (LTS recommended). |
 
@@ -65,7 +65,7 @@ sudo firewall-cmd --reload
 
 If a **load balancer** or **firewall** in front of this server terminates SSL and forwards to this host, open only the ports that the LB uses (e.g. 8080, 8443) and skip binding the Node process to 80/443 on this box (see Step 5).
 
-**Note:** For Let’s Encrypt with Nginx on the same host (Step 6), the WAF will listen on **8080** and Nginx on **80/443** so both can run together.
+**Note:** For Letâ€™s Encrypt with Nginx on the same host (Step 6), the WAF will listen on **8080** and Nginx on **80/443** so both can run together.
 
 ---
 
@@ -73,8 +73,8 @@ If a **load balancer** or **firewall** in front of this server terminates SSL an
 
 The WAF proxy reads **applications** (and policies) from Firestore. It uses the same Firebase project as your Dashboard.
 
-1. Go to [Firebase Console](https://console.firebase.google.com/) → your project (**atravad-waf**).
-2. Click the gear icon → **Project settings** → **Service accounts**.
+1. Go to [Firebase Console](https://console.firebase.google.com/) â†’ your project (**atravad-waf**).
+2. Click the gear icon â†’ **Project settings** â†’ **Service accounts**.
 3. Click **Generate new private key** (or use an existing service account that has **Firestore** access).
 4. Save the JSON file securely (e.g. `firebase-service-account.json`). You will use three values from it:
    - `project_id`
@@ -89,7 +89,7 @@ Ensure the service account has at least **Cloud Datastore User** (or **Firestore
 
 ### 3.1 Copy the project to the server
 
-Option A – **Clone from your repo** (if the code is in Git):
+Option A â€“ **Clone from your repo** (if the code is in Git):
 
 ```bash
 cd /opt
@@ -98,7 +98,7 @@ sudo chown -R $USER:$USER atravad-waf
 cd atravad-waf
 ```
 
-Option B – **Copy files** (e.g. via SCP, SFTP, or your deployment tool):
+Option B â€“ **Copy files** (e.g. via SCP, SFTP, or your deployment tool):
 
 - Copy the whole project (at least `proxy-server-standalone.js`, `src/lib/`, `package.json`, etc.).
 - Do **not** copy `.env.local` from your dev machine; you will create a new one on the server with production values.
@@ -156,7 +156,7 @@ ATRAVAD_HTTP_PORT=8080
 # ATRAVAD_HTTPS_PORT=443
 ```
 
-When using **Nginx + Let’s Encrypt** on the same host (Step 6), set `ATRAVAD_HTTP_PORT=8080` so Nginx can bind to 80 and 443 and proxy to the WAF on 8080. If the WAF runs alone (no Nginx on this host), use `ATRAVAD_HTTP_PORT=80`.
+When using **Nginx + Letâ€™s Encrypt** on the same host (Step 6), set `ATRAVAD_HTTP_PORT=8080` so Nginx can bind to 80 and 443 and proxy to the WAF on 8080. If the WAF runs alone (no Nginx on this host), use `ATRAVAD_HTTP_PORT=80`.
 
 ### 4.4 Secure the env file
 
@@ -186,7 +186,7 @@ node proxy-server-standalone.js
 You should see something like:
 
 ```
-ATRAVAD Proxy WAF Standalone Server
+ATRAVA Defense Standalone Server
 ====================================
 Tenant: (all)
 HTTP Port: 80
@@ -194,8 +194,8 @@ HTTPS Port: 443
 
 Loaded application: example.com
 Loaded 1 application(s)
-ATRAVAD Proxy WAF HTTP server listening on port 80
-ATRAVAD Proxy WAF server started
+ATRAVA Defense HTTP server listening on port 80
+ATRAVA Defense server started
 ```
 
 - If Firebase is not configured or unreachable, you may see a warning and no applications loaded; fix the env and network.
@@ -249,7 +249,7 @@ Contents (adjust paths and user):
 
 ```ini
 [Unit]
-Description=ATRAVAD WAF Proxy Server
+Description=ATRAVA Defense Proxy Server
 After=network.target
 
 [Service]
@@ -276,13 +276,13 @@ sudo systemctl status atravad-waf
 
 ---
 
-## Step 6: SSL/TLS with Let’s Encrypt (auto-provisioning)
+## Step 6: SSL/TLS with Letâ€™s Encrypt (auto-provisioning)
 
-Customers connect on **port 443**. Use **Nginx** as a reverse proxy and **Let’s Encrypt (Certbot)** for automatic certificate issuance and renewal.
+Customers connect on **port 443**. Use **Nginx** as a reverse proxy and **Letâ€™s Encrypt (Certbot)** for automatic certificate issuance and renewal.
 
 ### 6.1 Prerequisites
 
-- A **hostname** for this WAF (e.g. `waf-dc.yourcompany.com`) whose **DNS A record** already points to this server’s public IP.
+- A **hostname** for this WAF (e.g. `waf-dc.yourcompany.com`) whose **DNS A record** already points to this serverâ€™s public IP.
 - Port **80** and **443** open and Nginx installed.
 
 ### 6.2 Install Nginx and Certbot
@@ -338,9 +338,9 @@ sudo ln -sf /etc/nginx/sites-available/atravad-waf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Ensure the **ATRAVAD WAF Node process** is already running on port **8080** (Step 5). Nginx listens on 80 for the ACME challenge and proxies traffic to 8080.
+Ensure the **ATRAVA Defense Node process** is already running on port **8080** (Step 5). Nginx listens on 80 for the ACME challenge and proxies traffic to 8080.
 
-### 6.4 Obtain Let’s Encrypt certificate (auto-provisioning)
+### 6.4 Obtain Letâ€™s Encrypt certificate (auto-provisioning)
 
 Run Certbot with the Nginx plugin so it obtains the cert and updates Nginx for you:
 
@@ -354,7 +354,7 @@ sudo certbot --nginx -d waf-dc.yourcompany.com
 
 Certbot will:
 
-1. Obtain the certificate from Let’s Encrypt.
+1. Obtain the certificate from Letâ€™s Encrypt.
 2. Write certs to `/etc/letsencrypt/live/waf-dc.yourcompany.com/`.
 3. Update your Nginx config to use these certs and enable HTTPS.
 
@@ -397,7 +397,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### 6.6 Auto-renewal (keep SSL provisioned)
 
-Let’s Encrypt certs expire after 90 days. Certbot installs a renewal timer/cron; ensure it runs and reloads Nginx after renewal.
+Letâ€™s Encrypt certs expire after 90 days. Certbot installs a renewal timer/cron; ensure it runs and reloads Nginx after renewal.
 
 **Test renewal (dry run):**
 
@@ -426,14 +426,14 @@ After renewal, Certbot runs the deploy hook (e.g. `systemctl reload nginx`) so N
 
 | Step | Action |
 |------|--------|
-| 6.1 | DNS for WAF hostname → this server’s public IP. |
+| 6.1 | DNS for WAF hostname â†’ this serverâ€™s public IP. |
 | 6.2 | Install Nginx and Certbot (with Nginx plugin). |
 | 6.3 | Nginx HTTP server block proxying to Node on 80. |
 | 6.4 | Run `certbot --nginx -d waf-dc.yourcompany.com` for first-time SSL provisioning. |
-| 6.5 | Confirm Nginx uses Let’s Encrypt paths; reload Nginx. |
+| 6.5 | Confirm Nginx uses Letâ€™s Encrypt paths; reload Nginx. |
 | 6.6 | Ensure `certbot renew` runs (timer/cron) and reloads Nginx (auto-renewal). |
 
-The Node WAF process listens on **8080**; Nginx listens on **80** and **443**, terminates SSL with Let’s Encrypt certs, and forwards to the WAF on 8080.
+The Node WAF process listens on **8080**; Nginx listens on **80** and **443**, terminates SSL with Letâ€™s Encrypt certs, and forwards to the WAF on 8080.
 
 ---
 
@@ -441,14 +441,14 @@ The Node WAF process listens on **8080**; Nginx listens on **80** and **443**, t
 
 ### 7.1 Decide the public address
 
-- **Option 1:** Use the data center server’s **public IP** (e.g. `203.0.113.10`).
+- **Option 1:** Use the data center serverâ€™s **public IP** (e.g. `203.0.113.10`).
 - **Option 2:** Create a **hostname** (e.g. `waf-dc.yourcompany.com`) that resolves to that IP, and give customers the hostname (CNAME) or the IP.
 
 ### 7.2 Update Dashboard WAF_REGIONS
 
-So that the Dashboard shows customers the correct “point DNS here” value:
+So that the Dashboard shows customers the correct â€œpoint DNS hereâ€ value:
 
-1. On the **machine where the Dashboard runs** (or in your Dashboard’s deployment config), open the environment (e.g. `.env.local` or your hosting env).
+1. On the **machine where the Dashboard runs** (or in your Dashboardâ€™s deployment config), open the environment (e.g. `.env.local` or your hosting env).
 2. Set **WAF_REGIONS** to include your data center endpoint, e.g.:
 
 ```env
@@ -460,7 +460,7 @@ Use your real **public IP** and **cname** (or the same value as IP if you only u
 
 ### 7.3 Customer DNS
 
-Customers point their domain’s **A record** (or **CNAME**) to the IP (or hostname) you configured in `WAF_REGIONS`. No change to the WAF proxy code is required for this.
+Customers point their domainâ€™s **A record** (or **CNAME**) to the IP (or hostname) you configured in `WAF_REGIONS`. No change to the WAF proxy code is required for this.
 
 ---
 
@@ -469,20 +469,20 @@ Customers point their domain’s **A record** (or **CNAME**) to the IP (or hostn
 ### 8.1 Health check
 
 - From a machine that can reach the data center WAF:
-  - **Health endpoint:** `curl -v http://YOUR_WAF_IP/health` or `http://YOUR_WAF_IP/_atravad/health` — returns `200` and JSON with `status`, `tenant`, `applications`. Use for load balancers and orchestration.
+  - **Health endpoint:** `curl -v http://YOUR_WAF_IP/health` or `http://YOUR_WAF_IP/_atravad/health` â€” returns `200` and JSON with `status`, `tenant`, `applications`. Use for load balancers and orchestration.
   - `curl -v http://YOUR_WAF_IP/`  
-  - If no application is configured for that Host, you may get “Application not found for domain: …”. That is expected; it means the proxy is listening and resolving by Host.
+  - If no application is configured for that Host, you may get â€œApplication not found for domain: â€¦â€. That is expected; it means the proxy is listening and resolving by Host.
 - Create an **application** in the Dashboard (domain + origin) and point a test hostname to the WAF IP; then request that hostname and confirm the origin responds.
 
 ### 8.2 Logs
 
 - **PM2:** `pm2 logs atravad-waf`
 - **systemd:** `journalctl -u atravad-waf -f`
-- Watch for “Loaded application: …”, “Application updated: …”, and any Firebase or ModSecurity errors.
+- Watch for â€œLoaded application: â€¦â€, â€œApplication updated: â€¦â€, and any Firebase or ModSecurity errors.
 
 ### 8.3 Firestore
 
-Confirm the proxy can read Firestore: in Firebase Console → Firestore, check that the `applications` (and optionally `policies`) collections exist and that the service account has read access.
+Confirm the proxy can read Firestore: in Firebase Console â†’ Firestore, check that the `applications` (and optionally `policies`) collections exist and that the service account has read access.
 
 ---
 
@@ -495,7 +495,7 @@ Confirm the proxy can read Firestore: in Firebase Console → Firestore, check t
 | 3 | Deploy repo/code; `npm install --omit=dev`. |
 | 4 | Create `.env.waf` with Firebase Admin vars and optional `ATRAVAD_*` ports/tenant. |
 | 5 | Run with `node proxy-server-standalone.js` (test), then PM2 or systemd. |
-| 6 | Install Nginx + Certbot; run `certbot --nginx -d waf-dc.yourcompany.com` for Let’s Encrypt auto-provisioning; enable renewal. |
+| 6 | Install Nginx + Certbot; run `certbot --nginx -d waf-dc.yourcompany.com` for Letâ€™s Encrypt auto-provisioning; enable renewal. |
 | 7 | Set Dashboard `WAF_REGIONS` to your DC IP/cname; customers point DNS to that. |
 | 8 | Verify with curl and a test application; monitor logs and Firestore access. |
 
@@ -516,11 +516,12 @@ If the native module fails to build, the server will still run with the built-in
 
 | Issue | What to check |
 |-------|----------------|
-| “Firebase Admin environment variables not set” | `.env.waf` path, `EnvironmentFile` in systemd, and file permissions (service user can read it); correct `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`. |
-| “Application not found for domain” | Firestore has an application whose `domain` matches the request `Host`; proxy has loaded apps (see logs). |
+| â€œFirebase Admin environment variables not setâ€ | `.env.waf` path, `EnvironmentFile` in systemd, and file permissions (service user can read it); correct `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`. |
+| â€œApplication not found for domainâ€ | Firestore has an application whose `domain` matches the request `Host`; proxy has loaded apps (see logs). |
 | No applications loaded | Firebase credentials and network (outbound to `firestore.googleapis.com`); Firestore rules allow the service account to read `applications`. |
 | `CertStore: failed to load from disk ... EACCES` | Ensure `/opt/atravad-waf/certs` and files are owned/readable by the service user (example above uses `www-data`). |
 | Cannot bind to port 80/443 | Run with sudo, or use a higher port and reverse proxy; check firewall. |
 | 502 Bad Gateway to origin | Origin URL in Dashboard is correct and reachable from the WAF server; check health checks in logs. |
 
 For more on architecture and traffic flow, see [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md).
+

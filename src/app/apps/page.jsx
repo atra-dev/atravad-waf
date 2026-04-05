@@ -1117,7 +1117,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-950/60">
                     <GlobeIcon className="h-6 w-6 text-teal-600" />
                   </div>
-                  <span className="text-lg font-semibold theme-text-primary">ATRAVAD Setup</span>
+                  <span className="text-lg font-semibold theme-text-primary">ATRAVA Defense Setup</span>
                 </div>
                 <button
                   onClick={() => !connecting && setShowModal(false)}
@@ -1202,7 +1202,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderName: e.target.value })}
                         />
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          The header name ATRAVAD will send to your origin, such as `X-ATRAVAD-Origin-Auth`.
+                          The header name ATRAVA Defense will send to your origin, such as `X-ATRAVAD-Origin-Auth`.
                         </p>
                       </div>
                       <div>
@@ -1217,16 +1217,16 @@ const getTrafficBarHeight = (value, maxValue) => {
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderValue: e.target.value })}
                         />
                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          The shared secret value your origin verifies. Use this to block direct bypass traffic that does not come through ATRAVAD.
+                          The shared secret value your origin verifies. Use this to block direct bypass traffic that does not come through ATRAVA Defense.
                         </p>
                       </div>
                     </div>
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/40">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Allow WebSockets through ATRAVAD</p>
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Allow WebSockets through ATRAVA Defense</p>
                           <p className="mt-1 text-xs text-amber-800 dark:text-amber-300/80">
-                            ATRAVAD inspects the WebSocket handshake, then tunnels frames. Post-upgrade frames are not inspected individually.
+                            ATRAVA Defense inspects the WebSocket handshake, then tunnels frames. Post-upgrade frames are not inspected individually.
                           </p>
                         </div>
                         <input
@@ -1641,7 +1641,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderName: e.target.value })}
                       className={inputClassName}
                     />
-                    <p className={modalHelpTextClassName}>Header name ATRAVAD sends to the origin, for example `X-ATRAVAD-Origin-Auth`.</p>
+                    <p className={modalHelpTextClassName}>Header name ATRAVA Defense sends to the origin, for example `X-ATRAVAD-Origin-Auth`.</p>
                   </div>
 
                   <div>
@@ -1656,7 +1656,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                     <p className={modalHelpTextClassName}>
                       {selectedAppForEdit?.origins?.[0]?.authHeaderConfigured
                         ? 'Leave blank to keep the existing secret, or enter a new value to rotate it.'
-                        : 'Shared secret the origin checks before serving traffic. Requests that bypass ATRAVAD should not have this value.'}
+                        : 'Shared secret the origin checks before serving traffic. Requests that bypass ATRAVA Defense should not have this value.'}
                     </p>
                   </div>
                 </div>
@@ -1664,7 +1664,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/40">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Allow WebSockets through ATRAVAD</p>
+                      <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Allow WebSockets through ATRAVA Defense</p>
                       <p className="mt-1 text-xs text-amber-800 dark:text-amber-300/80">
                         The handshake is inspected by the WAF. After the upgrade, frames pass through as a tunnel.
                       </p>

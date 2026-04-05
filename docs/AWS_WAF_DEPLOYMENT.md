@@ -1,4 +1,4 @@
-# Deploy ATRAVAD WAF EDGE on AWS
+﻿# Deploy ATRAVA Defense EDGE on AWS
 
 Step-by-step instructions to run the WAF proxy server (`proxy-server-standalone.js`) on AWS so customer traffic flows through your AWS edge. You can run it on **EC2** (VM) or **ECS** (containers). Same code as the [Data Center deployment](./DATA_CENTER_WAF_DEPLOYMENT.md). Choose **Data Center** for on-prem or **AWS** for cloud.
 
@@ -28,7 +28,7 @@ Step-by-step instructions to run the WAF proxy server (`proxy-server-standalone.
 
 ### A.1 Launch an EC2 instance
 
-1. In **AWS Console** → **EC2** → **Launch instance**.
+1. In **AWS Console** â†’ **EC2** â†’ **Launch instance**.
 2. **Name:** e.g. `atravad-waf-edge`.
 3. **AMI:** Ubuntu 22.04 LTS (or Amazon Linux 2023).
 4. **Instance type:** e.g. `t3.small` (2 vCPU, 2 GB RAM); scale up for traffic.
@@ -38,7 +38,7 @@ Step-by-step instructions to run the WAF proxy server (`proxy-server-standalone.
    - **Inbound:** Allow **80** (HTTP) and **443** (HTTPS) from `0.0.0.0/0` (or your LB/Customer IPs).
    - If the WAF listens on **8080** and an ALB forwards to it, allow **8080** from the ALB security group only.
    - **Outbound:** Allow all (or at least HTTPS to `0.0.0.0/0` for Firebase and origins).
-8. **Storage:** 8–20 GB is usually enough.
+8. **Storage:** 8â€“20 GB is usually enough.
 9. Launch the instance and note its **public IP** (or attach an **Elastic IP**).
 
 ### A.2 Connect and install Node.js
@@ -58,7 +58,7 @@ npm -v
 
 ### A.3 Deploy the application
 
-**Option 1 – Clone from Git:**
+**Option 1 â€“ Clone from Git:**
 
 ```bash
 cd /opt
@@ -67,7 +67,7 @@ sudo chown -R $USER:$USER atravad-waf
 cd atravad-waf
 ```
 
-**Option 2 – Copy files** (e.g. from your machine via SCP or CodeDeploy):
+**Option 2 â€“ Copy files** (e.g. from your machine via SCP or CodeDeploy):
 
 - Copy the project (at least `proxy-server-standalone.js`, `src/lib/`, `package.json`, etc.).
 
@@ -138,11 +138,11 @@ pm2 startup
 # Run the command that pm2 startup prints
 ```
 
-**Optional – systemd:** See [DATA_CENTER_WAF_DEPLOYMENT.md](./DATA_CENTER_WAF_DEPLOYMENT.md) Step 5.3; use `WorkingDirectory=/opt/atravad-waf` and `EnvironmentFile=/opt/atravad-waf/.env.waf`.
+**Optional â€“ systemd:** See [DATA_CENTER_WAF_DEPLOYMENT.md](./DATA_CENTER_WAF_DEPLOYMENT.md) Step 5.3; use `WorkingDirectory=/opt/atravad-waf` and `EnvironmentFile=/opt/atravad-waf/.env.waf`.
 
 ### A.6 SSL/TLS on AWS (recommended: ALB + ACM)
 
-**Option 1 – Application Load Balancer + ACM (recommended)**
+**Option 1 â€“ Application Load Balancer + ACM (recommended)**
 
 1. **Create an Application Load Balancer** in the same VPC:
    - Scheme: **internet-facing**.
@@ -157,7 +157,7 @@ pm2 startup
 
 Customers (and DNS) point to the **ALB DNS name** (or the CNAME you assign). SSL is terminated at the ALB; the WAF receives HTTP on 8080.
 
-**Option 2 – Nginx + Let's Encrypt on EC2**
+**Option 2 â€“ Nginx + Let's Encrypt on EC2**
 
 If you prefer the WAF host to terminate SSL (e.g. no ALB):
 
@@ -187,7 +187,7 @@ aws ecr create-repository --repository-name atravad-waf-proxy --region us-east-1
 
 ### B.2 Store Firebase credentials in AWS Secrets Manager
 
-1. **AWS Console** → **Secrets Manager** → **Store a new secret**.
+1. **AWS Console** â†’ **Secrets Manager** â†’ **Store a new secret**.
 2. **Secret type:** Other (key/value).
 3. Add keys (match the env var names the app reads):
    - `FIREBASE_PROJECT_ID` = your Firebase project ID
@@ -198,8 +198,8 @@ aws ecr create-repository --repository-name atravad-waf-proxy --region us-east-1
 
 ### B.3 Create ECS cluster and task definition
 
-1. **ECS** → **Clusters** → **Create cluster** (e.g. `atravad-waf`, Fargate).
-2. **Task definition** → **Create new**:
+1. **ECS** â†’ **Clusters** â†’ **Create cluster** (e.g. `atravad-waf`, Fargate).
+2. **Task definition** â†’ **Create new**:
    - **Family:** `atravad-waf-proxy`.
    - **Task size:** 0.5 vCPU, 1 GB memory (scale up as needed).
    - **Container:**
@@ -207,9 +207,9 @@ aws ecr create-repository --repository-name atravad-waf-proxy --region us-east-1
      - **Port mappings:** **8080** (TCP).
      - **Environment (optional):** `ATRAVAD_HTTP_PORT=8080`, `ATRAVAD_TENANT_NAME=Acme` (or leave empty for all tenants).
       - **Secrets:** Add from Secrets Manager:
-       - `FIREBASE_PROJECT_ID` → secret `atravad-waf/firebase-admin`, key `FIREBASE_PROJECT_ID`
-       - `FIREBASE_CLIENT_EMAIL` → same secret, key `FIREBASE_CLIENT_EMAIL`
-       - `FIREBASE_PRIVATE_KEY` → same secret, key `FIREBASE_PRIVATE_KEY`
+       - `FIREBASE_PROJECT_ID` â†’ secret `atravad-waf/firebase-admin`, key `FIREBASE_PROJECT_ID`
+       - `FIREBASE_CLIENT_EMAIL` â†’ same secret, key `FIREBASE_CLIENT_EMAIL`
+       - `FIREBASE_PRIVATE_KEY` â†’ same secret, key `FIREBASE_PRIVATE_KEY`
    - **Log configuration:** AWS Logs (e.g. log group `atravad-waf-proxy`).
    - **Health check (optional):** CMD-SHELL `curl -f http://localhost:8080/health || exit 1` or use ALB health check only.
 3. **Task role:** Ensure the task can pull from ECR and read Secrets Manager (or attach a policy that allows `secretsmanager:GetSecretValue`).
@@ -217,14 +217,14 @@ aws ecr create-repository --repository-name atravad-waf-proxy --region us-east-1
 
 ### B.4 Create Application Load Balancer and ECS service
 
-1. **EC2** → **Load Balancers** → **Create Application Load Balancer**:
-   - **Listeners:** HTTPS 443 (with ACM cert), optional HTTP 80 → redirect to 443.
+1. **EC2** â†’ **Load Balancers** â†’ **Create Application Load Balancer**:
+   - **Listeners:** HTTPS 443 (with ACM cert), optional HTTP 80 â†’ redirect to 443.
    - **Availability Zones:** at least two in your VPC.
 2. **Target group** for the ALB:
    - **Target type:** IP (for Fargate).
    - **Protocol:** HTTP, **Port:** 8080.
    - **Health check:** Path `/health`, protocol HTTP, port 8080.
-3. **ECS** → **Clusters** → **atravad-waf** → **Create service**:
+3. **ECS** â†’ **Clusters** â†’ **atravad-waf** â†’ **Create service**:
    - **Launch type:** Fargate.
    - **Task definition:** `atravad-waf-proxy`.
    - **Desired tasks:** 1 (or more for HA).
@@ -263,7 +263,7 @@ WAF_REGIONS=[{"id":"aws","name":"AWS","ip":"ALB_DNS_OR_CNAME","cname":"waf-aws.y
 WAF_DEFAULT_REGION=aws
 ```
 
-Use the **ALB DNS name** or your **CNAME** for `ip` and `cname`. Customers will point their domain’s A or CNAME to this.
+Use the **ALB DNS name** or your **CNAME** for `ip` and `cname`. Customers will point their domainâ€™s A or CNAME to this.
 
 **If using EC2 public IP only (no ALB):**
 
@@ -292,7 +292,7 @@ Restart or redeploy the Dashboard so it picks up the new env.
 
 ### 8.3 Firestore
 
-Confirm the proxy can read Firestore: Firebase Console → Firestore; ensure `applications` (and optionally `policies`) exist and the service account has read access.
+Confirm the proxy can read Firestore: Firebase Console â†’ Firestore; ensure `applications` (and optionally `policies`) exist and the service account has read access.
 
 ---
 
@@ -308,7 +308,7 @@ Confirm the proxy can read Firestore: Firebase Console → Firestore; ensure `ap
 | A.4 | Create `.env.waf` with Firebase and `ATRAVAD_*` (e.g. port 8080 for ALB). |
 | A.5 | Run with PM2 or systemd. |
 | A.6 | ALB + ACM for SSL, target group port 8080, health path `/health`. |
-| 7–8 | Set Dashboard `WAF_REGIONS` to ALB DNS/cname; verify `/health` and test app. |
+| 7â€“8 | Set Dashboard `WAF_REGIONS` to ALB DNS/cname; verify `/health` and test app. |
 
 ### ECS Fargate
 
@@ -319,7 +319,7 @@ Confirm the proxy can read Firestore: Firebase Console → Firestore; ensure `ap
 | B.3 | Create ECS task definition (container port 8080, secrets from Secrets Manager). |
 | B.4 | Create ALB + target group (port 8080, health `/health`); create ECS service. |
 | B.5 | ALB security group 80/443 from internet; task SG 8080 from ALB only. |
-| 7–8 | Set Dashboard `WAF_REGIONS` to ALB DNS/cname; verify and monitor. |
+| 7â€“8 | Set Dashboard `WAF_REGIONS` to ALB DNS/cname; verify and monitor. |
 
 ---
 
@@ -333,3 +333,4 @@ Confirm the proxy can read Firestore: Firebase Console → Firestore; ensure `ap
 | 502 Bad Gateway | Origin URL reachable from EC2/ECS (NAT, security groups); check WAF logs. |
 
 For more on architecture and traffic flow, see [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md). For on-premises deployment, see [DATA_CENTER_WAF_DEPLOYMENT.md](./DATA_CENTER_WAF_DEPLOYMENT.md).
+

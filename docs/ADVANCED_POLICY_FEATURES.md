@@ -1,8 +1,8 @@
-# Advanced Policy Features - Enterprise-Grade WAF Capabilities
+﻿# Advanced Policy Features - Enterprise-Grade WAF Capabilities
 
 ## Overview
 
-This document describes the advanced policy features that make ATRAVAD WAF a powerful, enterprise-grade Web Application Firewall. These features extend beyond basic OWASP Top 10 protections to provide sophisticated security controls, access management, and threat mitigation capabilities.
+This document describes the advanced policy features that make ATRAVA Defense a powerful, enterprise-grade Web Application Firewall. These features extend beyond basic OWASP Top 10 protections to provide sophisticated security controls, access management, and threat mitigation capabilities.
 
 ## Table of Contents
 
@@ -630,3 +630,4 @@ Virtual Patching allows you to create CVE-specific security rules to protect aga
 - [OWASP ModSecurity Core Rule Set](https://github.com/coreruleset/coreruleset)
 - [ModSecurity Collections](https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)-Collections)
 - [GeoIP Integration](https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)-GeoIP)
+

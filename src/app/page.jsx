@@ -76,7 +76,7 @@ const deploymentSteps = [
   },
   {
     step: '02',
-    title: 'Point DNS to ATRAVAD',
+    title: 'Point DNS to ATRAVA Defense',
     description:
       'Use the assigned WAF IP or CNAME so traffic reaches the protection layer before the origin.',
   },

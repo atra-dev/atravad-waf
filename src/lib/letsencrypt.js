@@ -1,5 +1,5 @@
-/**
- * Let's Encrypt / ACME auto-provisioning for ATRAVAD WAF.
+﻿/**
+ * Let's Encrypt / ACME auto-provisioning for ATRAVA Defense.
  * Uses HTTP-01 challenge; proxy must serve /.well-known/acme-challenge/:token.
  */
 
@@ -193,3 +193,4 @@ export async function ensureCertificate(domain, options = {}) {
 }
 
 export const isLetsEncryptAvailable = Boolean(acme);
+
