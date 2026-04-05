@@ -3,7 +3,7 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { getCurrentUser } from '@/lib/api-helpers';
 import { getUserRole, isSuperAdmin, ROLES } from '@/lib/rbac';
 import { normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
-import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { adjustTenantUsage, getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
 
 const ADMIN_USERS_CACHE_TTL_MS = 120000;
@@ -43,19 +43,25 @@ export async function GET(request) {
     const users = await getOrSetServerCache(
       'admin:users:list',
       async () => {
-        const usersSnapshot = await adminDb.collection('users').get();
-        const tenantNames = [
-          ...new Set(
-            usersSnapshot.docs
-              .map((doc) => doc.data()?.tenantName)
-              .filter(Boolean)
-          ),
-        ];
-        const tenantDocs = await Promise.all(
-          tenantNames.map((tenantName) => adminDb.collection('tenants').doc(tenantName).get())
-        );
+        const [usersSnapshot, tenantsSnapshot] = await Promise.all([
+          adminDb
+            .collection('users')
+            .select(
+              'email',
+              'role',
+              'tenantName',
+              'authProvider',
+              'invitationPending',
+              'invitedAt',
+              'acceptedAt',
+              'createdAt',
+              'updatedAt'
+            )
+            .get(),
+          adminDb.collection('tenants').select('name').get(),
+        ]);
         const tenantMap = new Map(
-          tenantDocs
+          tenantsSnapshot.docs
             .filter((doc) => doc.exists)
             .map((doc) => [
               doc.id,
@@ -245,6 +251,7 @@ export async function POST(request) {
     };
 
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
+    await adjustTenantUsage(adminDb, normalizedTenantName, { currentUsers: 1 });
     invalidateTenantSubscriptionCache(normalizedTenantName);
     invalidateAdminUserCaches();
 
@@ -451,6 +458,17 @@ export async function PUT(request) {
     // Update user document
     await adminDb.collection('users').doc(normalizedEmail).update(updateData);
 
+    const nextTenantName =
+      Object.prototype.hasOwnProperty.call(updateData, 'tenantName')
+        ? updateData.tenantName
+        : userData.tenantName;
+    if (userData.tenantName && userData.tenantName !== nextTenantName) {
+      await adjustTenantUsage(adminDb, userData.tenantName, { currentUsers: -1 });
+    }
+    if (nextTenantName && nextTenantName !== userData.tenantName) {
+      await adjustTenantUsage(adminDb, nextTenantName, { currentUsers: 1 });
+    }
+
     // Get updated user data
     const updatedUserDoc = await adminDb.collection('users').doc(normalizedEmail).get();
     const updatedUserData = updatedUserDoc.data();
@@ -579,6 +597,9 @@ export async function DELETE(request) {
 
     // Delete from Firestore
     await adminDb.collection('users').doc(normalizedEmail).delete();
+    if (userData.tenantName) {
+      await adjustTenantUsage(adminDb, userData.tenantName, { currentUsers: -1 });
+    }
     if (userData.tenantName) {
       invalidateTenantSubscriptionCache(userData.tenantName);
     }

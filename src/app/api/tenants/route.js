@@ -3,7 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getUserByEmail, normalizeEmail, normalizeTenantName } from '@/lib/user-utils';
 import { getUserRole, isSuperAdmin } from '@/lib/rbac';
 import { createTenantSubscription, normalizePlanId, SUBSCRIPTION_STATUSES } from '@/lib/plans';
-import { getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { adjustTenantUsage, getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 // Helper to get current user from token
 async function getCurrentUser(request) {
@@ -84,6 +84,12 @@ export async function POST(request) {
       billingCycle: subscription.billingCycle,
       limits: subscription.limits,
       features: subscription.features,
+      usage: {
+        currentApps: 0,
+        currentPolicies: 0,
+        currentUsers: 0,
+        currentMonthRequests: 0,
+      },
       createdAt: new Date().toISOString(),
       createdBy: user.uid, // Store UID for reference
       createdByEmail: user.email, // Also store email
@@ -113,6 +119,12 @@ export async function POST(request) {
         role: 'admin',
         updatedAt: new Date().toISOString(),
       });
+      if (assignedUserData.tenantName && assignedUserData.tenantName !== normalizedTenantName) {
+        await adjustTenantUsage(adminDb, assignedUserData.tenantName, { currentUsers: -1 });
+      }
+      if (assignedUserData.tenantName !== normalizedTenantName) {
+        await adjustTenantUsage(adminDb, normalizedTenantName, { currentUsers: 1 });
+      }
     }
 
     invalidateTenantSubscriptionCache(normalizedTenantName);

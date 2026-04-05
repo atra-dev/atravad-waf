@@ -6,6 +6,7 @@ import { normalizeOriginConfig } from '@/lib/origin-utils';
 import { validateCustomSsl, normalizePem } from '@/lib/ssl-utils';
 import { hydrateAppActivation } from '@/lib/activation-utils';
 import { invalidateServerCache } from '@/lib/server-cache';
+import { adjustTenantUsage } from '@/lib/tenant-subscription';
 
 function sanitizeAppForClient(app) {
   const { tlsManaged, ssl, origins, ...safeApp } = app || {};
@@ -304,6 +305,7 @@ export async function DELETE(request, { params }) {
     }
 
     await appRef.delete();
+    await adjustTenantUsage(adminDb, tenantName, { currentApps: -1 });
     invalidateTenantAppCaches(tenantName, id);
 
     return NextResponse.json({ 

@@ -210,7 +210,11 @@ export default function LogsPage() {
         }
 
         setLogs(filteredLogs);
-        setLogCount(Number(data.totalStoredCount ?? filteredLogs.length));
+        setLogCount((current) => (
+          Number.isFinite(Number(data.totalStoredCount))
+            ? Number(data.totalStoredCount)
+            : current
+        ));
         setPagination((prev) => ({
           ...prev,
           page: pageToFetch,

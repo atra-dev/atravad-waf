@@ -4,7 +4,7 @@ import { generateModSecurityConfig, validateModSecurityConfig } from '@/lib/mods
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
-import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { adjustTenantUsage, getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 const POLICIES_CACHE_TTL_MS = 60000;
 
@@ -525,6 +525,9 @@ export async function POST(request) {
       await updateBatch.commit();
     }
 
+    if (!latestExistingPolicy) {
+      await adjustTenantUsage(adminDb, tenantName, { currentPolicies: 1 });
+    }
     invalidateTenantPolicyCaches(tenantName);
 
     return NextResponse.json({
@@ -717,6 +720,7 @@ export async function DELETE(request) {
       batch.delete(doc.ref);
     });
     await batch.commit();
+    await adjustTenantUsage(adminDb, tenantName, { currentPolicies: -1 });
     invalidateTenantPolicyCaches(tenantName);
 
     return NextResponse.json({

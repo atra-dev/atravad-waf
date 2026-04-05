@@ -77,6 +77,11 @@ function getHourBucketIso(timestamp) {
   return date.toISOString();
 }
 
+function getRawBackfillWindowStartIso(windowStartIso) {
+  const currentHourStartIso = getHourBucketIso();
+  return currentHourStartIso > windowStartIso ? currentHourStartIso : windowStartIso;
+}
+
 function isSiteScopedRollupDocId(docId) {
   return SITE_SCOPED_ROLLUP_ID_PATTERN.test(String(docId || ''));
 }
@@ -90,6 +95,7 @@ export async function getTenantTrafficStats(
   const windowStartIso = new Date(
     Date.now() - lookbackHours * 60 * 60 * 1000
   ).toISOString();
+  const rawBackfillWindowStartIso = getRawBackfillWindowStartIso(windowStartIso);
   const rollupsQuery = includeRollups
     ? adminDb
         .collection('log_rollups_hourly')
@@ -101,7 +107,7 @@ export async function getTenantTrafficStats(
     ? adminDb
         .collection('logs')
         .where('tenantName', '==', tenantName)
-        .where('timestamp', '>=', windowStartIso)
+        .where('timestamp', '>=', includeRollups ? rawBackfillWindowStartIso : windowStartIso)
         .orderBy('timestamp', 'desc')
     : null;
 

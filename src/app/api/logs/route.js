@@ -345,6 +345,7 @@ export async function GET(request) {
     const countOnly = String(searchParams.get('countOnly') || '')
       .trim()
       .toLowerCase() === 'true';
+    const includeCount = countOnly || !cursor;
 
     let baseQuery = adminDb
       .collection('logs')
@@ -416,8 +417,11 @@ export async function GET(request) {
       });
     }
 
-    const countSnapshot = await baseQuery.count().get();
-    const totalStoredCount = Number(countSnapshot?.data()?.count || 0);
+    let totalStoredCount = null;
+    if (includeCount) {
+      const countSnapshot = await baseQuery.count().get();
+      totalStoredCount = Number(countSnapshot?.data()?.count || 0);
+    }
 
     if (countOnly) {
       return NextResponse.json({ totalStoredCount });

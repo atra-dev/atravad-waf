@@ -6,7 +6,6 @@ import { normalizeDomainInput } from '@/lib/domain-utils';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { classifyAttack, getDecisionKey } from '@/lib/log-analytics';
 import { getOrSetServerCache } from '@/lib/server-cache';
-import { getTenantTrafficStats } from '@/lib/site-traffic-stats';
 import { getTenantSummary } from '@/lib/tenant-subscription';
 import { ANALYTICS_DISPLAY_HOURS } from '@/lib/analytics-window';
 
@@ -89,131 +88,22 @@ function buildAnalyticsResponse({
   };
 }
 
-function sumVisibleRequestCount(statsBySource) {
-  let total = 0;
-  for (const stats of statsBySource.values()) {
-    total += Number(stats?.total || 0);
-  }
-  return total;
-}
+async function getRollupDocs({ tenantName, hours, site }) {
+  const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  let query = adminDb
+    .collection('log_rollups_hourly')
+    .where('tenantName', '==', tenantName)
+    .where('bucketStartIso', '>=', sinceIso);
 
-function filterAnalyticsByDecision(analytics, decision) {
-  if (!decision) return analytics;
-
-  const normalizedDecision = String(decision || '').trim().toLowerCase();
-  if (
-    normalizedDecision !== 'allowed' &&
-    normalizedDecision !== 'waf_blocked' &&
-    normalizedDecision !== 'origin_denied'
-  ) {
-    return analytics;
+  if (site) {
+    query = query.where('siteNormalized', '==', site);
   }
 
-  const summary = {
-    totalRequests: 0,
-    wafBlocked: 0,
-    originDenied: 0,
-    allowed: 0,
-    uniqueCountries: 0,
-  };
-
-  const countries = analytics.countries
-    .map((country) => {
-      const allowed = Number(country.allowed || 0);
-      const wafBlocked = Number(country.wafBlocked || 0);
-      const originDenied = Number(country.originDenied || 0);
-      const total =
-        normalizedDecision === 'allowed'
-          ? allowed
-          : normalizedDecision === 'waf_blocked'
-            ? wafBlocked
-            : originDenied;
-
-      if (total <= 0) {
-        return null;
-      }
-
-      return {
-        ...country,
-        count: total,
-        blocked: normalizedDecision === 'allowed' ? 0 : total,
-        wafBlocked: normalizedDecision === 'waf_blocked' ? wafBlocked : 0,
-        originDenied: normalizedDecision === 'origin_denied' ? originDenied : 0,
-        allowed: normalizedDecision === 'allowed' ? allowed : 0,
-      };
-    })
-    .filter(Boolean);
-
-  const timeSeries = analytics.timeSeries
-    .map((series) => {
-      const allowed = Number(series.allowed || 0);
-      const wafBlocked = Number(series.wafBlocked || 0);
-      const originDenied = Number(series.originDenied || 0);
-      const total =
-        normalizedDecision === 'allowed'
-          ? allowed
-          : normalizedDecision === 'waf_blocked'
-            ? wafBlocked
-            : originDenied;
-
-      return {
-        time: series.time,
-        total,
-        wafBlocked: normalizedDecision === 'waf_blocked' ? wafBlocked : 0,
-        originDenied: normalizedDecision === 'origin_denied' ? originDenied : 0,
-        allowed: normalizedDecision === 'allowed' ? allowed : 0,
-        critical: 0,
-        high: 0,
-        medium: 0,
-        warning: 0,
-        low: 0,
-        info: 0,
-      };
-    })
-    .filter((series) => series.total > 0);
-
-  const topBlockedIps =
-    normalizedDecision === 'allowed'
-      ? []
-      : analytics.topBlockedIps
-          .map((item) => {
-            const selectedCount =
-              normalizedDecision === 'waf_blocked'
-                ? Number(item.wafBlocked || 0)
-                : Number(item.originDenied || 0);
-
-            if (selectedCount <= 0) return null;
-
-            return {
-              ip: item.ip,
-              totalBlocked: selectedCount,
-              wafBlocked: normalizedDecision === 'waf_blocked' ? selectedCount : 0,
-              originDenied: normalizedDecision === 'origin_denied' ? selectedCount : 0,
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => b.totalBlocked - a.totalBlocked)
-          .slice(0, 10);
-
-  for (const country of countries) {
-    summary.totalRequests += Number(country.count || 0);
-    summary.wafBlocked += Number(country.wafBlocked || 0);
-    summary.originDenied += Number(country.originDenied || 0);
-    summary.allowed += Number(country.allowed || 0);
-  }
-  summary.uniqueCountries = countries.length;
-
-  return {
-    summary,
-    countries,
-    timeSeries,
-    methods: [],
-    statuses: [],
-    topBlockedIps,
-    attackTypes: [],
-    severityCounts: { critical: 0, high: 0, medium: 0, warning: 0, low: 0, info: 0 },
-    topIPs: topBlockedIps.map((item) => [item.ip, item.totalBlocked]),
-  };
+  const snapshot = await query.orderBy('bucketStartIso', 'desc').get();
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
 }
 
 function aggregateRawLogs(logs) {
@@ -477,6 +367,10 @@ async function getRawAnalytics({
   return aggregateRawLogs(await fetchLogsForDecision());
 }
 
+async function getRollupAnalytics({ tenantName, hours, site }) {
+  return aggregateRollups(await getRollupDocs({ tenantName, hours, site }));
+}
+
 export async function GET(request) {
   try {
     if (!adminDb) {
@@ -513,6 +407,7 @@ export async function GET(request) {
     const severity = normalizeSeverity(searchParams.get('severity'));
     const decision = String(searchParams.get('decision') || '').trim().toLowerCase();
     const attacksOnly = String(searchParams.get('attacksOnly') || '').trim().toLowerCase() === 'true';
+    const canServeFromRollups = !severity && !decision;
 
     const cacheKey = [
       'analytics',
@@ -527,6 +422,14 @@ export async function GET(request) {
     const analytics = await getOrSetServerCache(
       cacheKey,
       async () => {
+        if (attacksOnly && canServeFromRollups) {
+          return getRollupAnalytics({
+            tenantName,
+            hours,
+            site,
+          });
+        }
+
         if (attacksOnly) {
           const blockedDecisions =
             decision === 'waf_blocked' || decision === 'origin_denied'
@@ -541,6 +444,14 @@ export async function GET(request) {
           });
         }
 
+        if (canServeFromRollups) {
+          return getRollupAnalytics({
+            tenantName,
+            hours,
+            site,
+          });
+        }
+
         return getRawAnalytics({
           tenantName,
           hours,
@@ -552,16 +463,7 @@ export async function GET(request) {
       { ttlMs: ANALYTICS_CACHE_TTL_MS }
     );
 
-    let visibleRequestCount = Number(analytics?.summary?.totalRequests || 0);
-    if (!severity && !decision && !attacksOnly) {
-      const statsBySource = await getTenantTrafficStats(adminDb, tenantName, hours, {
-        includeRawBackfill: true,
-        includeRollups: false,
-      });
-      visibleRequestCount = site
-        ? Number(statsBySource.get(site)?.total || 0)
-        : sumVisibleRequestCount(statsBySource);
-    }
+    const visibleRequestCount = Number(analytics?.summary?.totalRequests || 0);
 
     return NextResponse.json({
       ...analytics,

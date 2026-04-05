@@ -4,7 +4,7 @@ import { getCurrentUser } from '@/lib/api-helpers';
 import { getUserRole, isSuperAdmin } from '@/lib/rbac';
 import { normalizeTenantName, normalizeEmail } from '@/lib/user-utils';
 import { createTenantSubscription, getPlanDefinition, getPlanOptions, normalizePlanId, SUBSCRIPTION_STATUSES } from '@/lib/plans';
-import { getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { adjustTenantUsage, getTenantSummary, hasTenantUsageSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
 
 const ADMIN_TENANTS_CACHE_TTL_MS = 120000;
@@ -89,40 +89,7 @@ export async function GET(request) {
     const tenants = await getOrSetServerCache(
       'admin:tenants:list',
       async () => {
-        const [tenantsSnapshot, appsSnapshot, policiesSnapshot, usersSnapshot] = await Promise.all([
-          adminDb.collection('tenants').get(),
-          adminDb.collection('applications').get(),
-          adminDb.collection('policies').get(),
-          adminDb.collection('users').get(),
-        ]);
-
-        const usageByTenant = new Map();
-        const ensureUsage = (tenantName) => {
-          if (!tenantName) return null;
-          if (!usageByTenant.has(tenantName)) {
-            usageByTenant.set(tenantName, {
-              currentApps: 0,
-              currentPolicies: 0,
-              currentUsers: 0,
-            });
-          }
-          return usageByTenant.get(tenantName);
-        };
-
-        for (const doc of appsSnapshot.docs) {
-          const usage = ensureUsage(doc.data()?.tenantName);
-          if (usage) usage.currentApps += 1;
-        }
-
-        for (const doc of policiesSnapshot.docs) {
-          const usage = ensureUsage(doc.data()?.tenantName);
-          if (usage) usage.currentPolicies += 1;
-        }
-
-        for (const doc of usersSnapshot.docs) {
-          const usage = ensureUsage(doc.data()?.tenantName);
-          if (usage) usage.currentUsers += 1;
-        }
+        const tenantsSnapshot = await adminDb.collection('tenants').get();
 
         return tenantsSnapshot.docs.map((doc) => {
           const tenantData = doc.data() || {};
@@ -133,11 +100,14 @@ export async function GET(request) {
             limits: tenantData.limits,
             features: tenantData.features,
           });
-          const usage = usageByTenant.get(doc.id) || {
-            currentApps: 0,
-            currentPolicies: 0,
-            currentUsers: 0,
-          };
+          const usage = hasTenantUsageSummary(tenantData)
+            ? tenantData.usage
+            : {
+                currentApps: 0,
+                currentPolicies: 0,
+                currentUsers: 0,
+                currentMonthRequests: 0,
+              };
 
           return {
             id: doc.id,
@@ -149,7 +119,7 @@ export async function GET(request) {
             features: subscription.features,
             usage: {
               ...usage,
-              currentMonthRequests: 0,
+              currentMonthRequests: Number(usage.currentMonthRequests || 0),
             },
             userCount: usage.currentUsers,
             appCount: usage.currentApps,
@@ -243,6 +213,12 @@ export async function POST(request) {
       billingCycle: subscription.billingCycle,
       limits: subscription.limits,
       features: subscription.features,
+      usage: {
+        currentApps: 0,
+        currentPolicies: 0,
+        currentUsers: 0,
+        currentMonthRequests: 0,
+      },
       createdAt: now,
       createdBy: user.uid,
       createdByEmail: user.email,
@@ -272,6 +248,12 @@ export async function POST(request) {
         role: assignedUserData.role === 'admin' ? 'admin' : 'admin',
         updatedAt: now,
       });
+      if (assignedUserData.tenantName && assignedUserData.tenantName !== tenantId) {
+        await adjustTenantUsage(adminDb, assignedUserData.tenantName, { currentUsers: -1 });
+      }
+      if (assignedUserData.tenantName !== tenantId) {
+        await adjustTenantUsage(adminDb, tenantId, { currentUsers: 1 });
+      }
     }
 
     invalidateTenantSubscriptionCache(tenantId);

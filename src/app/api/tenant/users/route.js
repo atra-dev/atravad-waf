@@ -3,7 +3,7 @@ import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getUserRole, ROLES } from '@/lib/rbac';
 import { normalizeEmail } from '@/lib/user-utils';
-import { getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { adjustTenantUsage, getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 function generateTemporaryPassword() {
   return `Tmp!${Math.random().toString(36).slice(2, 10)}9Z`;
@@ -209,6 +209,7 @@ export async function POST(request) {
     };
 
     await adminDb.collection('users').doc(normalizedEmail).set(userData);
+    await adjustTenantUsage(adminDb, tenantName, { currentUsers: 1 });
     invalidateTenantSubscriptionCache(tenantName);
 
     const redirectUrl = getInviteRedirectUrl(request);
@@ -408,6 +409,7 @@ export async function DELETE(request) {
     }
 
     await adminDb.collection('users').doc(normalizedEmail).delete();
+    await adjustTenantUsage(adminDb, tenantName, { currentUsers: -1 });
     invalidateTenantSubscriptionCache(tenantName);
 
     return NextResponse.json({ success: true, message: 'User deleted successfully' });

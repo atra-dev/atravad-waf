@@ -10,7 +10,7 @@ import { hydrateAppActivation } from '@/lib/activation-utils';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { getOrSetServerCache, invalidateServerCache } from '@/lib/server-cache';
 import { getTenantTrafficStats } from '@/lib/site-traffic-stats';
-import { getTenantLimitStatus, getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
+import { adjustTenantUsage, getTenantLimitStatus, getTenantSummary, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 import { ANALYTICS_DISPLAY_HOURS } from '@/lib/analytics-window';
 
 const APPS_CACHE_TTL_MS = 60000;
@@ -186,6 +186,7 @@ export async function POST(request) {
       createdBy: user.uid,
     });
 
+    await adjustTenantUsage(adminDb, tenantName, { currentApps: 1 });
     invalidateTenantAppCaches(tenantName);
 
     return NextResponse.json({
@@ -247,7 +248,7 @@ export async function GET(request) {
             .get(),
           getTenantTrafficStats(adminDb, tenantName, lookbackHours, {
             includeRawBackfill: true,
-            includeRollups: false,
+            includeRollups: true,
           }),
         ]);
 
