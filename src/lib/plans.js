@@ -16,14 +16,14 @@ export const PLAN_CATALOG = {
   [PLAN_IDS.ESSENTIAL]: {
     id: PLAN_IDS.ESSENTIAL,
     name: 'Managed Essential',
-    websitePrice: '$79',
+    websitePrice: '$19',
     websiteCadence: '/mo',
-    annualPrepayLabel: '$790 billed annually',
+    annualPrepayLabel: '$190 billed annually',
     description:
       'Managed WAF protection for smaller organizations that need baseline coverage, onboarding help, and predictable operating cost.',
     highlight: false,
     features: [
-      '1 protected website or application',
+      '1 protected domain',
       'Managed WAF monitoring with scheduled support',
       '7-day TTL retention for logs and analytics data',
       'Baseline policy handling and managed SSL onboarding',
@@ -51,14 +51,14 @@ export const PLAN_CATALOG = {
   [PLAN_IDS.PROFESSIONAL]: {
     id: PLAN_IDS.PROFESSIONAL,
     name: 'Managed Professional',
-    websitePrice: '$179',
+    websitePrice: '$89',
     websiteCadence: '/mo',
-    annualPrepayLabel: '$1,790 billed annually',
+    annualPrepayLabel: '$890 billed annually',
     description:
       'Managed WAF operations for growing businesses that need deeper visibility, faster support, and more room for policy tuning.',
     highlight: true,
     features: [
-      '1 protected website or application',
+      'Up to 5 protected websites',
       'Priority managed WAF operations and regular tuning',
       '15-day TTL retention for logs and analytics data',
       'Managed bot mitigation, geo controls, and rate limiting',
@@ -66,7 +66,7 @@ export const PLAN_CATALOG = {
       'Suitable for active growth-stage MSMEs',
     ],
     limits: {
-      maxApps: 1,
+      maxApps: 5,
       maxPolicies: 12,
       maxUsers: 8,
       monthlyRequestsIncluded: 10_000_000,
@@ -86,14 +86,14 @@ export const PLAN_CATALOG = {
   [PLAN_IDS.BUSINESS]: {
     id: PLAN_IDS.BUSINESS,
     name: 'Managed Business',
-    websitePrice: '$399',
+    websitePrice: '$189',
     websiteCadence: '/mo',
-    annualPrepayLabel: '$3,990 billed annually',
+    annualPrepayLabel: '$1,890 billed annually',
     description:
       'High-touch managed protection for business-critical workloads that need faster escalation, richer retention, and stronger operational support.',
     highlight: false,
     features: [
-      'Up to 3 protected websites or applications',
+      'Up to 10 protected websites',
       '24/7 managed WAF operations with escalation handling',
       '30-day TTL retention for logs and analytics data',
       'Advanced threat controls with hands-on tuning',
@@ -101,7 +101,7 @@ export const PLAN_CATALOG = {
       'Commercial-grade onboarding and service guidance',
     ],
     limits: {
-      maxApps: 3,
+      maxApps: 10,
       maxPolicies: 25,
       maxUsers: 20,
       monthlyRequestsIncluded: 30_000_000,
@@ -189,21 +189,24 @@ export function getPlanDefinition(planId) {
 
 export function createTenantSubscription(planId, overrides = {}) {
   const plan = getPlanDefinition(planId);
+  const isCustomPlan = plan.id === PLAN_IDS.CUSTOM;
   const ignoreLegacyOverrides = shouldIgnoreLegacyOverrides(plan.id, overrides);
+  const resolvedLimits =
+    isCustomPlan && !ignoreLegacyOverrides
+      ? { ...plan.limits, ...(overrides.limits || {}) }
+      : { ...plan.limits };
+  const resolvedFeatures =
+    isCustomPlan && !ignoreLegacyOverrides
+      ? { ...plan.featuresConfig, ...(overrides.features || {}) }
+      : { ...plan.featuresConfig };
 
   return {
     planId: plan.id,
     subscriptionStatus: overrides.subscriptionStatus || SUBSCRIPTION_STATUSES.ACTIVE,
     billingCycle: overrides.billingCycle || 'annual',
     planName: plan.name,
-    limits: {
-      ...plan.limits,
-      ...(ignoreLegacyOverrides ? {} : (overrides.limits || {})),
-    },
-    features: {
-      ...plan.featuresConfig,
-      ...(ignoreLegacyOverrides ? {} : (overrides.features || {})),
-    },
+    limits: resolvedLimits,
+    features: resolvedFeatures,
     pricing: {
       websitePrice: plan.websitePrice,
       websiteCadence: plan.websiteCadence,
