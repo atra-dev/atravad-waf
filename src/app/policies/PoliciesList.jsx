@@ -278,20 +278,20 @@ export default function PoliciesList({
             </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-emerald-300 bg-emerald-100 p-4 text-center dark:border-emerald-900/50 dark:bg-emerald-950/35">
-              <div className="text-3xl font-bold text-emerald-800">{allSecurityRules.owaspCRS.rules.length}</div>
-              <div className="mt-1 text-sm text-emerald-950">OWASP CRS Rules</div>
-              <div className="mt-1 text-xs text-emerald-800">Enabled by default</div>
+            <div className="rounded-2xl border border-[#86efac] bg-[#dcfce7] p-4 text-center">
+              <div className="text-3xl font-bold text-[#166534]">{allSecurityRules.owaspCRS.rules.length}</div>
+              <div className="mt-1 text-sm text-[#14532d]">OWASP CRS Rules</div>
+              <div className="mt-1 text-xs text-[#166534]">Enabled by default</div>
             </div>
-            <div className="rounded-2xl border border-blue-300 bg-blue-100 p-4 text-center dark:border-blue-900/50 dark:bg-blue-950/35">
-              <div className="text-3xl font-bold text-blue-800">{allSecurityRules.owaspTop10.rules.length}</div>
-              <div className="mt-1 text-sm text-blue-950">OWASP Top 10 Protections</div>
-              <div className="mt-1 text-xs text-blue-800">Available for policies</div>
+            <div className="rounded-2xl border border-[#93c5fd] bg-[#dbeafe] p-4 text-center">
+              <div className="text-3xl font-bold text-[#1d4ed8]">{allSecurityRules.owaspTop10.rules.length}</div>
+              <div className="mt-1 text-sm text-[#1e3a8a]">OWASP Top 10 Protections</div>
+              <div className="mt-1 text-xs text-[#1d4ed8]">Available for policies</div>
             </div>
-            <div className="rounded-2xl border border-violet-300 bg-violet-100 p-4 text-center dark:border-violet-900/50 dark:bg-violet-950/35">
-              <div className="text-3xl font-bold text-violet-800">{allSecurityRules.advanced.rules.length}</div>
-              <div className="mt-1 text-sm text-violet-950">Advanced Features</div>
-              <div className="mt-1 text-xs text-violet-800">Enterprise capabilities</div>
+            <div className="rounded-2xl border border-[#c4b5fd] bg-[#ede9fe] p-4 text-center">
+              <div className="text-3xl font-bold text-[#6d28d9]">{allSecurityRules.advanced.rules.length}</div>
+              <div className="mt-1 text-sm text-[#4c1d95]">Advanced Features</div>
+              <div className="mt-1 text-xs text-[#6d28d9]">Enterprise capabilities</div>
             </div>
           </div>
         </div>

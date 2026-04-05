@@ -96,6 +96,14 @@ function deriveDecision(log) {
   return 'allowed';
 }
 
+function mapLogDocument(doc) {
+  return {
+    id: doc.id,
+    ...doc.data(),
+    nodeId: doc.data().source ?? doc.data().nodeId,
+  };
+}
+
 function getLogPath(log) {
   const rawPath = String(log?.uri || log?.request?.uri || '').split('?')[0] || '/';
   return rawPath.startsWith('/') ? rawPath.toLowerCase() : `/${rawPath.toLowerCase()}`;
@@ -330,6 +338,8 @@ export async function GET(request) {
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const requestMethod = normalizeRequestMethod(searchParams.get('method'));
     const requestUri = normalizeRequestUri(searchParams.get('uri'));
+    const search = String(searchParams.get('search') || '').trim();
+    const normalizedSearchIp = normalizeIpAddress(search);
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
     const countOnly = String(searchParams.get('countOnly') || '')
@@ -363,6 +373,49 @@ export async function GET(request) {
       baseQuery = baseQuery.where('uri', '==', requestUri);
     }
 
+    if (normalizedSearchIp) {
+      const [ipSnapshot, clientIpSnapshot, forwardedForSnapshot] = await Promise.all([
+        baseQuery.where('ipAddress', '==', normalizedSearchIp).get(),
+        baseQuery.where('clientIp', '==', normalizedSearchIp).get(),
+        baseQuery.where('forwardedFor', 'array-contains', normalizedSearchIp).get(),
+      ]);
+
+      const mergedDocs = new Map();
+      for (const snapshot of [ipSnapshot, clientIpSnapshot, forwardedForSnapshot]) {
+        for (const doc of snapshot.docs) {
+          mergedDocs.set(doc.id, doc);
+        }
+      }
+
+      const orderedLogs = Array.from(mergedDocs.values())
+        .map(mapLogDocument)
+        .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
+
+      const totalStoredCount = orderedLogs.length;
+
+      if (countOnly) {
+        return NextResponse.json({ totalStoredCount });
+      }
+
+      const cursorIndex = cursor
+        ? orderedLogs.findIndex((log) => log.id === cursor)
+        : -1;
+      const startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
+      const visibleLogs = orderedLogs.slice(startIndex, startIndex + pageSize);
+      const hasMore = startIndex + pageSize < orderedLogs.length;
+      const nextCursor = hasMore ? visibleLogs[visibleLogs.length - 1]?.id || null : null;
+
+      return NextResponse.json({
+        logs: visibleLogs,
+        count: visibleLogs.length,
+        totalStoredCount,
+        hasMore,
+        pageSize,
+        nextCursor,
+        maxLookbackHours,
+      });
+    }
+
     const countSnapshot = await baseQuery.count().get();
     const totalStoredCount = Number(countSnapshot?.data()?.count || 0);
 
@@ -383,11 +436,7 @@ export async function GET(request) {
     const docs = logsSnapshot.docs;
     const hasMore = docs.length > pageSize;
     const visibleDocs = hasMore ? docs.slice(0, pageSize) : docs;
-    const logs = visibleDocs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      nodeId: doc.data().source ?? doc.data().nodeId,
-    }));
+    const logs = visibleDocs.map(mapLogDocument);
     const nextCursor = hasMore ? visibleDocs[visibleDocs.length - 1]?.id || null : null;
 
     return NextResponse.json({

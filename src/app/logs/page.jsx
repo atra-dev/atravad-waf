@@ -157,6 +157,7 @@ export default function LogsPage() {
       if (filters.site) params.append('site', filters.site);
       if (filters.severity) params.append('severity', filters.severity);
       if (filters.action) params.append('decision', filters.action);
+      if (filters.search.trim()) params.append('search', filters.search.trim());
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
       const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
@@ -187,11 +188,19 @@ export default function LogsPage() {
         if (filters.search) {
           const searchLower = filters.search.toLowerCase();
           const normalizedSearchDomain = normalizeDomainInput(filters.search);
+          const normalizedSearchIp = normalizeIpAddress(filters.search);
           filteredLogs = filteredLogs.filter(log =>
             (log.message && log.message.toLowerCase().includes(searchLower)) ||
             (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
             (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
             (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
+            (log.ipAddress && normalizeIpAddress(log.ipAddress) === normalizedSearchIp) ||
+            (log.clientIp && normalizeIpAddress(log.clientIp) === normalizedSearchIp) ||
+            (
+              Array.isArray(log.forwardedFor) &&
+              normalizedSearchIp &&
+              log.forwardedFor.some((value) => normalizeIpAddress(String(value || '')) === normalizedSearchIp)
+            ) ||
             (normalizedSearchDomain && (
               normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
               normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
