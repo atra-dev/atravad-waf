@@ -484,11 +484,11 @@ function LoginPageContent() {
           <section className="relative flex min-h-0 items-center pt-2 lg:justify-end lg:pt-0">
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
-            <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-7 py-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700">Sign in</p>
-                <h2 className="mt-2 text-[1.85rem] font-bold tracking-tight text-slate-950">Access the dashboard</h2>
-                <p className="mt-2 max-w-md text-[0.96rem] leading-7 text-slate-600">
+            <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-[#ffffff] text-[#0f172a] shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
+              <div className="border-b border-[#e2e8f0] bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-7 py-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#0e7490]">Sign in</p>
+                <h2 className="mt-2 text-[1.85rem] font-bold tracking-tight text-[#020617]">Access the dashboard</h2>
+                <p className="mt-2 max-w-md text-[0.96rem] leading-7 text-[#475569]">
                   Use the sign-in method assigned to your managed account. Google-enabled users should use the Google button below.
                 </p>
               </div>
@@ -497,7 +497,7 @@ function LoginPageContent() {
                 <form className="space-y-2.5" onSubmit={handleAuth}>
                   <div className="space-y-3">
                     <div>
-                      <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-[#334155]">
                         Email address
                       </label>
                       <input
@@ -506,14 +506,14 @@ function LoginPageContent() {
                         type="email"
                         autoComplete="email"
                         required
-                        className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                        className="block w-full rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 py-2.5 text-sm text-[#0f172a] shadow-sm placeholder:text-[#94a3b8] focus:border-cyan-500 focus:bg-[#ffffff] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                         placeholder="you@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
                     <div>
-                      <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                      <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-[#334155]">
                         Password
                       </label>
                       <input
@@ -522,7 +522,7 @@ function LoginPageContent() {
                         type="password"
                         autoComplete="current-password"
                         required
-                        className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-cyan-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                        className="block w-full rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 py-2.5 text-sm text-[#0f172a] shadow-sm placeholder:text-[#94a3b8] focus:border-cyan-500 focus:bg-[#ffffff] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -534,11 +534,11 @@ function LoginPageContent() {
                     <button
                       type="submit"
                       disabled={loadingEmail || loadingGoogle}
-                      className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_20px_60px_rgba(34,211,238,0.25)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-6 py-2.5 text-sm font-semibold text-[#020617] shadow-[0_20px_60px_rgba(34,211,238,0.25)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingEmail ? (
                         <span className="flex items-center space-x-2">
-                          <svg className="h-5 w-5 animate-spin text-slate-950" fill="none" viewBox="0 0 24 24">
+                          <svg className="h-5 w-5 animate-spin text-[#020617]" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -549,10 +549,10 @@ function LoginPageContent() {
 
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200" />
+                        <div className="w-full border-t border-[#e2e8f0]" />
                       </div>
                       <div className="relative flex justify-center text-sm">
-                        <span className="bg-white px-4 font-medium text-slate-500">Or continue with</span>
+                        <span className="bg-[#ffffff] px-4 font-medium text-[#64748b]">Or continue with</span>
                       </div>
                     </div>
 
@@ -560,11 +560,11 @@ function LoginPageContent() {
                       type="button"
                       onClick={handleGoogleSignIn}
                       disabled={loadingEmail || loadingGoogle}
-                      className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-3 rounded-full border border-[#cbd5e1] bg-[#ffffff] px-6 py-2.5 text-sm font-semibold text-[#334155] transition hover:border-[#94a3b8] hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingGoogle ? (
                         <span className="flex items-center space-x-2">
-                          <svg className="h-5 w-5 animate-spin text-slate-700" fill="none" viewBox="0 0 24 24">
+                          <svg className="h-5 w-5 animate-spin text-[#334155]" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -597,9 +597,9 @@ function LoginPageContent() {
                   </div>
                 </form>
 
-                <div className="mt-3 rounded-3xl border border-slate-200 bg-slate-50/90 p-4 [@media_(max-height:920px)]:hidden">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Access note</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                <div className="mt-3 rounded-3xl border border-[#e2e8f0] bg-[#f8fafce6] p-4 [@media_(max-height:920px)]:hidden">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#64748b]">Access note</p>
+                  <p className="mt-2 text-sm leading-6 text-[#475569]">
                     If your account is provisioned for Google, password login will not work. Use the Google button to complete access verification.
                   </p>
                 </div>
@@ -640,17 +640,17 @@ function LoginPageFallback() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[32px] border border-white/10 bg-white shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-            <div className="border-b border-slate-200 bg-slate-100 px-8 py-8">
-              <div className="h-3 w-20 rounded bg-slate-300" />
-              <div className="mt-3 h-10 w-52 rounded bg-slate-300" />
-              <div className="mt-3 h-4 w-72 rounded bg-slate-200" />
+          <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#ffffff] shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
+            <div className="border-b border-[#e2e8f0] bg-[#f1f5f9] px-8 py-8">
+              <div className="h-3 w-20 rounded bg-[#cbd5e1]" />
+              <div className="mt-3 h-10 w-52 rounded bg-[#cbd5e1]" />
+              <div className="mt-3 h-4 w-72 rounded bg-[#e2e8f0]" />
             </div>
             <div className="space-y-5 p-8">
-              <div className="h-14 rounded-2xl bg-slate-100" />
-              <div className="h-14 rounded-2xl bg-slate-100" />
+              <div className="h-14 rounded-2xl bg-[#f1f5f9]" />
+              <div className="h-14 rounded-2xl bg-[#f1f5f9]" />
               <div className="h-14 rounded-full bg-cyan-200" />
-              <div className="h-14 rounded-full bg-slate-100" />
+              <div className="h-14 rounded-full bg-[#f1f5f9]" />
             </div>
           </div>
         </div>

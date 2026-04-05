@@ -219,9 +219,9 @@ function LockIcon({ className = 'h-6 w-6' }) {
   );
 }
 
-function SectionEyebrow({ children }) {
+function SectionEyebrow({ children, className = 'text-cyan-300' }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300">
+    <p className={`text-xs font-semibold uppercase tracking-[0.35em] ${className}`}>
       {children}
     </p>
   );
@@ -334,26 +334,26 @@ export default function Home() {
 
       <section className="border-y border-slate-200/80 bg-white/95 py-5 text-slate-900 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#64748b]">
             Designed for websites, APIs, SaaS teams, and managed customer environments
           </p>
-          <div className="flex flex-wrap gap-3 text-sm font-medium text-slate-600">
-            <span className="rounded-full bg-slate-100 px-4 py-2">OWASP CRS coverage</span>
-            <span className="rounded-full bg-slate-100 px-4 py-2">Multi-tenant controls</span>
-            <span className="rounded-full bg-slate-100 px-4 py-2">Analytics and logging</span>
-            <span className="rounded-full bg-slate-100 px-4 py-2">Managed SSL delivery</span>
+          <div className="flex flex-wrap gap-3 text-sm font-medium text-[#475569]">
+            <span className="rounded-full bg-[#f1f5f9] px-4 py-2">OWASP CRS coverage</span>
+            <span className="rounded-full bg-[#f1f5f9] px-4 py-2">Multi-tenant controls</span>
+            <span className="rounded-full bg-[#f1f5f9] px-4 py-2">Analytics and logging</span>
+            <span className="rounded-full bg-[#f1f5f9] px-4 py-2">Managed SSL delivery</span>
           </div>
         </div>
       </section>
 
-      <section id="capabilities" className="bg-[#f3f6fb] py-24 text-slate-950">
+      <section id="capabilities" className="bg-[#f3f6fb] py-24 text-[#020617]">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <ScrollReveal className="max-w-3xl">
-            <SectionEyebrow>Core capabilities</SectionEyebrow>
-            <h2 className="mt-5 font-serif text-4xl leading-tight text-slate-950 sm:text-5xl">
+            <SectionEyebrow className="text-[#0891b2]">Core capabilities</SectionEyebrow>
+            <h2 className="mt-5 font-serif text-4xl leading-tight text-[#020617] sm:text-5xl">
               The protection stack your customers expect from a serious WAF.
             </h2>
-            <p className="mt-5 text-lg leading-8 text-slate-600">
+            <p className="mt-5 text-lg leading-8 text-[#475569]">
               This platform combines a reverse-proxy edge, policy-driven inspection, certificate automation,
               operational visibility, and tenant-scoped control into one managed layer.
             </p>
@@ -368,14 +368,14 @@ export default function Home() {
               return (
                   <article
                     key={item.title}
-                    className="homepage-tilt-card homepage-tilt-card-lift group rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_24px_70px_rgba(15,23,42,0.06)] transition-transform duration-300 hover:-translate-y-1"
+                    className="homepage-tilt-card homepage-tilt-card-lift group rounded-[28px] border border-[#e2e8f0] bg-[#ffffff] p-6 text-[#020617] shadow-[0_24px_70px_rgba(15,23,42,0.06)] transition-transform duration-300 hover:-translate-y-1"
                     style={{ animationDelay: `${120 + index * 70}ms` }}
                   >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-cyan-300">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#020617] text-cyan-300">
                     <Icon />
                   </div>
-                  <h3 className="mt-6 text-xl font-semibold text-slate-950">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-slate-600">{item.description}</p>
+                  <h3 className="mt-6 text-xl font-semibold text-[#020617]">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-[#475569]">{item.description}</p>
                 </article>
               );
             })}
@@ -416,15 +416,15 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-[linear-gradient(180deg,#f3f6fb_0%,#ffffff_100%)] py-24 text-slate-950">
+      <section className="bg-[linear-gradient(180deg,#f3f6fb_0%,#ffffff_100%)] py-24 text-[#020617]">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid gap-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <ScrollReveal>
-              <SectionEyebrow>How it works</SectionEyebrow>
+              <SectionEyebrow className="text-[#0891b2]">How it works</SectionEyebrow>
               <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
                 Familiar onboarding, stronger enforcement, cleaner operations.
               </h2>
-              <p className="mt-5 text-lg leading-8 text-slate-600">
+              <p className="mt-5 text-lg leading-8 text-[#475569]">
                 The deployment flow is straightforward: add the app, point DNS, activate edge services, and operate
                 from a single management surface.
               </p>
@@ -435,14 +435,14 @@ export default function Home() {
               {deploymentSteps.map((item, index) => (
                 <div
                   key={item.step}
-                  className="homepage-tilt-card homepage-tilt-card-step rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
+                  className="homepage-tilt-card homepage-tilt-card-step rounded-[28px] border border-[#e2e8f0] bg-[#ffffff] p-6 text-[#020617] shadow-[0_18px_50px_rgba(15,23,42,0.06)]"
                   style={{ animationDelay: `${220 + index * 95}ms` }}
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-                    <div className="text-sm font-semibold uppercase tracking-[0.3em] text-cyan-700">{item.step}</div>
+                    <div className="text-sm font-semibold uppercase tracking-[0.3em] text-[#0e7490]">{item.step}</div>
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-950">{item.title}</h3>
-                      <p className="mt-2 text-sm leading-7 text-slate-600">{item.description}</p>
+                      <h3 className="text-xl font-semibold text-[#020617]">{item.title}</h3>
+                      <p className="mt-2 text-sm leading-7 text-[#475569]">{item.description}</p>
                     </div>
                   </div>
                 </div>
@@ -453,14 +453,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="pricing" className="bg-white py-24 text-slate-950">
+      <section id="pricing" className="bg-[#ffffff] py-24 text-[#020617]">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
             <ScrollReveal className="max-w-3xl">
-              <SectionEyebrow>Pricing</SectionEyebrow>
+              <SectionEyebrow className="text-[#0891b2]">Pricing</SectionEyebrow>
               <h2 className="mt-5 font-serif text-4xl leading-tight sm:text-5xl">
                 Service plans for teams that want cyber defense handled well.
               </h2>
-              <p className="mt-5 text-lg leading-8 text-slate-600">
+              <p className="mt-5 text-lg leading-8 text-[#475569]">
                 Every plan is built around managed protection, operational support, and visibility that scales with the
                 importance of the applications you protect.
               </p>
@@ -474,7 +474,7 @@ export default function Home() {
                 className={`homepage-plan-card ${plan.highlight ? 'homepage-plan-card-featured' : 'homepage-plan-card-standard'} rounded-[32px] border p-8 shadow-[0_22px_70px_rgba(15,23,42,0.08)] ${
                   plan.highlight
                     ? 'border-cyan-300 bg-slate-950 text-white'
-                    : 'border-slate-200 bg-[#f7f9fc] text-slate-950'
+                    : 'border-[#e2e8f0] bg-[#f7f9fc] text-[#020617]'
                 }`}
                 style={{ animationDelay: `${140 + pricingPlans.indexOf(plan) * 80}ms` }}
               >
@@ -482,14 +482,14 @@ export default function Home() {
                   <div>
                     <p
                       className={`text-sm font-semibold uppercase tracking-[0.3em] ${
-                        plan.highlight ? 'text-cyan-300' : 'text-slate-500'
+                        plan.highlight ? 'text-cyan-300' : 'text-[#64748b]'
                       }`}
                     >
                       {plan.name}
                     </p>
-                    <p className={`mt-4 text-5xl font-semibold ${plan.highlight ? 'text-white' : 'text-slate-950'}`}>
+                    <p className={`mt-4 text-5xl font-semibold ${plan.highlight ? 'text-white' : 'text-[#020617]'}`}>
                       {plan.price}
-                      {plan.cadence ? <span className={`ml-1 text-lg ${plan.highlight ? 'text-slate-300' : 'text-slate-500'}`}>{plan.cadence}</span> : null}
+                      {plan.cadence ? <span className={`ml-1 text-lg ${plan.highlight ? 'text-slate-300' : 'text-[#64748b]'}`}>{plan.cadence}</span> : null}
                     </p>
                   </div>
                   {plan.highlight ? (
@@ -499,7 +499,7 @@ export default function Home() {
                   ) : null}
                 </div>
 
-                <p className={`mt-5 text-sm leading-7 ${plan.highlight ? 'text-slate-300' : 'text-slate-600'}`}>
+                <p className={`mt-5 text-sm leading-7 ${plan.highlight ? 'text-slate-300' : 'text-[#475569]'}`}>
                   {plan.description}
                 </p>
 
@@ -511,7 +511,7 @@ export default function Home() {
                           plan.highlight ? 'bg-cyan-300' : 'bg-cyan-700'
                         }`}
                       />
-                      <span className={`text-sm leading-7 ${plan.highlight ? 'text-slate-200' : 'text-slate-700'}`}>
+                      <span className={`text-sm leading-7 ${plan.highlight ? 'text-slate-200' : 'text-[#334155]'}`}>
                         {feature}
                       </span>
                     </div>
