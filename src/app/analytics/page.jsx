@@ -254,7 +254,7 @@ export default function AnalyticsPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              <div className="theme-surface rounded-3xl p-6">
+              <div className="theme-surface min-w-0 overflow-hidden rounded-3xl p-6">
                 <div className="flex flex-col gap-3 border-b border-[var(--border-soft)] pb-5 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold theme-text-primary">Attack Volume Trend</h2>
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {hourlyEntries.some((item) => item.total > 0) ? (
-                  <div className="mt-5 h-[320px]">
+                  <div className="mt-5 h-[320px] min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={hourlyEntries} margin={{ top: 12, right: 12, left: -16, bottom: 6 }}>
                         <defs>
@@ -336,7 +336,7 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
-              <div className="theme-surface rounded-3xl p-6">
+              <div className="theme-surface min-w-0 overflow-hidden rounded-3xl p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold theme-text-primary">Severity Distribution</h2>
@@ -360,7 +360,7 @@ export default function AnalyticsPage() {
 
                 {severityChartData.length > 0 ? (
                   <>
-                    <div className="mt-5 h-[280px]">
+                    <div className="mt-5 h-[280px] min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -407,7 +407,7 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <div className="theme-surface rounded-3xl p-6">
+              <div className="theme-surface min-w-0 overflow-hidden rounded-3xl p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold theme-text-primary">Attack Type Breakdown</h2>
@@ -422,7 +422,7 @@ export default function AnalyticsPage() {
 
                 {attackTypeChartData.length > 0 ? (
                   <>
-                    <div className="mt-5 h-[300px]">
+                    <div className="mt-5 h-[300px] min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={attackTypeChartData} margin={{ top: 10, right: 10, left: -18, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" vertical={false} />
@@ -456,7 +456,7 @@ export default function AnalyticsPage() {
                 )}
               </div>
 
-              <div className="theme-surface rounded-3xl p-6">
+              <div className="theme-surface min-w-0 overflow-hidden rounded-3xl p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold theme-text-primary">Top Attacking IPs</h2>
@@ -471,7 +471,7 @@ export default function AnalyticsPage() {
 
                 {topIpChartData.length > 0 ? (
                   <>
-                    <div className="mt-5 h-[300px]">
+                    <div className="mt-5 h-[300px] min-w-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={topIpChartData} layout="vertical" margin={{ top: 8, right: 10, left: 8, bottom: 8 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.18)" horizontal={false} />

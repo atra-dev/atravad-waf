@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -13,6 +13,41 @@ import {
 } from 'recharts';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
+
+function MeasuredChartContainer({ heightClassName = 'h-72', children }) {
+  const containerRef = useRef(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return undefined;
+
+    const updateSize = () => {
+      const { width, height } = element.getBoundingClientRect();
+      setIsReady(width > 0 && height > 0);
+    };
+
+    updateSize();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateSize();
+    });
+
+    resizeObserver.observe(element);
+    window.addEventListener('resize', updateSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className={`${heightClassName} min-w-0`}>
+      {isReady ? children : null}
+    </div>
+  );
+}
 
 function getDecisionKey(log) {
   const decision = String(log?.decision || '').trim().toLowerCase();
@@ -150,7 +185,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
   return (
     <div className="space-y-6">
       {/* Time Series Chart */}
-      <div className="theme-surface rounded-xl p-6">
+      <div className="theme-surface min-w-0 overflow-hidden rounded-xl p-6">
         <h3 className="mb-4 text-lg font-semibold theme-text-primary">
           Traffic Over Time ({formatAnalyticsDisplayWindow()})
         </h3>
@@ -162,7 +197,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
             </p>
           </div>
         ) : (
-          <div className="h-72">
+          <MeasuredChartContainer>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeSeriesData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.35)" />
@@ -218,13 +253,13 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
                 />
               </LineChart>
             </ResponsiveContainer>
-          </div>
+          </MeasuredChartContainer>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Request Methods */}
-        <div className="theme-surface rounded-xl p-6">
+        <div className="theme-surface min-w-0 overflow-hidden rounded-xl p-6">
           <h3 className="mb-4 text-lg font-semibold theme-text-primary">Request Methods</h3>
           <div className="space-y-3">
             {methodDistribution.length === 0 ? (
@@ -253,7 +288,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
         </div>
 
         {/* Status Codes */}
-        <div className="theme-surface rounded-xl p-6">
+        <div className="theme-surface min-w-0 overflow-hidden rounded-xl p-6">
           <h3 className="mb-4 text-lg font-semibold theme-text-primary">Status Codes</h3>
           <div className="space-y-3">
             {statusCodeDistribution.length === 0 ? (
@@ -290,7 +325,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
       </div>
 
       {/* Top Blocked IPs */}
-      <div className="theme-surface overflow-hidden rounded-xl">
+      <div className="theme-surface min-w-0 overflow-hidden rounded-xl">
         <div className="border-b border-[var(--border-soft)] px-6 py-4">
           <h3 className="text-lg font-semibold theme-text-primary">Top Blocked IP Addresses</h3>
         </div>

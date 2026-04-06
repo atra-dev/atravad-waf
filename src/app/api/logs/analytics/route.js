@@ -89,6 +89,34 @@ function buildAnalyticsResponse({
   };
 }
 
+function matchesSearch(log, search, normalizedSearchIp, normalizedSearchDomain) {
+  if (!search) return true;
+
+  const searchLower = search.toLowerCase();
+
+  return (
+    (log.message && String(log.message).toLowerCase().includes(searchLower)) ||
+    (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
+    (log.nodeId && String(log.nodeId).toLowerCase().includes(searchLower)) ||
+    (log.ruleId && String(log.ruleId).includes(searchLower)) ||
+    (log.ipAddress && normalizeIpAddress(log.ipAddress) === normalizedSearchIp) ||
+    (log.clientIp && normalizeIpAddress(log.clientIp) === normalizedSearchIp) ||
+    (
+      Array.isArray(log.forwardedFor) &&
+      normalizedSearchIp &&
+      log.forwardedFor.some((value) => normalizeIpAddress(String(value || '')) === normalizedSearchIp)
+    ) ||
+    (
+      normalizedSearchDomain &&
+      (
+        normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
+        normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
+        normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
+      )
+    )
+  );
+}
+
 async function getRollupDocs({ tenantName, hours, site }) {
   const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
   let query = adminDb
@@ -323,6 +351,7 @@ async function getRawAnalytics({
   site,
   severity,
   decision,
+  search,
   blockedDecisions = null,
 }) {
   const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
@@ -353,19 +382,27 @@ async function getRawAnalytics({
     }));
   };
 
+  const normalizedSearchIp = normalizeIpAddress(search || '');
+  const normalizedSearchDomain = normalizeDomainInput(search || '');
+
+  const filterSearch = (logs) =>
+    logs.filter((log) => matchesSearch(log, search, normalizedSearchIp, normalizedSearchDomain));
+
   if (decisionKeys.length > 0) {
     const logGroups = await Promise.all(
       decisionKeys.map((decisionKey) => fetchLogsForDecision(decisionKey))
     );
 
     return aggregateRawLogs(
-      logGroups
+      filterSearch(
+        logGroups
         .flat()
         .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')))
+      )
     );
   }
 
-  return aggregateRawLogs(await fetchLogsForDecision());
+  return aggregateRawLogs(filterSearch(await fetchLogsForDecision()));
 }
 
 async function getRollupAnalytics({ tenantName, hours, site }) {
@@ -410,8 +447,9 @@ export async function GET(request) {
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const severity = normalizeSeverity(searchParams.get('severity'));
     const decision = String(searchParams.get('decision') || '').trim().toLowerCase();
+    const search = String(searchParams.get('search') || '').trim();
     const attacksOnly = String(searchParams.get('attacksOnly') || '').trim().toLowerCase() === 'true';
-    const canServeFromRollups = !severity && !decision;
+    const canServeFromRollups = !severity && !decision && !search;
 
     const cacheKey = [
       'analytics',
@@ -420,6 +458,7 @@ export async function GET(request) {
       site || 'all-sites',
       severity || 'all-severity',
       decision || 'all-decisions',
+      search || 'no-search',
       attacksOnly ? 'attacks-only' : 'all-traffic',
     ].join(':');
 
@@ -444,6 +483,7 @@ export async function GET(request) {
             hours,
             site,
             severity,
+            search,
             blockedDecisions,
           });
         }
@@ -462,6 +502,7 @@ export async function GET(request) {
           site,
           severity,
           decision,
+          search,
         });
       },
       { ttlMs: ANALYTICS_CACHE_TTL_MS }

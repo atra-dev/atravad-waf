@@ -247,6 +247,7 @@ export default function LogsPage() {
       if (filters.site) params.append('site', filters.site);
       if (filters.severity) params.append('severity', filters.severity);
       if (filters.action) params.append('decision', filters.action);
+      if (filters.search.trim()) params.append('search', filters.search.trim());
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
       const response = await fetch(`/api/logs/analytics?${params.toString()}`, { cache: 'no-store' });
@@ -520,41 +521,6 @@ export default function LogsPage() {
     );
   };
 
-  // If user doesn't have a tenant, show managed onboarding notice
-  if (!hasTenant && !loading && !authLoading) {
-    return (
-      <Layout>
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold theme-text-primary">Security Logs & Audit</h1>
-              <p className="mt-1 text-sm theme-text-secondary">
-                View and analyze security events and audit logs
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-8">
-            <div className="flex items-start gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15 shadow-sm">
-                <BuildingIcon className="h-8 w-8 text-amber-300" />
-              </div>
-              <div className="max-w-2xl">
-                <h2 className="text-2xl font-bold theme-text-primary">Tenant assignment required</h2>
-                <p className="mt-3 text-sm leading-7 theme-text-secondary">
-                  Security logs and analytics are available only after the ATRAVA Defense super admin team provisions your tenant and assigns your account.
-                </p>
-                <p className="mt-2 text-sm leading-7 theme-text-muted">
-                  Contact the ATRAVA Defense operations team to complete managed onboarding and enable access to your security data.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
   useEffect(() => {
     if (!selectedLog) {
       setSelectedLogStoredCount(null);
@@ -638,6 +604,41 @@ export default function LogsPage() {
     fetchStoredCountForSite();
     fetchExactCount();
   }, [selectedLog]);
+
+  // If user doesn't have a tenant, show managed onboarding notice
+  if (!hasTenant && !loading && !authLoading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold theme-text-primary">Security Logs & Audit</h1>
+              <p className="mt-1 text-sm theme-text-secondary">
+                View and analyze security events and audit logs
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 p-8">
+            <div className="flex items-start gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-400/15 shadow-sm">
+                <BuildingIcon className="h-8 w-8 text-amber-300" />
+              </div>
+              <div className="max-w-2xl">
+                <h2 className="text-2xl font-bold theme-text-primary">Tenant assignment required</h2>
+                <p className="mt-3 text-sm leading-7 theme-text-secondary">
+                  Security logs and analytics are available only after the ATRAVA Defense super admin team provisions your tenant and assigns your account.
+                </p>
+                <p className="mt-2 text-sm leading-7 theme-text-muted">
+                  Contact the ATRAVA Defense operations team to complete managed onboarding and enable access to your security data.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
