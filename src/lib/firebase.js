@@ -1,5 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  getAuth,
+  onAuthStateChanged,
+  setPersistence,
+} from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Firebase Client Configuration
@@ -19,4 +24,41 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+let authRestorePromise = null;
+
+function createAuthRestorePromise() {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  return (async () => {
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+    } catch (error) {
+      console.error('Unable to configure Firebase auth persistence:', error);
+    }
+
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady();
+      return;
+    }
+
+    await new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, () => {
+        unsubscribe();
+        resolve();
+      });
+    });
+  })();
+}
+
+export function waitForAuthRestore() {
+  if (!authRestorePromise) {
+    authRestorePromise = createAuthRestorePromise();
+  }
+
+  return authRestorePromise;
+}
+
 export default app;

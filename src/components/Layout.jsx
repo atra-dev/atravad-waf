@@ -4,8 +4,14 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { checkAuthStatus, clearAuthAndRedirect, setupAuthInterceptor } from '@/lib/auth-utils';
+import { auth, waitForAuthRestore } from '@/lib/firebase';
+import {
+  checkAuthStatus,
+  clearAuthAndRedirect,
+  clearAuthCookie,
+  setAuthTokenCookie,
+  setupAuthInterceptor,
+} from '@/lib/auth-utils';
 
 const DashboardIcon = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -128,111 +134,124 @@ export default function Layout({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [userPhotoUrl, setUserPhotoUrl] = useState('');
   const [roleLoaded, setRoleLoaded] = useState(false);
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState(() => {
+    if (typeof document === 'undefined') {
+      return 'light';
+    }
+
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  });
 
   useEffect(() => {
     setupAuthInterceptor();
   }, []);
 
   useEffect(() => {
-    const root = document.documentElement;
-    setTheme(root.dataset.theme === 'dark' ? 'dark' : 'light');
-  }, []);
-
-  useEffect(() => {
-    const initUser = async () => {
-      try {
-        const { authenticated, user } = await checkAuthStatus();
-
-        if (!authenticated || !user || !user.email) {
-          clearAuthAndRedirect(pathname);
-          return;
-        }
-
-        setUserEmail(user.email);
-        setUserRole(user.role || null);
-        setUserPhotoUrl(user.photoURL || user.avatarUrl || '');
-        setRoleLoaded(true);
-      } catch (error) {
-        console.error('Error initializing user:', error);
-        clearAuthAndRedirect(pathname);
-      }
-    };
-
-    initUser();
-
+    let isCancelled = false;
+    let unsubscribe = () => {};
     let tokenRefreshInterval = null;
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const clearRefreshInterval = () => {
       if (tokenRefreshInterval) {
         clearInterval(tokenRefreshInterval);
         tokenRefreshInterval = null;
       }
+    };
 
-      if (!firebaseUser) {
-        document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
-        if (pathname !== '/login') {
+    const syncUserFromSession = async () => {
+      const { authenticated, user } = await checkAuthStatus();
+
+      if (!authenticated || !user || !user.email) {
+        if (!isCancelled) {
           clearAuthAndRedirect(pathname);
         }
-      } else {
-        try {
-          const refreshToken = async () => {
-            try {
-              const newToken = await firebaseUser.getIdToken(true);
-              const isProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
-              const secureFlag = isProduction ? '; Secure' : '';
-              document.cookie = `authToken=${newToken}; path=/; max-age=3600; SameSite=Lax${secureFlag}`;
-            } catch (error) {
-              console.error('Token refresh error:', error);
-              if (tokenRefreshInterval) {
-                clearInterval(tokenRefreshInterval);
-                tokenRefreshInterval = null;
-              }
+        return false;
+      }
+
+      if (!isCancelled) {
+        setUserEmail(user.email);
+        setUserRole(user.role || null);
+        setUserPhotoUrl(user.photoURL || user.avatarUrl || '');
+        setRoleLoaded(true);
+      }
+
+      return true;
+    };
+
+    const initializeAuthState = async () => {
+      try {
+        await waitForAuthRestore();
+        if (isCancelled) return;
+
+        const sessionReady = await syncUserFromSession();
+        if (isCancelled || !sessionReady) return;
+
+        unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          clearRefreshInterval();
+
+          if (!firebaseUser) {
+            clearAuthCookie();
+            if (!isCancelled && pathname !== '/login') {
               clearAuthAndRedirect(pathname);
             }
-          };
+            return;
+          }
 
-          await refreshToken();
-          tokenRefreshInterval = setInterval(refreshToken, 50 * 60 * 1000);
+          try {
+            const refreshToken = async (forceRefresh = false) => {
+              const newToken = await firebaseUser.getIdToken(forceRefresh);
+              if (!isCancelled) {
+                setAuthTokenCookie(newToken);
+              }
+            };
 
-          const { authenticated } = await checkAuthStatus();
-          if (!authenticated) {
-            if (tokenRefreshInterval) {
-              clearInterval(tokenRefreshInterval);
-              tokenRefreshInterval = null;
+            await refreshToken(false);
+            tokenRefreshInterval = setInterval(() => {
+              refreshToken(true).catch((error) => {
+                console.error('Token refresh error:', error);
+                clearRefreshInterval();
+                if (!isCancelled) {
+                  clearAuthAndRedirect(pathname);
+                }
+              });
+            }, 50 * 60 * 1000);
+
+            await syncUserFromSession();
+          } catch (error) {
+            console.error('Auth state change error:', error);
+            clearRefreshInterval();
+            if (!isCancelled) {
+              clearAuthAndRedirect(pathname);
             }
-            clearAuthAndRedirect(pathname);
           }
-        } catch (error) {
-          console.error('Auth state change error:', error);
-          if (tokenRefreshInterval) {
-            clearInterval(tokenRefreshInterval);
-            tokenRefreshInterval = null;
-          }
+        });
+      } catch (error) {
+        console.error('Error initializing user:', error);
+        if (!isCancelled) {
           clearAuthAndRedirect(pathname);
         }
       }
-    });
+    };
+
+    initializeAuthState();
 
     return () => {
+      isCancelled = true;
       unsubscribe();
-      if (tokenRefreshInterval) {
-        clearInterval(tokenRefreshInterval);
-      }
+      clearRefreshInterval();
     };
   }, [pathname]);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
+      clearAuthCookie();
       setUserEmail('');
       setUserRole(null);
       setUserPhotoUrl('');
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      document.cookie = 'authToken=; path=/; max-age=0; SameSite=Lax';
+      clearAuthCookie();
       router.push('/login');
     }
   };
