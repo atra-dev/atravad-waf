@@ -182,8 +182,12 @@ function LoginPageContent() {
 
     if (!verifyResponse.ok) {
       const errorData = await verifyResponse.json().catch(() => ({}));
-      console.error('Session verification failed:', verifyResponse.status, errorData);
       document.cookie = 'authToken=; path=/; max-age=0';
+
+       if (verifyResponse.status !== 401 && verifyResponse.status !== 403) {
+        console.error('Session verification failed:', verifyResponse.status, errorData);
+      }
+
       throw new Error(getFriendlySessionError(errorData));
     }
 
@@ -205,7 +209,9 @@ function LoginPageContent() {
         router.push(redirect);
         return true;
       } catch (error) {
-        console.error('Google sign-in verification error:', error);
+        if (!(error instanceof Error)) {
+          console.error('Google sign-in verification error:', error);
+        }
         try {
           await signOut(auth);
         } catch (signOutError) {

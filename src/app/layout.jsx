@@ -1,7 +1,14 @@
-import { Inter } from "next/font/google";
+import Script from "next/script";
+import { Barlow_Condensed, Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
+const barlowCondensed = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-barlow-condensed",
+});
 
 export const metadata = {
   title: "ATRAVA Defense - Managed WAF-as-a-service",
@@ -15,26 +22,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                try {
-                  var stored = localStorage.getItem('atrava-theme');
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var theme = stored || (prefersDark ? 'dark' : 'light');
-                  document.documentElement.dataset.theme = theme;
-                  document.documentElement.style.colorScheme = theme;
-                } catch (error) {
-                  document.documentElement.dataset.theme = 'light';
-                  document.documentElement.style.colorScheme = 'light';
-                }
-              })();
-            `,
-          }}
-        />
+        <Script src="/theme-init.js" strategy="beforeInteractive" />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.className} ${barlowCondensed.variable} antialiased`}>
         {children}
       </body>
     </html>

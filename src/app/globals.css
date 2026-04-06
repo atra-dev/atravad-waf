@@ -62,6 +62,10 @@ body {
   background-attachment: fixed;
 }
 
+.font-barlow-condensed {
+  font-family: var(--font-barlow-condensed), 'Arial Narrow', sans-serif;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -339,11 +343,40 @@ aside nav::-webkit-scrollbar-thumb:hover {
 @keyframes homepagePulse {
   0%,
   100% {
-    box-shadow: 0 24px 60px rgba(34, 211, 238, 0.2);
+    box-shadow: 0 24px 60px rgba(212, 166, 79, 0.16);
   }
 
   50% {
-    box-shadow: 0 28px 80px rgba(34, 211, 238, 0.34);
+    box-shadow: 0 28px 80px rgba(212, 166, 79, 0.28);
+  }
+}
+
+@keyframes blockedRouteDash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes blockedRoutePulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.22;
+  }
+
+  50% {
+    transform: scale(1.14);
+    opacity: 0.56;
+  }
+}
+
+@keyframes homepageLogoMarquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(calc(-50% - 1rem), 0, 0);
   }
 }
 
@@ -374,7 +407,8 @@ aside nav::-webkit-scrollbar-thumb:hover {
   text-shadow:
     0 1px 0 rgba(255, 255, 255, 0.08),
     0 16px 34px rgba(2, 6, 23, 0.34),
-    0 30px 80px rgba(8, 145, 178, 0.16);
+    0 30px 80px rgba(124, 22, 33, 0.22),
+    0 18px 64px rgba(212, 166, 79, 0.14);
   transform-origin: left center;
 }
 
@@ -423,7 +457,7 @@ aside nav::-webkit-scrollbar-thumb:hover {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.12), transparent 35%, transparent 70%, rgba(59, 130, 246, 0.08));
+  background: linear-gradient(135deg, rgba(124, 22, 33, 0.18), transparent 35%, transparent 68%, rgba(212, 166, 79, 0.12));
   opacity: 0.9;
   pointer-events: none;
 }
@@ -478,7 +512,7 @@ aside nav::-webkit-scrollbar-thumb:hover {
   position: absolute;
   inset: 1px;
   border-radius: inherit;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), transparent 30%, transparent 72%, rgba(34, 211, 238, 0.08));
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05), transparent 28%, transparent 70%, rgba(212, 166, 79, 0.08));
   opacity: 0;
   transition: opacity 220ms ease;
   pointer-events: none;
@@ -493,6 +527,30 @@ aside nav::-webkit-scrollbar-thumb:hover {
 .homepage-tilt-card:hover::before,
 .homepage-plan-card:hover::before {
   opacity: 1;
+}
+
+.blocked-route-line {
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.38));
+}
+
+.blocked-route-pulse,
+.blocked-route-pulse-slow {
+  transform-origin: center;
+  animation: blockedRoutePulse 2.2s ease-in-out infinite;
+}
+
+.blocked-impact-pulse {
+  transform-origin: center;
+}
+
+.blocked-route-pulse-slow {
+  animation-duration: 3.1s;
+}
+
+.homepage-logo-marquee {
+  animation: homepageLogoMarquee 24s linear infinite;
+  will-change: transform;
 }
 
 .scroll-reveal {
@@ -526,7 +584,7 @@ aside nav::-webkit-scrollbar-thumb:hover {
 @media (hover: hover) and (pointer: fine) {
   .homepage-cta-primary:hover {
     transform: translate3d(0, -3px, 0) scale(1.015);
-    box-shadow: 0 30px 90px rgba(34, 211, 238, 0.42);
+    box-shadow: 0 30px 90px rgba(212, 166, 79, 0.3);
   }
 
   .homepage-cta-primary:hover::after {
@@ -548,7 +606,7 @@ aside nav::-webkit-scrollbar-thumb:hover {
 
   .homepage-surface-card:hover::before {
     opacity: 1;
-    background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), transparent 30%, transparent 68%, rgba(59, 130, 246, 0.12));
+    background: linear-gradient(135deg, rgba(124, 22, 33, 0.24), transparent 30%, transparent 64%, rgba(212, 166, 79, 0.16));
   }
 
   .homepage-tilt-card:hover,
@@ -563,11 +621,11 @@ aside nav::-webkit-scrollbar-thumb:hover {
   }
 
   .homepage-tilt-card:hover {
-    border-color: rgba(34, 211, 238, 0.18);
+    border-color: rgba(212, 166, 79, 0.22);
   }
 
   .homepage-plan-card:hover {
-    border-color: rgba(34, 211, 238, 0.28);
+    border-color: rgba(212, 166, 79, 0.32);
   }
 }
 
@@ -581,6 +639,10 @@ aside nav::-webkit-scrollbar-thumb:hover {
   .homepage-surface-card,
   .homepage-tilt-card,
   .homepage-plan-card,
+  .blocked-route-line,
+  .blocked-route-pulse,
+  .blocked-route-pulse-slow,
+  .homepage-logo-marquee,
   .scroll-reveal {
     animation: none !important;
     transform: none !important;
