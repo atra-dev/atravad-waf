@@ -282,7 +282,7 @@ export default function LogsPage() {
       setTenantName(tenant?.name || '');
       
       if (userHasTenant) {
-        await Promise.all([fetchLogs(), fetchSites()]);
+        await fetchSites();
       } else {
         setLoading(false);
       }
@@ -291,7 +291,7 @@ export default function LogsPage() {
       setHasTenant(false);
       setLoading(false);
     }
-  }, [fetchLogs, fetchSites]);
+  }, [fetchSites]);
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();
