@@ -36,6 +36,10 @@ function escapeCsv(value) {
   return stringValue;
 }
 
+function renderList(values = []) {
+  return values.length > 0 ? values.join(', ') : 'None';
+}
+
 export default function PolicyVersionsPage() {
   const AUDIT_PAGE_SIZE = 10;
   const params = useParams();
@@ -342,6 +346,28 @@ export default function PolicyVersionsPage() {
                       />
                       <span className="text-sm theme-text-secondary">File Upload Protection</span>
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-xl bg-[var(--surface-3)] p-4">
+                    <h3 className="text-sm font-medium theme-text-secondary">IP Access Control</h3>
+                    <ul className="mt-3 space-y-2 text-sm theme-text-secondary">
+                      <li>Enabled: {selectedVersion.policy.ipAccessControl ? 'Yes' : 'No'}</li>
+                      <li>Whitelist: {renderList(selectedVersion.policy.ipAccessControl?.whitelist || [])}</li>
+                      <li>Blacklist: {renderList(selectedVersion.policy.ipAccessControl?.blacklist || [])}</li>
+                      <li>Whitelist CIDR: {renderList(selectedVersion.policy.ipAccessControl?.whitelistCIDR || [])}</li>
+                      <li>Blacklist CIDR: {renderList(selectedVersion.policy.ipAccessControl?.blacklistCIDR || [])}</li>
+                    </ul>
+                  </div>
+
+                  <div className="rounded-xl bg-[var(--surface-3)] p-4">
+                    <h3 className="text-sm font-medium theme-text-secondary">Geo Blocking</h3>
+                    <ul className="mt-3 space-y-2 text-sm theme-text-secondary">
+                      <li>Enabled: {selectedVersion.policy.geoBlocking ? 'Yes' : 'No'}</li>
+                      <li>Blocked countries: {renderList(selectedVersion.policy.geoBlocking?.blockedCountries || [])}</li>
+                      <li>Allowed countries: {renderList(selectedVersion.policy.geoBlocking?.allowedCountries || [])}</li>
+                    </ul>
                   </div>
                 </div>
 

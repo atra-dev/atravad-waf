@@ -235,7 +235,7 @@ export function PoliciesPageContent({
       ...defaults,
       name: policyVersion.name || '',
       mode: policyVersion.mode || defaults.mode,
-      includeOWASPCRS: policy.includeOWASPCRS ?? defaults.includeOWASPCRS,
+      includeOWASPCRS: policyVersion.includeOWASPCRS ?? defaults.includeOWASPCRS,
       sqlInjection: !!policy.sqlInjection,
       xss: !!policy.xss,
       fileUpload: !!policy.fileUpload,
