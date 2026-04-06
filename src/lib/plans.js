@@ -12,6 +12,9 @@ export const SUBSCRIPTION_STATUSES = {
   SUSPENDED: 'suspended',
 };
 
+const RAW_LOG_RETENTION_DAYS = 1;
+const RAW_LOG_LOOKBACK_HOURS = 24;
+
 export const PLAN_CATALOG = {
   [PLAN_IDS.ESSENTIAL]: {
     id: PLAN_IDS.ESSENTIAL,
@@ -25,7 +28,7 @@ export const PLAN_CATALOG = {
     features: [
       '1 protected domain',
       'Managed WAF monitoring with scheduled support',
-      '7-day TTL retention for logs and analytics data',
+      '24-hour TTL retention for logs and analytics data',
       'Baseline policy handling and managed SSL onboarding',
       'Email support during business hours',
       'Designed for low-touch MSME protection',
@@ -35,9 +38,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 5,
       maxUsers: 3,
       monthlyRequestsIncluded: 3_000_000,
-      logRetentionDays: 7,
-      analyticsRetentionDays: 7,
-      maxLogLookbackHours: 24 * 7,
+      logRetentionDays: 1,
+      analyticsRetentionDays: 1,
+      maxLogLookbackHours: 24,
     },
     featuresConfig: {
       prioritySupport: false,
@@ -60,7 +63,7 @@ export const PLAN_CATALOG = {
     features: [
       'Up to 5 protected websites',
       'Priority managed WAF operations and regular tuning',
-      '15-day TTL retention for logs and analytics data',
+      '24-hour TTL retention for logs and analytics data',
       'Managed bot mitigation, geo controls, and rate limiting',
       'Priority support with faster handling targets',
       'Suitable for active growth-stage MSMEs',
@@ -70,9 +73,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 12,
       maxUsers: 8,
       monthlyRequestsIncluded: 10_000_000,
-      logRetentionDays: 15,
-      analyticsRetentionDays: 15,
-      maxLogLookbackHours: 24 * 15,
+      logRetentionDays: 1,
+      analyticsRetentionDays: 1,
+      maxLogLookbackHours: 24,
     },
     featuresConfig: {
       prioritySupport: true,
@@ -95,7 +98,7 @@ export const PLAN_CATALOG = {
     features: [
       'Up to 10 protected websites',
       '24/7 managed WAF operations with escalation handling',
-      '30-day TTL retention for logs and analytics data',
+      '24-hour TTL retention for logs and analytics data',
       'Advanced threat controls with hands-on tuning',
       'Priority support and richer reporting visibility',
       'Commercial-grade onboarding and service guidance',
@@ -105,9 +108,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 25,
       maxUsers: 20,
       monthlyRequestsIncluded: 30_000_000,
-      logRetentionDays: 30,
-      analyticsRetentionDays: 30,
-      maxLogLookbackHours: 24 * 30,
+      logRetentionDays: 1,
+      analyticsRetentionDays: 1,
+      maxLogLookbackHours: 24,
     },
     featuresConfig: {
       prioritySupport: true,
@@ -130,7 +133,7 @@ export const PLAN_CATALOG = {
     features: [
       'Multiple protected websites or application portfolios',
       'Tailored 24/7 cyber defense operations coverage',
-      'Custom TTL retention, reporting, and workflow design',
+      '24-hour TTL retention for logs and analytics data',
       'Dedicated service planning and commercial alignment',
       'Custom SLA and support structure',
     ],
@@ -139,9 +142,9 @@ export const PLAN_CATALOG = {
       maxPolicies: 200,
       maxUsers: 100,
       monthlyRequestsIncluded: 250_000_000,
-      logRetentionDays: 30,
-      analyticsRetentionDays: 30,
-      maxLogLookbackHours: 24 * 30,
+      logRetentionDays: 1,
+      analyticsRetentionDays: 1,
+      maxLogLookbackHours: 24,
     },
     featuresConfig: {
       prioritySupport: true,
@@ -156,6 +159,15 @@ export const PLAN_CATALOG = {
 
 function hasObjectShape(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeRetentionLimits(limits = {}) {
+  return {
+    ...limits,
+    logRetentionDays: RAW_LOG_RETENTION_DAYS,
+    analyticsRetentionDays: RAW_LOG_RETENTION_DAYS,
+    maxLogLookbackHours: RAW_LOG_LOOKBACK_HOURS,
+  };
 }
 
 function matchesPlanValues(candidate, reference) {
@@ -193,8 +205,8 @@ export function createTenantSubscription(planId, overrides = {}) {
   const ignoreLegacyOverrides = shouldIgnoreLegacyOverrides(plan.id, overrides);
   const resolvedLimits =
     isCustomPlan && !ignoreLegacyOverrides
-      ? { ...plan.limits, ...(overrides.limits || {}) }
-      : { ...plan.limits };
+      ? normalizeRetentionLimits({ ...plan.limits, ...(overrides.limits || {}) })
+      : normalizeRetentionLimits({ ...plan.limits });
   const resolvedFeatures =
     isCustomPlan && !ignoreLegacyOverrides
       ? { ...plan.featuresConfig, ...(overrides.features || {}) }

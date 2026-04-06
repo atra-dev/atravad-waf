@@ -82,6 +82,10 @@ function DetailRow({ label, value }) {
   );
 }
 
+function formatHoursFromDays(days) {
+  return `${Number(days || 0) * 24} hours`;
+}
+
 function ComparisonCard({ plan, active }) {
   return (
     <div
@@ -121,7 +125,7 @@ function ComparisonCard({ plan, active }) {
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className={active ? 'text-slate-800 dark:text-slate-300' : 'theme-text-muted'}>Logs</span>
-          <span className="font-semibold">{plan.limits.logRetentionDays} days</span>
+          <span className="font-semibold">{formatHoursFromDays(plan.limits.logRetentionDays)}</span>
         </div>
       </div>
     </div>
@@ -292,11 +296,11 @@ export default function SubscriptionPage() {
               </div>
             </div>
             <dl className="mt-6">
-              <DetailRow label="Log retention" value={`${tenant.limits?.logRetentionDays || 0} days`} />
-              <DetailRow label="Analytics retention" value={`${tenant.limits?.analyticsRetentionDays || 0} days`} />
+              <DetailRow label="Log retention" value={formatHoursFromDays(tenant.limits?.logRetentionDays)} />
+              <DetailRow label="Analytics retention" value={formatHoursFromDays(tenant.limits?.analyticsRetentionDays)} />
               <DetailRow
                 label="Max log lookback"
-                value={`${Math.round((tenant.limits?.maxLogLookbackHours || 0) / 24)} days`}
+                value={`${tenant.limits?.maxLogLookbackHours || 0} hours`}
               />
               <DetailRow
                 label="Subscription status"
@@ -395,7 +399,7 @@ export default function SubscriptionPage() {
                     {suggestedUpgrade.annualPrepayLabel ? ` • ${suggestedUpgrade.annualPrepayLabel}` : ''}
                   </p>
                   <p className="mt-3 text-sm theme-text-secondary">
-                    {suggestedUpgrade.limits.maxApps} sites • {suggestedUpgrade.limits.maxPolicies} policies • {suggestedUpgrade.limits.logRetentionDays} day logs
+                    {suggestedUpgrade.limits.maxApps} sites • {suggestedUpgrade.limits.maxPolicies} policies • {formatHoursFromDays(suggestedUpgrade.limits.logRetentionDays)} logs
                   </p>
                 </div>
               ) : null}

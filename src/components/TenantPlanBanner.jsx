@@ -29,6 +29,8 @@ export default function TenantPlanBanner({ tenant, resources = [] }) {
     .filter(Boolean);
 
   const highestUsage = entries.reduce((max, entry) => Math.max(max, entry.percentUsed), 0);
+  const logRetentionHours = Number(tenant.limits?.logRetentionDays || 0) * 24;
+  const analyticsRetentionHours = Number(tenant.limits?.analyticsRetentionDays || 0) * 24;
 
   return (
     <div className="relative overflow-hidden rounded-[30px] border border-slate-200/80 bg-[linear-gradient(135deg,#fbfdff_0%,#f4f8ff_48%,#f8fcfb_100%)] p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-[linear-gradient(145deg,rgba(15,23,42,0.98)_0%,rgba(15,23,42,0.94)_55%,rgba(17,24,39,0.98)_100%)] dark:shadow-none">
@@ -50,8 +52,7 @@ export default function TenantPlanBanner({ tenant, resources = [] }) {
               : ''}
           </p>
           <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-400">
-            Log retention: {tenant.limits?.logRetentionDays || 0} days • Analytics retention:{' '}
-            {tenant.limits?.analyticsRetentionDays || 0} days
+            Log retention: {logRetentionHours} hours • Analytics retention: {analyticsRetentionHours} hours
           </p>
         </div>
 

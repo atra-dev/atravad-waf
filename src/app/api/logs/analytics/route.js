@@ -10,6 +10,7 @@ import { getTenantSummary } from '@/lib/tenant-subscription';
 import { ANALYTICS_DISPLAY_HOURS } from '@/lib/analytics-window';
 
 const ANALYTICS_CACHE_TTL_MS = 30000;
+const FIRESTORE_LOG_TTL_HOURS = 24;
 
 function addCount(map, key, amount) {
   if (!key || !Number.isFinite(amount) || amount === 0) return;
@@ -401,7 +402,10 @@ export async function GET(request) {
     const tenant = await getTenantSummary(adminDb, tenantName);
 
     const { searchParams } = new URL(request.url);
-    const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
+    const maxLookbackHours = Math.min(
+      Number(tenant?.limits?.maxLogLookbackHours || FIRESTORE_LOG_TTL_HOURS),
+      FIRESTORE_LOG_TTL_HOURS
+    );
     const hours = Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const severity = normalizeSeverity(searchParams.get('severity'));

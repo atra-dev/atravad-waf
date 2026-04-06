@@ -10,6 +10,9 @@ import {
   shouldStoreAllowedRawLogs,
 } from './traffic-logging.js';
 
+const FIRESTORE_LOG_TTL_HOURS = 24;
+const FIRESTORE_LOG_TTL_MS = FIRESTORE_LOG_TTL_HOURS * 60 * 60 * 1000;
+
 function normalizeSeverity(severity) {
   const value = String(severity || '').trim().toLowerCase();
   if (value === 'critical') return 'critical';
@@ -132,14 +135,15 @@ function buildRollupUpdate(log, retentionDays) {
   const countryName = String(log.geoCountry || '').trim() || 'Unknown';
   const attackType = classifyAttack(log);
   const ip = normalizeIpAddress(log.ipAddress || log.clientIp || '');
+  const { bucketStart, bucketStartIso } = getHourBucketParts(log.timestamp);
 
   const update = {
     tenantName: log.tenantName,
     siteNormalized:
       normalizeDomainInput(log.site || log.source || log.request?.host || '') || null,
-    bucketStart: getHourBucketParts(log.timestamp).bucketStart,
-    bucketStartIso: getHourBucketParts(log.timestamp).bucketStartIso,
-    expiresAt: new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000),
+    bucketStart,
+    bucketStartIso,
+    expiresAt: new Date(bucketStart.getTime() + retentionDays * 24 * 60 * 60 * 1000),
     updatedAt: new Date().toISOString(),
   };
 
@@ -183,8 +187,7 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
   if (!adminDb || !rawLog?.tenantName) return null;
 
   const tenant = await getTenantRetentionSettings(adminDb, rawLog.tenantName);
-  const logRetentionDays = Number(tenant?.limits?.logRetentionDays || 7);
-  const analyticsRetentionDays = Number(tenant?.limits?.analyticsRetentionDays || 7);
+  const analyticsRetentionDays = Number(tenant?.limits?.analyticsRetentionDays || 1);
   const timestamp = rawLog.timestamp || new Date().toISOString();
   const site =
     normalizeDomainInput(rawLog.source || rawLog.request?.host || rawLog.request?.hostname || '') ||
@@ -202,7 +205,7 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
     siteNormalized: site,
     requestMethod: normalizeRequestMethod(rawLog.method || rawLog.request?.method),
     requestUri: normalizeRequestUri(rawLog.uri || rawLog.request?.uri || rawLog.request?.path),
-    expiresAt: new Date(Date.now() + logRetentionDays * 24 * 60 * 60 * 1000),
+    expiresAt: new Date(new Date(timestamp).getTime() + FIRESTORE_LOG_TTL_MS),
   };
 
   const batch = adminDb.batch();

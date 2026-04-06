@@ -53,6 +53,7 @@ const BOT_UA_PATTERNS = [
   'bot/',
   'headlesschrome',
 ];
+const FIRESTORE_LOG_TTL_HOURS = 24;
 
 function normalizeSeverity(severity) {
   const value = String(severity || '').trim().toLowerCase();
@@ -333,7 +334,10 @@ export async function GET(request) {
     const pageSizeRaw = parseInt(searchParams.get('pageSize') || searchParams.get('limit') || '100', 10);
     const pageSize = Math.min(Math.max(pageSizeRaw || 100, 1), 500);
     const cursor = String(searchParams.get('cursor') || '').trim();
-    const maxLookbackHours = Number(tenant?.limits?.maxLogLookbackHours || 24);
+    const maxLookbackHours = Math.min(
+      Number(tenant?.limits?.maxLogLookbackHours || FIRESTORE_LOG_TTL_HOURS),
+      FIRESTORE_LOG_TTL_HOURS
+    );
     const hours = Math.min(ANALYTICS_DISPLAY_HOURS, maxLookbackHours);
     const site = normalizeDomainInput(searchParams.get('site') || '');
     const requestMethod = normalizeRequestMethod(searchParams.get('method'));
