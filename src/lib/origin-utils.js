@@ -48,6 +48,11 @@ export function normalizeOptionalTlsServername(value) {
   return normalizeOptionalHostLike(value, { allowPort: false });
 }
 
+export function isVercelOriginHostname(value) {
+  const normalized = normalizeDomainInput(typeof value === 'string' ? value : '');
+  return Boolean(normalized && normalized.endsWith('.vercel.app'));
+}
+
 export function normalizeOriginConfig(origin = {}) {
   if (!origin?.url || typeof origin.url !== 'string') {
     return { valid: false, error: 'Each origin must have a URL' };
@@ -72,6 +77,7 @@ export function normalizeOriginConfig(origin = {}) {
     weight: Number.isFinite(origin.weight) ? origin.weight : 100,
     healthCheck: origin.healthCheck || { path: '/health', interval: 30, timeout: 5 },
   };
+  const isVercelOrigin = isVercelOriginHostname(parsedUrl.hostname);
 
   const upstreamHost = normalizeOptionalUpstreamHost(origin.upstreamHost);
   if (origin.upstreamHost !== undefined && !upstreamHost) {
@@ -82,6 +88,8 @@ export function normalizeOriginConfig(origin = {}) {
   }
   if (upstreamHost) {
     normalized.upstreamHost = upstreamHost;
+  } else if (isVercelOrigin) {
+    normalized.upstreamHost = parsedUrl.hostname;
   }
 
   const tlsServername = normalizeOptionalTlsServername(origin.tlsServername);
@@ -93,6 +101,8 @@ export function normalizeOriginConfig(origin = {}) {
   }
   if (tlsServername) {
     normalized.tlsServername = tlsServername;
+  } else if (parsedUrl.protocol === 'https:' && isVercelOrigin) {
+    normalized.tlsServername = parsedUrl.hostname;
   }
 
   if (origin.responseBuffering === false) {
@@ -118,6 +128,13 @@ export function normalizeOriginConfig(origin = {}) {
     typeof origin.authHeaderName === 'string' ? origin.authHeaderName.trim() : '';
   const authHeaderValue =
     typeof origin.authHeaderValue === 'string' ? origin.authHeaderValue.trim() : '';
+
+  if (isVercelOrigin && (!authHeaderName || !authHeaderValue)) {
+    return {
+      valid: false,
+      error: 'Vercel origins require an origin auth header name and value to reduce direct origin bypass.',
+    };
+  }
 
   if (authHeaderName || authHeaderValue) {
     if (!authHeaderName || !authHeaderValue) {

@@ -77,6 +77,48 @@ const SSL_MODE = {
   CUSTOM: 'custom',
 };
 
+const DEFAULT_VERCEL_ORIGIN_AUTH_HEADER = 'X-ATRAVAD-Origin-Auth';
+
+const getOriginHostname = (originUrl) => {
+  if (typeof originUrl !== 'string' || !originUrl.trim()) return '';
+  try {
+    return new URL(originUrl.trim()).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
+const isVercelOriginUrl = (originUrl) => getOriginHostname(originUrl).endsWith('.vercel.app');
+
+const applyRecommendedOriginDefaults = (data) => {
+  const hostname = getOriginHostname(data.originUrl);
+  if (!hostname || !hostname.endsWith('.vercel.app')) {
+    return data;
+  }
+
+  return {
+    ...data,
+    originUpstreamHost: data.originUpstreamHost?.trim() || hostname,
+    originTlsServername: data.originTlsServername?.trim() || hostname,
+    originAuthHeaderName: data.originAuthHeaderName?.trim() || DEFAULT_VERCEL_ORIGIN_AUTH_HEADER,
+  };
+};
+
+const validateOriginSecurityInput = (data) => {
+  if (!isVercelOriginUrl(data.originUrl)) {
+    return { valid: true, message: '' };
+  }
+
+  if (!data.originAuthHeaderValue?.trim()) {
+    return {
+      valid: false,
+      message: 'Vercel origins require an origin auth header value so direct requests can be rejected at the origin app.',
+    };
+  }
+
+  return { valid: true, message: '' };
+};
+
 const getSslStatusMeta = (ssl) => {
   if (ssl?.customCert) {
     return {
@@ -367,6 +409,14 @@ const getTrafficBarHeight = (value, maxValue) => {
     () => validateSslInput(editFormData),
     [editFormData.sslMode, editFormData.customCert, editFormData.customKey, editFormData.customFullchain]
   );
+  const createOriginSecurityValidation = useMemo(
+    () => validateOriginSecurityInput(formData),
+    [formData.originUrl, formData.originAuthHeaderValue]
+  );
+  const editOriginSecurityValidation = useMemo(
+    () => validateOriginSecurityInput(editFormData),
+    [editFormData.originUrl, editFormData.originAuthHeaderValue]
+  );
 
   const importPemFile = async (file, field, setData, setError) => {
     if (!file) return;
@@ -401,6 +451,11 @@ const getTrafficBarHeight = (value, maxValue) => {
         alert('Please enter your origin server URL');
         return;
       }
+      if (!createOriginSecurityValidation.valid) {
+        alert(createOriginSecurityValidation.message);
+        return;
+      }
+      setFormData((current) => applyRecommendedOriginDefaults(current));
       // Show connecting animation
       setConnecting(true);
       setWizardStep(3);
@@ -421,32 +476,38 @@ const getTrafficBarHeight = (value, maxValue) => {
       setCreateSslUiError(createSslValidation.message);
       return;
     }
+    if (!createOriginSecurityValidation.valid) {
+      alert(createOriginSecurityValidation.message);
+      return;
+    }
     setCreateSslUiError('');
+    const preparedFormData = applyRecommendedOriginDefaults(formData);
+    setFormData(preparedFormData);
     setSubmitting(true);
 
     try {
       const apiData = {
-        name: formData.name || formData.domain,
-        domain: formData.domain,
+        name: preparedFormData.name || preparedFormData.domain,
+        domain: preparedFormData.domain,
         origins: [{ 
-          url: formData.originUrl, 
-          upstreamHost: formData.originUpstreamHost?.trim() || undefined,
-          tlsServername: formData.originTlsServername?.trim() || undefined,
-          authHeaderName: formData.originAuthHeaderName?.trim() || undefined,
-          authHeaderValue: formData.originAuthHeaderValue?.trim() || undefined,
-          websocketEnabled: formData.websocketEnabled !== false,
-          websocketIdleTimeoutSec: formData.websocketEnabled !== false
-            ? Number.parseInt(formData.websocketIdleTimeoutSec, 10) || 900
+          url: preparedFormData.originUrl, 
+          upstreamHost: preparedFormData.originUpstreamHost?.trim() || undefined,
+          tlsServername: preparedFormData.originTlsServername?.trim() || undefined,
+          authHeaderName: preparedFormData.originAuthHeaderName?.trim() || undefined,
+          authHeaderValue: preparedFormData.originAuthHeaderValue?.trim() || undefined,
+          websocketEnabled: preparedFormData.websocketEnabled !== false,
+          websocketIdleTimeoutSec: preparedFormData.websocketEnabled !== false
+            ? Number.parseInt(preparedFormData.websocketIdleTimeoutSec, 10) || 900
             : undefined,
           weight: 100, 
           healthCheck: { path: '/health', interval: 30, timeout: 5 },
-          responseBuffering: formData.responseInspectionEnabled !== false,
+          responseBuffering: preparedFormData.responseInspectionEnabled !== false,
         }],
-        policyId: formData.policyId || null,
-        responseInspectionEnabled: formData.responseInspectionEnabled !== false,
-        ssl: formData.sslMode === SSL_MODE.CUSTOM
-          ? { customCert: true, cert: formData.customCert?.trim() || '', key: formData.customKey?.trim() || '', fullchain: formData.customFullchain?.trim() || null }
-          : { autoProvision: formData.autoProvisionSSL !== false, customCert: false },
+        policyId: preparedFormData.policyId || null,
+        responseInspectionEnabled: preparedFormData.responseInspectionEnabled !== false,
+        ssl: preparedFormData.sslMode === SSL_MODE.CUSTOM
+          ? { customCert: true, cert: preparedFormData.customCert?.trim() || '', key: preparedFormData.customKey?.trim() || '', fullchain: preparedFormData.customFullchain?.trim() || null }
+          : { autoProvision: preparedFormData.autoProvisionSSL !== false, customCert: false },
         routing: { pathPrefix: '/', stripPath: false },
         // Note: firewallIp and activated are automatically assigned by the API
       };
@@ -555,7 +616,13 @@ const getTrafficBarHeight = (value, maxValue) => {
       setEditSslUiError(editSslValidation.message);
       return;
     }
+    if (!editOriginSecurityValidation.valid) {
+      alert(editOriginSecurityValidation.message);
+      return;
+    }
     setEditSslUiError('');
+    const preparedEditFormData = applyRecommendedOriginDefaults(editFormData);
+    setEditFormData(preparedEditFormData);
     setUpdating(true);
 
     try {
@@ -564,24 +631,24 @@ const getTrafficBarHeight = (value, maxValue) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           origins: [{ 
-            url: editFormData.originUrl, 
-            upstreamHost: editFormData.originUpstreamHost?.trim() || undefined,
-            tlsServername: editFormData.originTlsServername?.trim() || undefined,
-            authHeaderName: editFormData.originAuthHeaderName?.trim() || undefined,
-            authHeaderValue: editFormData.originAuthHeaderValue?.trim() || undefined,
-            websocketEnabled: editFormData.websocketEnabled !== false,
-            websocketIdleTimeoutSec: editFormData.websocketEnabled !== false
-              ? Number.parseInt(editFormData.websocketIdleTimeoutSec, 10) || 900
+            url: preparedEditFormData.originUrl, 
+            upstreamHost: preparedEditFormData.originUpstreamHost?.trim() || undefined,
+            tlsServername: preparedEditFormData.originTlsServername?.trim() || undefined,
+            authHeaderName: preparedEditFormData.originAuthHeaderName?.trim() || undefined,
+            authHeaderValue: preparedEditFormData.originAuthHeaderValue?.trim() || undefined,
+            websocketEnabled: preparedEditFormData.websocketEnabled !== false,
+            websocketIdleTimeoutSec: preparedEditFormData.websocketEnabled !== false
+              ? Number.parseInt(preparedEditFormData.websocketIdleTimeoutSec, 10) || 900
               : undefined,
             weight: 100, 
             healthCheck: { path: '/health', interval: 30, timeout: 5 },
-            responseBuffering: editFormData.responseInspectionEnabled !== false,
+            responseBuffering: preparedEditFormData.responseInspectionEnabled !== false,
           }],
-          policyId: editFormData.policyId || null,
-          responseInspectionEnabled: editFormData.responseInspectionEnabled !== false,
-          ssl: editFormData.sslMode === SSL_MODE.CUSTOM
-            ? { customCert: true, cert: editFormData.customCert?.trim() || '', key: editFormData.customKey?.trim() || '', fullchain: editFormData.customFullchain?.trim() || null }
-            : { autoProvision: editFormData.autoProvisionSSL, customCert: false },
+          policyId: preparedEditFormData.policyId || null,
+          responseInspectionEnabled: preparedEditFormData.responseInspectionEnabled !== false,
+          ssl: preparedEditFormData.sslMode === SSL_MODE.CUSTOM
+            ? { customCert: true, cert: preparedEditFormData.customCert?.trim() || '', key: preparedEditFormData.customKey?.trim() || '', fullchain: preparedEditFormData.customFullchain?.trim() || null }
+            : { autoProvision: preparedEditFormData.autoProvisionSSL, customCert: false },
         }),
       });
       
@@ -1154,9 +1221,14 @@ const getTrafficBarHeight = (value, maxValue) => {
                       placeholder="https://origin.example.com"
                       className={`${inputClassName} text-lg`}
                       value={formData.originUrl}
-                      onChange={(e) => setFormData({ ...formData, originUrl: e.target.value })}
+                      onChange={(e) => setFormData(applyRecommendedOriginDefaults({ ...formData, originUrl: e.target.value }))}
                       autoFocus
                     />
+                    {isVercelOriginUrl(formData.originUrl) && (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100">
+                        Vercel origins are still publicly reachable unless the origin app rejects direct requests. ATRAVA Defense will auto-fill the upstream host, TLS server name, and `X-ATRAVAD-Origin-Auth` header name, but you must set a secret value and validate it in the Vercel app middleware.
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -1196,7 +1268,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                         </label>
                         <input
                           type="text"
-                          placeholder="Optional: X-ATRAVAD-Origin-Auth"
+                          placeholder="Recommended: X-ATRAVAD-Origin-Auth"
                           className={inputClassName}
                           value={formData.originAuthHeaderName}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderName: e.target.value })}
@@ -1211,7 +1283,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                         </label>
                         <input
                           type="password"
-                          placeholder="Optional shared secret"
+                          placeholder={isVercelOriginUrl(formData.originUrl) ? 'Required for Vercel origins' : 'Optional shared secret'}
                           className={inputClassName}
                           value={formData.originAuthHeaderValue}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderValue: e.target.value })}
@@ -1600,9 +1672,14 @@ const getTrafficBarHeight = (value, maxValue) => {
                     required
                     placeholder="https://origin.example.com"
                     value={editFormData.originUrl}
-                    onChange={(e) => setEditFormData({ ...editFormData, originUrl: e.target.value })}
+                    onChange={(e) => setEditFormData(applyRecommendedOriginDefaults({ ...editFormData, originUrl: e.target.value }))}
                     className={inputClassName}
                   />
+                  {isVercelOriginUrl(editFormData.originUrl) && (
+                    <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100">
+                      This origin is on Vercel. Keep the upstream host and TLS server name aligned to the `vercel.app` hostname, and enforce the shared secret in the origin app middleware so direct requests return `403`.
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1636,7 +1713,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                     <label className={modalSectionLabelClassName}>Origin Auth Header Name</label>
                     <input
                       type="text"
-                      placeholder="Optional shared-secret header"
+                      placeholder="Recommended: X-ATRAVAD-Origin-Auth"
                       value={editFormData.originAuthHeaderName}
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderName: e.target.value })}
                       className={inputClassName}
@@ -1648,7 +1725,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                     <label className={modalSectionLabelClassName}>Origin Auth Header Value</label>
                     <input
                       type="password"
-                      placeholder="Optional shared secret"
+                      placeholder={isVercelOriginUrl(editFormData.originUrl) ? 'Required for Vercel origins' : 'Optional shared secret'}
                       value={editFormData.originAuthHeaderValue}
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderValue: e.target.value })}
                       className={inputClassName}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+const ORIGIN_AUTH_HEADER = "x-atravad-origin-auth";
+
 /**
  * Enhanced Middleware with Session Protection
  * Validates token presence and redirects unauthorized users
@@ -7,8 +9,23 @@ import { NextResponse } from "next/server";
  */
 export function middleware(request) {
   const { pathname } = request.nextUrl;
+  const host = request.nextUrl.hostname || request.headers.get("host") || "";
   const isDevelopment = process.env.NODE_ENV !== "production";
   const isHomePage = pathname === "/";
+  const expectedOriginSecret = process.env.ORIGIN_AUTH_SECRET || "";
+  const actualOriginSecret = request.headers.get(ORIGIN_AUTH_HEADER) || "";
+
+  // When the app is accessed via its public Vercel deployment hostname,
+  // require the shared secret that only the WAF should send upstream.
+  if (host.endsWith(".vercel.app")) {
+    if (!expectedOriginSecret) {
+      return new NextResponse("Origin auth is not configured", { status: 500 });
+    }
+
+    if (actualOriginSecret !== expectedOriginSecret) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+  }
 
   // Public routes that don't require authentication
   const publicRoutes = ["/", "/login"];
@@ -77,5 +94,5 @@ export function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
