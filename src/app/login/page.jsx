@@ -68,7 +68,7 @@ function ShieldIcon({ className = 'h-6 w-6' }) {
 
 function SectionEyebrow({ children }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300">
+    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#d4a64f]">
       {children}
     </p>
   );
@@ -76,12 +76,12 @@ function SectionEyebrow({ children }) {
 
 function HighlightToneClass(tone) {
   if (tone === 'emerald') {
-    return 'border-emerald-400/25 bg-emerald-400/10 text-emerald-100';
+    return 'border-[#4b7a60]/35 bg-[#214233]/45 text-[#dff1de]';
   }
   if (tone === 'sky') {
-    return 'border-sky-400/25 bg-sky-400/10 text-sky-100';
+    return 'border-[#8f2b36]/35 bg-[#4d151d]/45 text-[#f3d6c6]';
   }
-  return 'border-cyan-400/25 bg-cyan-400/10 text-cyan-100';
+  return 'border-[#d4a64f]/30 bg-[#2f2211]/55 text-[#f8e6bd]';
 }
 
 function LoginPageContent() {
@@ -364,24 +364,25 @@ function LoginPageContent() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#08111f] text-white">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.32),_transparent_42%),radial-gradient(circle_at_20%_25%,_rgba(14,165,233,0.24),_transparent_25%),linear-gradient(180deg,_#08111f_0%,_#09192d_48%,_#f3f6fb_48%,_#f3f6fb_100%)]" />
-      <div className="absolute left-10 top-24 -z-10 h-40 w-40 rounded-full bg-cyan-400/15 blur-3xl" />
-      <div className="absolute right-8 top-56 -z-10 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
+    <div className="relative min-h-screen overflow-hidden bg-[#07090f] text-[#f7efe0]">
+      <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_16%_18%,rgba(116,18,38,0.34),transparent_26%),radial-gradient(circle_at_82%_16%,rgba(186,151,63,0.18),transparent_20%),linear-gradient(180deg,#090c14_0%,#080b12_36%,#130712_66%,#f5efe5_66%,#f5efe5_100%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[720px] bg-[linear-gradient(rgba(162,139,73,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(162,139,73,0.05)_1px,transparent_1px)] bg-[size:74px_74px] [mask-image:radial-gradient(circle_at_top,black,transparent_72%)]" />
+      <div className="absolute left-10 top-24 -z-10 h-40 w-40 rounded-full bg-[#7c1621]/18 blur-3xl" />
+      <div className="absolute right-8 top-56 -z-10 h-56 w-56 rounded-full bg-[#d4a64f]/12 blur-3xl" />
 
       {toast ? (
         <div className="fixed right-4 top-4 z-50 w-full max-w-sm">
           <div
             className={`rounded-2xl border px-4 py-3 shadow-xl backdrop-blur ${
               toast.tone === 'success'
-                ? 'border-emerald-300/35 bg-emerald-400/12 text-emerald-50'
-                : 'border-red-300/35 bg-red-400/12 text-red-50'
+                ? 'border-[#4b7a60]/45 bg-[#204031]/88 text-[#effaf0]'
+                : 'border-[#8f2b36]/45 bg-[#42131a]/88 text-[#fff1ee]'
             }`}
           >
             <div className="flex items-start gap-3">
               <div
                 className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                  toast.tone === 'success' ? 'bg-emerald-300/20 text-emerald-100' : 'bg-red-300/20 text-red-100'
+                  toast.tone === 'success' ? 'bg-[#4b7a60]/30 text-[#effaf0]' : 'bg-[#8f2b36]/30 text-[#fff1ee]'
                 }`}
               >
                 {toast.tone === 'success' ? '!' : '!'}
@@ -402,17 +403,17 @@ function LoginPageContent() {
       ) : null}
 
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 pb-10 pt-4 lg:px-8 lg:pb-12 lg:pt-4">
-        <header className="flex items-center justify-between rounded-full border border-white/10 bg-white/5 px-5 py-2.5 backdrop-blur">
+        <header className="flex items-center justify-between rounded-full border border-[#a97b35]/20 bg-[#070b13]/78 px-5 py-2.5 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/95 shadow-[0_12px_40px_rgba(15,23,42,0.35)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d4a64f]/30 bg-[#f3e2b7] shadow-[0_16px_44px_rgba(0,0,0,0.45)]">
               <Image src="/logo.png" alt="ATRAVA Defense" width={32} height={32} className="h-8 w-8 object-contain" priority />
             </div>
             <div>
-              <p className="text-sm font-semibold tracking-[0.2em] text-white/70">ATRAVA Defense</p>
-              <p className="text-xs text-white/45">Managed WAF-as-a-service</p>
+              <p className="text-sm font-semibold tracking-[0.2em] text-[#f5e7c8]">ATRAVA Defense</p>
+              <p className="text-xs text-[#d8c7a1]/70">Managed WAF-as-a-service</p>
             </div>
           </div>
-          <div className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+          <div className="rounded-full border border-[#d4a64f]/25 bg-[#2a1c0f]/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#f1d7a0]">
             Managed access portal
           </div>
         </header>
@@ -421,10 +422,10 @@ function LoginPageContent() {
           <section className="flex min-h-0 flex-col justify-center">
             <div>
               <SectionEyebrow>Customer access</SectionEyebrow>
-                <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-white sm:text-[2.95rem] xl:max-w-[14.4ch] xl:text-[3.42rem]">
+                <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-[#fff6df] sm:text-[2.95rem] xl:max-w-[14.4ch] xl:text-[3.42rem]">
                 Secure sign-in for managed WAF operations, tenant access, and security visibility.
               </h1>
-              <p className="mt-5 max-w-[35rem] text-[0.98rem] leading-8 text-slate-300">
+              <p className="mt-5 max-w-[35rem] text-[0.98rem] leading-8 text-[#dbcdb5]">
                 Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
                 update policies, and operate within your provisioned tenant scope.
               </p>
@@ -434,19 +435,19 @@ function LoginPageContent() {
               {trustPoints.map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-[24px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 backdrop-blur"
+                  className="rounded-[24px] border border-[#d4a64f]/12 bg-[linear-gradient(180deg,rgba(26,14,12,0.7),rgba(8,5,5,0.82))] p-5 backdrop-blur"
                 >
-                  <p className="text-xs uppercase tracking-[0.25em] text-white/45">{item.label}</p>
-                  <p className="mt-3 text-[0.9rem] font-semibold leading-8 text-white xl:text-[0.98rem]">{item.value}</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-[#bfae8d]">{item.label}</p>
+                  <p className="mt-3 text-[0.9rem] font-semibold leading-8 text-[#fff2d2] xl:text-[0.98rem]">{item.value}</p>
                 </div>
               ))}
             </div>
 
             <div className="mt-8 [@media_(max-height:920px)]:hidden">
-              <div className="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <div className="rounded-[28px] border border-[#d4a64f]/12 bg-[linear-gradient(180deg,rgba(22,10,10,0.72),rgba(8,5,5,0.86))] p-5 backdrop-blur">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/45">Operations view</p>
-                  <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#bfae8d]">Operations view</p>
+                  <div className="rounded-full border border-[#4b7a60]/30 bg-[#214233]/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#dff1de]">
                     Active
                   </div>
                 </div>
@@ -463,21 +464,21 @@ function LoginPageContent() {
                   ))}
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/45 p-5">
+                <div className="mt-5 rounded-2xl border border-[#d4a64f]/10 bg-[#0a0d15]/72 p-5">
                   <div className="space-y-5">
                     {activityRail.map((item, index) => (
                       <div key={item.title} className="flex gap-3">
                         <div className="flex flex-col items-center">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-cyan-400/25 bg-cyan-400/10 text-xs font-semibold text-cyan-100">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d4a64f]/25 bg-[#2f2211]/55 text-xs font-semibold text-[#f8e6bd]">
                             {index + 1}
                           </span>
                           {index < activityRail.length - 1 ? (
-                            <span className="mt-2 h-full w-px bg-white/10" />
+                            <span className="mt-2 h-full w-px bg-[#d4a64f]/14" />
                           ) : null}
                         </div>
                         <div className="pb-1">
-                          <p className="text-sm font-semibold text-white">{item.title}</p>
-                          <p className="mt-1 text-sm leading-6 text-slate-300">{item.detail}</p>
+                          <p className="text-sm font-semibold text-[#fff2d2]">{item.title}</p>
+                          <p className="mt-1 text-sm leading-6 text-[#d6c7a9]">{item.detail}</p>
                         </div>
                       </div>
                     ))}
@@ -488,13 +489,13 @@ function LoginPageContent() {
           </section>
 
           <section className="relative flex min-h-0 items-center pt-2 lg:justify-end lg:pt-0">
-            <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-3xl" />
-            <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-sky-500/20 blur-3xl" />
-            <div className="relative w-full overflow-hidden rounded-[32px] border border-white/10 bg-[#ffffff] text-[#0f172a] shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-              <div className="border-b border-[#e2e8f0] bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#eff6ff_0%,#f8fafc_55%,#eef2ff_100%)] px-7 py-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#0e7490]">Sign in</p>
-                <h2 className="mt-2 text-[1.85rem] font-bold tracking-tight text-[#020617]">Access the dashboard</h2>
-                <p className="mt-2 max-w-md text-[0.96rem] leading-7 text-[#475569]">
+            <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-[#7c1621]/24 blur-3xl" />
+            <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-[#d4a64f]/16 blur-3xl" />
+            <div className="relative w-full overflow-hidden rounded-[32px] border border-[#d4a64f]/18 bg-[linear-gradient(180deg,#fffaf0_0%,#f6efe3_100%)] text-[#1b140f] shadow-[0_32px_100px_rgba(2,6,23,0.42)]">
+              <div className="border-b border-[#ead9b5] bg-[radial-gradient(circle_at_top_left,_rgba(212,166,79,0.24),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(124,22,33,0.12),_transparent_30%),linear-gradient(135deg,#f7eed7_0%,#fff8eb_55%,#f3e4d6_100%)] px-7 py-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#9a742f]">Sign in</p>
+                <h2 className="mt-2 text-[1.85rem] font-bold tracking-tight text-[#1b140f]">Access the dashboard</h2>
+                <p className="mt-2 max-w-md text-[0.96rem] leading-7 text-[#6a5845]">
                   Use the sign-in method assigned to your managed account. Google-enabled users should use the Google button below.
                 </p>
               </div>
@@ -503,7 +504,7 @@ function LoginPageContent() {
                 <form className="space-y-2.5" onSubmit={handleAuth}>
                   <div className="space-y-3">
                     <div>
-                      <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-[#334155]">
+                      <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-[#5f4b36]">
                         Email address
                       </label>
                       <input
@@ -512,14 +513,14 @@ function LoginPageContent() {
                         type="email"
                         autoComplete="email"
                         required
-                        className="block w-full rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 py-2.5 text-sm text-[#0f172a] shadow-sm placeholder:text-[#94a3b8] focus:border-cyan-500 focus:bg-[#ffffff] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                        className="block w-full rounded-2xl border border-[#dcc9a4] bg-[#fff9ee] px-4 py-2.5 text-sm text-[#1b140f] shadow-sm placeholder:text-[#a78f6b] focus:border-[#b88d3b] focus:bg-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#d4a64f]/20"
                         placeholder="you@example.com"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
                     <div>
-                      <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-[#334155]">
+                      <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-[#5f4b36]">
                         Password
                       </label>
                       <input
@@ -528,7 +529,7 @@ function LoginPageContent() {
                         type="password"
                         autoComplete="current-password"
                         required
-                        className="block w-full rounded-2xl border border-[#cbd5e1] bg-[#f8fafc] px-4 py-2.5 text-sm text-[#0f172a] shadow-sm placeholder:text-[#94a3b8] focus:border-cyan-500 focus:bg-[#ffffff] focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                        className="block w-full rounded-2xl border border-[#dcc9a4] bg-[#fff9ee] px-4 py-2.5 text-sm text-[#1b140f] shadow-sm placeholder:text-[#a78f6b] focus:border-[#b88d3b] focus:bg-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#d4a64f]/20"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -540,11 +541,11 @@ function LoginPageContent() {
                     <button
                       type="submit"
                       disabled={loadingEmail || loadingGoogle}
-                      className="flex w-full items-center justify-center rounded-full bg-cyan-400 px-6 py-2.5 text-sm font-semibold text-[#020617] shadow-[0_20px_60px_rgba(34,211,238,0.25)] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center rounded-full bg-[#d4a64f] px-6 py-2.5 text-sm font-semibold text-[#140d08] shadow-[0_20px_60px_rgba(212,166,79,0.25)] transition hover:bg-[#e0b86a] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingEmail ? (
                         <span className="flex items-center space-x-2">
-                          <svg className="h-5 w-5 animate-spin text-[#020617]" fill="none" viewBox="0 0 24 24">
+                          <svg className="h-5 w-5 animate-spin text-[#140d08]" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -555,10 +556,10 @@ function LoginPageContent() {
 
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-[#e2e8f0]" />
+                        <div className="w-full border-t border-[#ead9b5]" />
                       </div>
                       <div className="relative flex justify-center text-sm">
-                        <span className="bg-[#ffffff] px-4 font-medium text-[#64748b]">Or continue with</span>
+                        <span className="bg-[#f8f1e5] px-4 font-medium text-[#8a7354]">Or continue with</span>
                       </div>
                     </div>
 
@@ -566,11 +567,11 @@ function LoginPageContent() {
                       type="button"
                       onClick={handleGoogleSignIn}
                       disabled={loadingEmail || loadingGoogle}
-                      className="flex w-full items-center justify-center gap-3 rounded-full border border-[#cbd5e1] bg-[#ffffff] px-6 py-2.5 text-sm font-semibold text-[#334155] transition hover:border-[#94a3b8] hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex w-full items-center justify-center gap-3 rounded-full border border-[#dcc9a4] bg-[#fffaf2] px-6 py-2.5 text-sm font-semibold text-[#4f3d2c] transition hover:border-[#b88d3b] hover:bg-[#fff5df] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingGoogle ? (
                         <span className="flex items-center space-x-2">
-                          <svg className="h-5 w-5 animate-spin text-[#334155]" fill="none" viewBox="0 0 24 24">
+                          <svg className="h-5 w-5 animate-spin text-[#4f3d2c]" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
@@ -603,9 +604,9 @@ function LoginPageContent() {
                   </div>
                 </form>
 
-                <div className="mt-3 rounded-3xl border border-[#e2e8f0] bg-[#f8fafce6] p-4 [@media_(max-height:920px)]:hidden">
-                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#64748b]">Access note</p>
-                  <p className="mt-2 text-sm leading-6 text-[#475569]">
+                <div className="mt-3 rounded-3xl border border-[#ead9b5] bg-[#fff7ea] p-4 [@media_(max-height:920px)]:hidden">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8a7354]">Access note</p>
+                  <p className="mt-2 text-sm leading-6 text-[#6a5845]">
                     If your account is provisioned for Google, password login will not work. Use the Google button to complete access verification.
                   </p>
                 </div>
@@ -620,43 +621,43 @@ function LoginPageContent() {
 
 function LoginPageFallback() {
   return (
-    <div className="min-h-screen overflow-hidden bg-[#08111f] text-white">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_top,_rgba(8,145,178,0.32),_transparent_42%),radial-gradient(circle_at_20%_25%,_rgba(14,165,233,0.24),_transparent_25%),linear-gradient(180deg,_#08111f_0%,_#09192d_48%,_#f3f6fb_48%,_#f3f6fb_100%)]" />
+    <div className="min-h-screen overflow-hidden bg-[#07090f] text-[#f7efe0]">
+      <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_16%_18%,rgba(116,18,38,0.34),transparent_26%),radial-gradient(circle_at_82%_16%,rgba(186,151,63,0.18),transparent_20%),linear-gradient(180deg,#090c14_0%,#080b12_36%,#130712_66%,#f5efe5_66%,#f5efe5_100%)]" />
       <div className="mx-auto max-w-7xl animate-pulse px-6 pb-16 pt-6 lg:px-8 lg:pb-20">
-        <div className="rounded-full border border-white/10 bg-white/5 px-5 py-3 backdrop-blur">
+        <div className="rounded-full border border-[#a97b35]/20 bg-[#070b13]/78 px-5 py-3 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-white/20" />
+            <div className="h-11 w-11 rounded-2xl bg-[#d4a64f]/25" />
             <div className="space-y-2">
-              <div className="h-3 w-32 rounded bg-white/20" />
-              <div className="h-3 w-24 rounded bg-white/10" />
+              <div className="h-3 w-32 rounded bg-[#f5e7c8]/25" />
+              <div className="h-3 w-24 rounded bg-[#d8c7a1]/15" />
             </div>
           </div>
         </div>
 
         <div className="grid gap-14 pt-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(400px,0.95fr)] lg:items-center">
           <div className="space-y-6">
-            <div className="h-3 w-28 rounded bg-cyan-300/30" />
-            <div className="h-14 max-w-2xl rounded bg-white/15" />
-            <div className="h-14 max-w-xl rounded bg-white/10" />
-            <div className="h-5 max-w-2xl rounded bg-white/10" />
+            <div className="h-3 w-28 rounded bg-[#d4a64f]/30" />
+            <div className="h-14 max-w-2xl rounded bg-[#fff6df]/15" />
+            <div className="h-14 max-w-xl rounded bg-[#fff6df]/10" />
+            <div className="h-5 max-w-2xl rounded bg-[#d8c7a1]/12" />
             <div className="grid gap-4 sm:grid-cols-3">
-              <div className="h-28 rounded-3xl bg-white/10" />
-              <div className="h-28 rounded-3xl bg-white/10" />
-              <div className="h-28 rounded-3xl bg-white/10" />
+              <div className="h-28 rounded-3xl bg-[#1c110d]/80" />
+              <div className="h-28 rounded-3xl bg-[#1c110d]/80" />
+              <div className="h-28 rounded-3xl bg-[#1c110d]/80" />
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[32px] border border-white/10 bg-[#ffffff] shadow-[0_32px_100px_rgba(2,6,23,0.35)]">
-            <div className="border-b border-[#e2e8f0] bg-[#f1f5f9] px-8 py-8">
-              <div className="h-3 w-20 rounded bg-[#cbd5e1]" />
-              <div className="mt-3 h-10 w-52 rounded bg-[#cbd5e1]" />
-              <div className="mt-3 h-4 w-72 rounded bg-[#e2e8f0]" />
+          <div className="overflow-hidden rounded-[32px] border border-[#d4a64f]/18 bg-[linear-gradient(180deg,#fffaf0_0%,#f6efe3_100%)] shadow-[0_32px_100px_rgba(2,6,23,0.42)]">
+            <div className="border-b border-[#ead9b5] bg-[#f7eed7] px-8 py-8">
+              <div className="h-3 w-20 rounded bg-[#cfae6a]" />
+              <div className="mt-3 h-10 w-52 rounded bg-[#dcc9a4]" />
+              <div className="mt-3 h-4 w-72 rounded bg-[#ead9b5]" />
             </div>
             <div className="space-y-5 p-8">
-              <div className="h-14 rounded-2xl bg-[#f1f5f9]" />
-              <div className="h-14 rounded-2xl bg-[#f1f5f9]" />
-              <div className="h-14 rounded-full bg-cyan-200" />
-              <div className="h-14 rounded-full bg-[#f1f5f9]" />
+              <div className="h-14 rounded-2xl bg-[#fff7ea]" />
+              <div className="h-14 rounded-2xl bg-[#fff7ea]" />
+              <div className="h-14 rounded-full bg-[#d4a64f]" />
+              <div className="h-14 rounded-full bg-[#fff7ea]" />
             </div>
           </div>
         </div>
