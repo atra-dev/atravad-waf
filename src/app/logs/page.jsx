@@ -8,9 +8,11 @@ import { useAuth } from '@/hooks/useAuth';
 import GeographicAnalytics from '@/components/GeographicAnalytics';
 import TrafficAnalytics from '@/components/TrafficAnalytics';
 import { normalizeDomainInput } from '@/lib/domain-utils';
-import { normalizeIpAddress } from '@/lib/ip-utils';
+import { isValidIp, normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
+import ConfirmationModal from '@/app/policies/ConfirmationModal';
+import FeedbackModal from '@/app/policies/FeedbackModal';
 
 // Icons for tenant creation
 const BuildingIcon = ({ className }) => (
@@ -32,6 +34,8 @@ export default function LogsPage() {
   const [logs, setLogs] = useState([]);
   const [analyticsData, setAnalyticsData] = useState(null);
   const [sites, setSites] = useState([]);
+  const [apps, setApps] = useState([]);
+  const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -50,6 +54,21 @@ export default function LogsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('logs'); // 'logs', 'geographic', 'traffic'
   const [selectedLog, setSelectedLog] = useState(null);
+  const [policyActionState, setPolicyActionState] = useState({
+    open: false,
+    title: '',
+    description: '',
+    confirmLabel: 'Confirm',
+    tone: 'blue',
+    action: null,
+  });
+  const [policyActionBusy, setPolicyActionBusy] = useState(false);
+  const [policyFeedbackState, setPolicyFeedbackState] = useState({
+    open: false,
+    title: '',
+    description: '',
+    tone: 'blue',
+  });
   const [logCount, setLogCount] = useState(0);
   const totalRequests = Number(
     analyticsData?.summary?.visibleRequestCount ??
@@ -132,6 +151,7 @@ export default function LogsPage() {
       const response = await fetch('/api/apps');
       const data = await response.json();
       if (Array.isArray(data)) {
+        setApps(data);
         const uniqueSites = [...new Set(
           data
             .map((app) => normalizeDomainInput(String(app?.domain || '')))
@@ -139,11 +159,24 @@ export default function LogsPage() {
         )].sort((a, b) => a.localeCompare(b));
         setSites(uniqueSites);
       } else {
+        setApps([]);
         setSites([]);
       }
     } catch (error) {
       console.error('Error fetching sites:', error);
+      setApps([]);
       setSites([]);
+    }
+  }, []);
+
+  const fetchPolicies = useCallback(async () => {
+    try {
+      const response = await fetch('/api/policies');
+      const data = await response.json();
+      setPolicies(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+      setPolicies([]);
     }
   }, []);
 
@@ -282,7 +315,7 @@ export default function LogsPage() {
       setTenantName(tenant?.name || '');
       
       if (userHasTenant) {
-        await fetchSites();
+        await Promise.all([fetchSites(), fetchPolicies()]);
       } else {
         setLoading(false);
       }
@@ -291,7 +324,7 @@ export default function LogsPage() {
       setHasTenant(false);
       setLoading(false);
     }
-  }, [fetchSites]);
+  }, [fetchPolicies, fetchSites]);
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();
@@ -310,7 +343,7 @@ export default function LogsPage() {
         setTenantName(tenantData.name);
         setShowTenantForm(false);
         setTenantFormData({ name: '' });
-        await Promise.all([fetchLogs(), fetchSites()]);
+        await Promise.all([fetchLogs(), fetchSites(), fetchPolicies()]);
       } else {
         const error = await response.json();
         alert(error.error || 'Failed to create organization');
@@ -344,11 +377,68 @@ export default function LogsPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchLogs(true, pagination.currentCursor, pagination.page), fetchAnalyticsSummary(true), fetchSites()]);
+      await Promise.all([
+        fetchLogs(true, pagination.currentCursor, pagination.page),
+        fetchAnalyticsSummary(true),
+        fetchSites(),
+        fetchPolicies(),
+      ]);
     } finally {
       setRefreshing(false);
     }
   };
+
+  const openPolicyFeedback = useCallback(({ title, description, tone = 'blue' }) => {
+    setPolicyFeedbackState({
+      open: true,
+      title,
+      description,
+      tone,
+    });
+  }, []);
+
+  const closePolicyFeedback = useCallback(() => {
+    setPolicyFeedbackState({
+      open: false,
+      title: '',
+      description: '',
+      tone: 'blue',
+    });
+  }, []);
+
+  const openPolicyActionConfirmation = useCallback(({ title, description, confirmLabel, tone, action }) => {
+    setPolicyActionState({
+      open: true,
+      title,
+      description,
+      confirmLabel,
+      tone,
+      action,
+    });
+  }, []);
+
+  const closePolicyActionConfirmation = useCallback(() => {
+    setPolicyActionState({
+      open: false,
+      title: '',
+      description: '',
+      confirmLabel: 'Confirm',
+      tone: 'blue',
+      action: null,
+    });
+  }, [policyActionBusy]);
+
+  const handleConfirmPolicyAction = useCallback(async () => {
+    if (policyActionBusy || typeof policyActionState.action !== 'function') return;
+
+    setPolicyActionBusy(true);
+    try {
+      await policyActionState.action();
+      closePolicyActionConfirmation();
+    } finally {
+      setPolicyActionBusy(false);
+    }
+  }, [closePolicyActionConfirmation, policyActionBusy, policyActionState]);
 
   const handlePageChange = (direction) => {
     if (direction === 'next' && pagination.nextCursor) {
@@ -435,6 +525,193 @@ export default function LogsPage() {
   const getLogMethod = (log) => String(log?.method || log?.request?.method || '').trim() || '-';
 
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
+
+  const getLogSiteKey = useCallback((log) => (
+    normalizeDomainInput(String(log?.siteNormalized || log?.site || log?.source || log?.request?.host || ''))
+  ), []);
+
+  const getAssignedPolicyContextForLog = useCallback((log) => {
+    const siteKey = getLogSiteKey(log);
+    if (!siteKey) return { siteKey: '', app: null, policy: null };
+
+    const matchedApp = apps.find((app) => normalizeDomainInput(String(app?.domain || '')) === siteKey) || null;
+    if (!matchedApp?.policyId) {
+      return { siteKey, app: matchedApp, policy: null };
+    }
+
+    const matchedPolicy = policies.find((policy) => policy.id === matchedApp.policyId) || null;
+    return { siteKey, app: matchedApp, policy: matchedPolicy };
+  }, [apps, getLogSiteKey, policies]);
+
+  const updateLogIpAccessControl = useCallback(async ({ log, mode }) => {
+    const normalizedIp = normalizeIpAddress(log?.ipAddress || log?.clientIp || '');
+    if (!isValidIp(normalizedIp)) {
+      openPolicyFeedback({
+        title: 'Invalid client IP',
+        description: 'This log entry does not contain a valid client IP address.',
+        tone: 'red',
+      });
+      return;
+    }
+
+    const { app, policy } = getAssignedPolicyContextForLog(log);
+    if (!app) {
+      openPolicyFeedback({
+        title: 'No site assignment found',
+        description: 'This log entry is not linked to a protected site, so no policy could be updated.',
+        tone: 'red',
+      });
+      return;
+    }
+
+    if (!policy) {
+      openPolicyFeedback({
+        title: 'No policy assigned',
+        description: `The site "${app.domain || app.name || 'Unknown site'}" does not have an assigned policy yet.`,
+        tone: 'red',
+      });
+      return;
+    }
+
+    const existingIpAccess = policy.policy?.ipAccessControl || {};
+    const whitelist = Array.isArray(existingIpAccess.whitelist)
+      ? existingIpAccess.whitelist.map((value) => String(value || '').trim()).filter(Boolean)
+      : [];
+    const blacklist = Array.isArray(existingIpAccess.blacklist)
+      ? existingIpAccess.blacklist.map((value) => String(value || '').trim()).filter(Boolean)
+      : [];
+    const currentWhitelist = whitelist.slice().sort((a, b) => a.localeCompare(b));
+    const currentBlacklist = blacklist.slice().sort((a, b) => a.localeCompare(b));
+    const whitelistSet = new Set(whitelist);
+    const blacklistSet = new Set(blacklist);
+
+    if (mode === 'allow') {
+      whitelistSet.add(normalizedIp);
+      blacklistSet.delete(normalizedIp);
+    } else {
+      blacklistSet.add(normalizedIp);
+      whitelistSet.delete(normalizedIp);
+    }
+
+    const nextWhitelist = Array.from(whitelistSet).sort((a, b) => a.localeCompare(b));
+    const nextBlacklist = Array.from(blacklistSet).sort((a, b) => a.localeCompare(b));
+    const noChange =
+      nextWhitelist.join('|') === currentWhitelist.join('|') &&
+      nextBlacklist.join('|') === currentBlacklist.join('|');
+
+    if (noChange) {
+      openPolicyFeedback({
+        title: mode === 'allow' ? 'IP already allowed' : 'IP already blocked',
+        description:
+          mode === 'allow'
+            ? `${normalizedIp} is already in the whitelist for "${policy.name}".`
+            : `${normalizedIp} is already in the blacklist for "${policy.name}".`,
+        tone: 'blue',
+      });
+      return;
+    }
+
+    const requestBody = {
+      policyId: policy.id,
+      name: policy.name,
+      mode: policy.mode || 'prevention',
+      includeOWASPCRS: policy.includeOWASPCRS ?? true,
+      sqlInjection: !!policy.policy?.sqlInjection,
+      xss: !!policy.policy?.xss,
+      fileUpload: !!policy.policy?.fileUpload,
+      pathTraversal: !!policy.policy?.pathTraversal,
+      rce: !!policy.policy?.rce,
+      csrf: !!policy.policy?.csrf,
+      sessionFixation: !!policy.policy?.sessionFixation,
+      ssrf: !!policy.policy?.ssrf,
+      xxe: !!policy.policy?.xxe,
+      authBypass: !!policy.policy?.authBypass,
+      idor: !!policy.policy?.idor,
+      securityMisconfig: !!policy.policy?.securityMisconfig,
+      sensitiveDataExposure: !!policy.policy?.sensitiveDataExposure,
+      brokenAccessControl: !!policy.policy?.brokenAccessControl,
+      securityHeaders: !!policy.policy?.securityHeaders,
+      rateLimiting: policy.policy?.rateLimiting || false,
+      ipAccessControl: {
+        enabled: true,
+        whitelist: nextWhitelist,
+        blacklist: nextBlacklist,
+        whitelistCIDR: Array.isArray(existingIpAccess.whitelistCIDR) ? existingIpAccess.whitelistCIDR : [],
+        blacklistCIDR: Array.isArray(existingIpAccess.blacklistCIDR) ? existingIpAccess.blacklistCIDR : [],
+      },
+      geoBlocking: policy.policy?.geoBlocking || null,
+      advancedRateLimiting: policy.policy?.advancedRateLimiting || null,
+      botDetection: policy.policy?.botDetection || null,
+      advancedFileUpload: policy.policy?.advancedFileUpload || null,
+      apiProtection: policy.policy?.apiProtection || null,
+      exceptions: Array.isArray(policy.policy?.exceptions) ? policy.policy.exceptions : [],
+      virtualPatching: Array.isArray(policy.policy?.virtualPatching) ? policy.policy.virtualPatching : [],
+      customRules: Array.isArray(policy.policy?.customRules) ? policy.policy.customRules : [],
+      applicationIds: Array.isArray(policy.applicationIds) ? policy.applicationIds : [],
+    };
+
+    const response = await fetch('/api/policies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      openPolicyFeedback({
+        title: mode === 'allow' ? 'Unable to whitelist IP' : 'Unable to block IP',
+        description: result?.error || 'Failed to update IP access control.',
+        tone: 'red',
+      });
+      return;
+    }
+
+    await Promise.all([fetchPolicies(), fetchSites()]);
+    openPolicyFeedback({
+      title: mode === 'allow' ? 'IP whitelisted' : 'IP blocked',
+      description:
+        mode === 'allow'
+          ? `${normalizedIp} was added to the whitelist for "${policy.name}" and removed from the blocklist if it was present.`
+          : `${normalizedIp} was added to the blocklist for "${policy.name}" and removed from the whitelist if it was present.`,
+      tone: 'green',
+    });
+  }, [fetchPolicies, fetchSites, getAssignedPolicyContextForLog, openPolicyFeedback]);
+
+  const handleRequestIpAccessUpdate = useCallback((mode) => {
+    if (!selectedLog) return;
+
+    const normalizedIp = normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '');
+    if (!isValidIp(normalizedIp)) {
+      openPolicyFeedback({
+        title: 'Invalid client IP',
+        description: 'This log entry does not contain a valid client IP address.',
+        tone: 'red',
+      });
+      return;
+    }
+
+    const { app, policy } = getAssignedPolicyContextForLog(selectedLog);
+    const siteLabel = app?.domain || getLogSiteKey(selectedLog) || 'this site';
+    if (!policy) {
+      openPolicyFeedback({
+        title: 'No assigned policy found',
+        description: `No active policy assignment was found for "${siteLabel}". Assign a policy to the site first, then try again.`,
+        tone: 'red',
+      });
+      return;
+    }
+
+    openPolicyActionConfirmation({
+      title: mode === 'allow' ? 'Whitelist this IP?' : 'Block this IP?',
+      description:
+        mode === 'allow'
+          ? `Confirm whitelisting ${normalizedIp} for "${siteLabel}". This will update the assigned policy's IP Access Control whitelist.`
+          : `Confirm blocking ${normalizedIp} for "${siteLabel}". This will update the assigned policy's IP Access Control blacklist.`,
+      confirmLabel: mode === 'allow' ? 'Allow IP' : 'Block IP',
+      tone: mode === 'allow' ? 'blue' : 'red',
+      action: () => updateLogIpAccessControl({ log: selectedLog, mode }),
+    });
+  }, [getAssignedPolicyContextForLog, getLogSiteKey, openPolicyActionConfirmation, openPolicyFeedback, selectedLog, updateLogIpAccessControl]);
 
   const getForwardedForDisplay = (log) => {
     const forwardedFor = log?.forwardedFor;
@@ -1014,7 +1291,34 @@ export default function LogsPage() {
                       <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Request Context</h3>
                       <dl className="mt-3">
                         {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}
-                        {renderDetailRow('Client IP', normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-', { mono: true })}
+                        <div className="border-b border-[var(--border-soft)] py-2.5">
+                          <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">Client IP</dt>
+                          <dd className="space-y-3">
+                            <div className="theme-inset-surface overflow-hidden rounded-xl px-3 py-2.5">
+                              <div className="min-w-0 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-5 theme-text-primary sm:whitespace-pre sm:[scrollbar-width:thin]">
+                                {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRequestIpAccessUpdate('allow')}
+                                disabled={policyActionBusy}
+                                className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-300 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Allow
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRequestIpAccessUpdate('block')}
+                                disabled={policyActionBusy}
+                                className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Block
+                              </button>
+                            </div>
+                          </dd>
+                        </div>
                         {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
                         {renderDetailRow('URI', getLogUri(selectedLog), { mono: true, breakAll: true })}
                         {renderDetailRow('User Agent', selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-', { breakWords: true })}
@@ -1029,6 +1333,23 @@ export default function LogsPage() {
             </div>
           </div>
         )}
+        <ConfirmationModal
+          open={policyActionState.open}
+          title={policyActionState.title}
+          description={policyActionState.description}
+          confirmLabel={policyActionState.confirmLabel}
+          tone={policyActionState.tone}
+          busy={policyActionBusy}
+          onConfirm={handleConfirmPolicyAction}
+          onCancel={closePolicyActionConfirmation}
+        />
+        <FeedbackModal
+          open={policyFeedbackState.open}
+          title={policyFeedbackState.title}
+          description={policyFeedbackState.description}
+          tone={policyFeedbackState.tone}
+          onClose={closePolicyFeedback}
+        />
           </>
         )}
       </div>
