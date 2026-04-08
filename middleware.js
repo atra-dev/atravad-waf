@@ -247,27 +247,22 @@ export function middleware(request) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
 
-    const firebaseAuthDomain =
-      process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "atravad-waf.firebaseapp.com";
-    const firebaseAuthOrigin = `https://${firebaseAuthDomain}`;
-    const isDevelopment = process.env.NODE_ENV !== "production";
-
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
-      "form-action 'self' https://accounts.google.com",
+      "form-action 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      `script-src 'self' 'nonce-${nonce}' https://apis.google.com https://accounts.google.com${
+      `script-src 'self' 'nonce-${nonce}'${
         isDevelopment ? " 'unsafe-eval'" : ""
       }`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
       "font-src 'self' data:",
-      `connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com ${firebaseAuthOrigin} https://accounts.google.com https://apis.google.com https://cdn.jsdelivr.net`,
+      "connect-src 'self'",
       "worker-src 'self' blob:",
       "manifest-src 'self'",
-      `frame-src 'self' ${firebaseAuthOrigin} https://accounts.google.com https://apis.google.com`,
+      "frame-src 'none'",
       "media-src 'self'",
       "child-src 'self' blob:",
       "upgrade-insecure-requests",
@@ -283,6 +278,8 @@ export function middleware(request) {
 
     response.headers.set("Content-Security-Policy", contentSecurityPolicy);
     response.headers.set("x-nonce", nonce);
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.headers.set("Pragma", "no-cache");
 
     return response;
   }

@@ -1,4 +1,5 @@
 import Script from "next/script";
+import { headers } from "next/headers";
 import { Barlow_Condensed, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -18,11 +19,14 @@ export const metadata = {
   },
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get("x-nonce") || undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
+        <Script src="/theme-init.js" strategy="beforeInteractive" nonce={nonce} />
       </head>
       <body className={`${inter.className} ${barlowCondensed.variable} antialiased`}>
         {children}
