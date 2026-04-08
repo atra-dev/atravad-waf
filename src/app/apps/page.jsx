@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import AppLoadingState from '@/components/AppLoadingState';
@@ -255,50 +255,6 @@ export default function AppsPage() {
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
 
-  useEffect(() => {
-    checkTenantAndFetchData();
-  }, []);
-
-  const checkTenantAndFetchData = async () => {
-    try {
-      // Check tenant status
-      const [tenantRes, userRes] = await Promise.all([
-        fetch('/api/tenants/current'),
-        fetch('/api/users/me'),
-      ]);
-      
-      const tenant = await tenantRes.json();
-      const user = await userRes.json();
-      
-      // Check if user has a valid tenant
-      const userHasTenantName = user?.tenantName && 
-        typeof user.tenantName === 'string' && 
-        user.tenantName.trim() !== '';
-      const hasValidTenantFromAPI = !!(tenant?.id && 
-        tenant?.name && 
-        tenant.name !== 'Default Tenant');
-      const userHasTenant = !!userHasTenantName || hasValidTenantFromAPI;
-      
-      setHasTenant(userHasTenant);
-      setTenantName(tenant?.name || '');
-      
-      // Only fetch apps and policies if user has a tenant
-      if (userHasTenant) {
-        await Promise.all([fetchApps(), fetchPolicies()]);
-      }
-    } catch (error) {
-      console.error('Error checking tenant:', error);
-      setHasTenant(false);
-    } finally {
-      setLoading(false);
-  }
-};
-
-const getTrafficBarHeight = (value, maxValue) => {
-  if (!maxValue || value <= 0) return 10;
-  return Math.max(10, Math.min(56, Math.round((value / maxValue) * 56)));
-};
-
   const handleCreateTenant = async (e) => {
     e.preventDefault();
     setSubmittingTenant(true);
@@ -330,7 +286,7 @@ const getTrafficBarHeight = (value, maxValue) => {
     }
   };
 
-  const fetchPolicies = async () => {
+  const fetchPolicies = useCallback(async () => {
     try {
       const response = await fetch('/api/policies');
       const data = await response.json();
@@ -340,9 +296,9 @@ const getTrafficBarHeight = (value, maxValue) => {
     } catch (error) {
       console.error('Error fetching policies:', error);
     }
-  };
+  }, []);
 
-  const fetchApps = async () => {
+  const fetchApps = useCallback(async () => {
     try {
       const response = await fetch('/api/apps');
       const data = await response.json();
@@ -361,6 +317,50 @@ const getTrafficBarHeight = (value, maxValue) => {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const checkTenantAndFetchData = useCallback(async () => {
+    try {
+      // Check tenant status
+      const [tenantRes, userRes] = await Promise.all([
+        fetch('/api/tenants/current'),
+        fetch('/api/users/me'),
+      ]);
+
+      const tenant = await tenantRes.json();
+      const user = await userRes.json();
+
+      // Check if user has a valid tenant
+      const userHasTenantName = user?.tenantName &&
+        typeof user.tenantName === 'string' &&
+        user.tenantName.trim() !== '';
+      const hasValidTenantFromAPI = !!(tenant?.id &&
+        tenant?.name &&
+        tenant.name !== 'Default Tenant');
+      const userHasTenant = !!userHasTenantName || hasValidTenantFromAPI;
+
+      setHasTenant(userHasTenant);
+      setTenantName(tenant?.name || '');
+
+      // Only fetch apps and policies if user has a tenant
+      if (userHasTenant) {
+        await Promise.all([fetchApps(), fetchPolicies()]);
+      }
+    } catch (error) {
+      console.error('Error checking tenant:', error);
+      setHasTenant(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchApps, fetchPolicies]);
+
+  useEffect(() => {
+    checkTenantAndFetchData();
+  }, [checkTenantAndFetchData]);
+
+  const getTrafficBarHeight = (value, maxValue) => {
+    if (!maxValue || value <= 0) return 10;
+    return Math.max(10, Math.min(56, Math.round((value / maxValue) * 56)));
   };
 
   // Filter apps based on search query
