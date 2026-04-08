@@ -129,13 +129,6 @@ export function normalizeOriginConfig(origin = {}) {
   const authHeaderValue =
     typeof origin.authHeaderValue === 'string' ? origin.authHeaderValue.trim() : '';
 
-  if (isVercelOrigin && (!authHeaderName || !authHeaderValue)) {
-    return {
-      valid: false,
-      error: 'Vercel origins require an origin auth header name and value to reduce direct origin bypass.',
-    };
-  }
-
   if (authHeaderName || authHeaderValue) {
     if (!authHeaderName || !authHeaderValue) {
       return {

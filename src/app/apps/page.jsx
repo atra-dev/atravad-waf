@@ -100,19 +100,20 @@ const applyRecommendedOriginDefaults = (data) => {
     ...data,
     originUpstreamHost: data.originUpstreamHost?.trim() || hostname,
     originTlsServername: data.originTlsServername?.trim() || hostname,
-    originAuthHeaderName: data.originAuthHeaderName?.trim() || DEFAULT_VERCEL_ORIGIN_AUTH_HEADER,
+    originAuthHeaderName:
+      data.originAuthHeaderValue?.trim()
+        ? data.originAuthHeaderName?.trim() || DEFAULT_VERCEL_ORIGIN_AUTH_HEADER
+        : data.originAuthHeaderName,
   };
 };
 
 const validateOriginSecurityInput = (data) => {
-  if (!isVercelOriginUrl(data.originUrl)) {
-    return { valid: true, message: '' };
-  }
-
-  if (!data.originAuthHeaderValue?.trim()) {
+  const hasAuthHeaderName = Boolean(data.originAuthHeaderName?.trim());
+  const hasAuthHeaderValue = Boolean(data.originAuthHeaderValue?.trim());
+  if (hasAuthHeaderName !== hasAuthHeaderValue) {
     return {
       valid: false,
-      message: 'Vercel origins require an origin auth header value so direct requests can be rejected at the origin app.',
+      message: 'Origin auth header requires both a header name and a value.',
     };
   }
 
@@ -403,19 +404,19 @@ const getTrafficBarHeight = (value, maxValue) => {
 
   const createSslValidation = useMemo(
     () => validateSslInput(formData),
-    [formData.sslMode, formData.customCert, formData.customKey, formData.customFullchain]
+    [formData]
   );
   const editSslValidation = useMemo(
     () => validateSslInput(editFormData),
-    [editFormData.sslMode, editFormData.customCert, editFormData.customKey, editFormData.customFullchain]
+    [editFormData]
   );
   const createOriginSecurityValidation = useMemo(
     () => validateOriginSecurityInput(formData),
-    [formData.originUrl, formData.originAuthHeaderValue]
+    [formData]
   );
   const editOriginSecurityValidation = useMemo(
     () => validateOriginSecurityInput(editFormData),
-    [editFormData.originUrl, editFormData.originAuthHeaderValue]
+    [editFormData]
   );
 
   const importPemFile = async (file, field, setData, setError) => {
@@ -1283,7 +1284,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                         </label>
                         <input
                           type="password"
-                          placeholder={isVercelOriginUrl(formData.originUrl) ? 'Required for Vercel origins' : 'Optional shared secret'}
+                          placeholder="Optional shared secret"
                           className={inputClassName}
                           value={formData.originAuthHeaderValue}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderValue: e.target.value })}
@@ -1725,7 +1726,7 @@ const getTrafficBarHeight = (value, maxValue) => {
                     <label className={modalSectionLabelClassName}>Origin Auth Header Value</label>
                     <input
                       type="password"
-                      placeholder={isVercelOriginUrl(editFormData.originUrl) ? 'Required for Vercel origins' : 'Optional shared secret'}
+                      placeholder="Optional shared secret"
                       value={editFormData.originAuthHeaderValue}
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderValue: e.target.value })}
                       className={inputClassName}
