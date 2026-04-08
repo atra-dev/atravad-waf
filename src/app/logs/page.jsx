@@ -543,6 +543,30 @@ export default function LogsPage() {
     return { siteKey, app: matchedApp, policy: matchedPolicy };
   }, [apps, getLogSiteKey, policies]);
 
+  const getLogIpAccessState = useCallback((log) => {
+    const normalizedIp = normalizeIpAddress(log?.ipAddress || log?.clientIp || '');
+    if (!isValidIp(normalizedIp)) return null;
+
+    const { policy } = getAssignedPolicyContextForLog(log);
+    if (!policy?.policy?.ipAccessControl) return null;
+
+    const ipAccessControl = policy.policy.ipAccessControl;
+    const whitelist = Array.isArray(ipAccessControl.whitelist)
+      ? ipAccessControl.whitelist.map((value) => normalizeIpAddress(String(value || ''))).filter(Boolean)
+      : [];
+    const blacklist = Array.isArray(ipAccessControl.blacklist)
+      ? ipAccessControl.blacklist.map((value) => normalizeIpAddress(String(value || ''))).filter(Boolean)
+      : [];
+
+    if (blacklist.includes(normalizedIp)) {
+      return 'blocked';
+    }
+    if (whitelist.includes(normalizedIp)) {
+      return 'allowed';
+    }
+    return null;
+  }, [getAssignedPolicyContextForLog]);
+
   const updateLogIpAccessControl = useCallback(async ({ log, mode }) => {
     const normalizedIp = normalizeIpAddress(log?.ipAddress || log?.clientIp || '');
     if (!isValidIp(normalizedIp)) {
@@ -1300,6 +1324,16 @@ export default function LogsPage() {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
+                              {getLogIpAccessState(selectedLog) === 'blocked' ? (
+                                <span className="inline-flex items-center rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-red-300">
+                                  Blocked
+                                </span>
+                              ) : null}
+                              {getLogIpAccessState(selectedLog) === 'allowed' ? (
+                                <span className="inline-flex items-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-300">
+                                  Allowed
+                                </span>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => handleRequestIpAccessUpdate('allow')}
