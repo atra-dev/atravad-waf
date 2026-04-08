@@ -1319,21 +1319,29 @@ export default function LogsPage() {
                           <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">Client IP</dt>
                           <dd className="space-y-3">
                             <div className="theme-inset-surface overflow-hidden rounded-xl px-3 py-2.5">
-                              <div className="min-w-0 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-5 theme-text-primary sm:whitespace-pre sm:[scrollbar-width:thin]">
-                                {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-5 theme-text-primary sm:whitespace-pre sm:[scrollbar-width:thin]">
+                                  {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
+                                </div>
+                                {getLogIpAccessState(selectedLog) === 'blocked' ? (
+                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-300">
+                                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.53-10.78a.75.75 0 00-1.06-1.06L10 8.69 7.53 6.22a.75.75 0 00-1.06 1.06L8.94 9.75l-2.47 2.47a.75.75 0 101.06 1.06L10 10.81l2.47 2.47a.75.75 0 001.06-1.06l-2.47-2.47 2.47-2.47z" clipRule="evenodd" />
+                                    </svg>
+                                    Blocked
+                                  </span>
+                                ) : null}
+                                {getLogIpAccessState(selectedLog) === 'allowed' ? (
+                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                      <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3-3a1 1 0 111.414-1.42l2.293 2.294 6.543-6.544a1 1 0 011.415 0z" clipRule="evenodd" />
+                                    </svg>
+                                    Allowed
+                                  </span>
+                                ) : null}
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              {getLogIpAccessState(selectedLog) === 'blocked' ? (
-                                <span className="inline-flex items-center rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-red-300">
-                                  Blocked
-                                </span>
-                              ) : null}
-                              {getLogIpAccessState(selectedLog) === 'allowed' ? (
-                                <span className="inline-flex items-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-300">
-                                  Allowed
-                                </span>
-                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => handleRequestIpAccessUpdate('allow')}
