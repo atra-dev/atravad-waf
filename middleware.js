@@ -259,7 +259,7 @@ export function middleware(request) {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      "connect-src 'self' https://cdn.jsdelivr.net",
       "worker-src 'self' blob:",
       "manifest-src 'self'",
       "frame-src 'none'",
