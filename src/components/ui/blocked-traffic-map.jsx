@@ -197,14 +197,14 @@ export function BlockedTrafficMap() {
                         <Geography
                           key={geo.rsmKey}
                           geography={geo}
-                          fill={isBlocked ? 'rgba(185, 28, 28, 0.9)' : 'transparent'}
-                          stroke={isBlocked ? 'rgba(254, 202, 202, 0.65)' : 'rgba(255,255,255,0.1)'}
+                          fill={isBlocked ? 'rgba(185, 28, 28, 0.9)' : 'rgba(236, 213, 177, 0.12)'}
+                          stroke={isBlocked ? 'rgba(254, 202, 202, 0.65)' : 'rgba(255,255,255,0.18)'}
                           strokeWidth={0.45}
                           style={{
                             default: { outline: 'none' },
                             hover: {
                               outline: 'none',
-                              fill: isBlocked ? 'rgba(220, 38, 38, 1)' : 'transparent',
+                              fill: isBlocked ? 'rgba(220, 38, 38, 1)' : 'rgba(212, 166, 79, 0.32)',
                             },
                             pressed: { outline: 'none' },
                           }}
