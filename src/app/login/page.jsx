@@ -26,27 +26,6 @@ const platformSignals = [
   'Google or password sign-in based on provisioned access',
 ];
 
-const operationsHighlights = [
-  { label: 'Tenant scope', value: 'Provisioned access only', tone: 'cyan' },
-  { label: 'Policy status', value: 'Managed enforcement active', tone: 'emerald' },
-  { label: 'Audit stream', value: 'Logs and analytics available', tone: 'sky' },
-];
-
-const activityRail = [
-  {
-    title: 'Protected applications',
-    detail: 'Review sites, routing, and managed activation status from a single workspace.',
-  },
-  {
-    title: 'Threat visibility',
-    detail: 'Inspect blocked requests, origin denials, geographic patterns, and traffic behavior.',
-  },
-  {
-    title: 'Operational control',
-    detail: 'Tune policies, export investigations, and work inside your assigned tenant boundary.',
-  },
-];
-
 function ShieldIcon({ className = 'h-6 w-6' }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -72,16 +51,6 @@ function SectionEyebrow({ children }) {
       {children}
     </p>
   );
-}
-
-function HighlightToneClass(tone) {
-  if (tone === 'emerald') {
-    return 'border-[#4b7a60]/35 bg-[#214233]/45 text-[#dff1de]';
-  }
-  if (tone === 'sky') {
-    return 'border-[#8f2b36]/35 bg-[#4d151d]/45 text-[#f3d6c6]';
-  }
-  return 'border-[#d4a64f]/30 bg-[#2f2211]/55 text-[#f8e6bd]';
 }
 
 function LoginPageContent() {
@@ -441,50 +410,6 @@ function LoginPageContent() {
                   <p className="mt-3 text-[0.9rem] font-semibold leading-8 text-[#fff2d2] xl:text-[0.98rem]">{item.value}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-8 [@media_(max-height:920px)]:hidden">
-              <div className="rounded-[28px] border border-[#d4a64f]/12 bg-[linear-gradient(180deg,rgba(22,10,10,0.72),rgba(8,5,5,0.86))] p-5 backdrop-blur">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#bfae8d]">Operations view</p>
-                  <div className="rounded-full border border-[#4b7a60]/30 bg-[#214233]/55 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#dff1de]">
-                    Active
-                  </div>
-                </div>
-
-                <div className="mt-5 grid gap-3">
-                  {operationsHighlights.map((item) => (
-                    <div
-                      key={item.label}
-                      className={`rounded-2xl border px-4 py-3 ${HighlightToneClass(item.tone)}`}
-                    >
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-current/70">{item.label}</p>
-                      <p className="mt-1 text-sm font-semibold text-white">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#d4a64f]/10 bg-[#0a0d15]/72 p-5">
-                  <div className="space-y-5">
-                    {activityRail.map((item, index) => (
-                      <div key={item.title} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d4a64f]/25 bg-[#2f2211]/55 text-xs font-semibold text-[#f8e6bd]">
-                            {index + 1}
-                          </span>
-                          {index < activityRail.length - 1 ? (
-                            <span className="mt-2 h-full w-px bg-[#d4a64f]/14" />
-                          ) : null}
-                        </div>
-                        <div className="pb-1">
-                          <p className="text-sm font-semibold text-[#fff2d2]">{item.title}</p>
-                          <p className="mt-1 text-sm leading-6 text-[#d6c7a9]">{item.detail}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
 
