@@ -291,8 +291,14 @@ export function middleware(request) {
 
     response.headers.set("Content-Security-Policy", contentSecurityPolicy);
     response.headers.set("x-nonce", nonce);
-    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0, private"
+    );
     response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+    response.headers.set("Surrogate-Control", "no-store");
+    response.headers.set("CDN-Cache-Control", "no-store");
 
     return response;
   }
