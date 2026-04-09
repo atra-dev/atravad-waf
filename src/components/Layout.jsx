@@ -128,6 +128,26 @@ function getRoleLabel(role) {
   return 'Client';
 }
 
+function getResolvedTheme() {
+  if (typeof document === 'undefined') {
+    return 'light';
+  }
+
+  const documentTheme = document.documentElement.dataset.theme;
+  if (documentTheme === 'dark' || documentTheme === 'light') {
+    return documentTheme;
+  }
+
+  try {
+    const storedTheme = localStorage.getItem('atrava-theme');
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      return storedTheme;
+    }
+  } catch {}
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export default function Layout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -138,16 +158,40 @@ export default function Layout({ children }) {
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
-  const [theme, setTheme] = useState(() => {
-    if (typeof document === 'undefined') {
-      return 'light';
-    }
-
-    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-  });
+  const [theme, setTheme] = useState(() => getResolvedTheme());
 
   useEffect(() => {
     setupAuthInterceptor();
+  }, []);
+
+  useEffect(() => {
+    const syncThemeState = () => {
+      setTheme(getResolvedTheme());
+    };
+
+    syncThemeState();
+
+    const handleStorage = (event) => {
+      if (event.key === null || event.key === 'atrava-theme') {
+        syncThemeState();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncThemeState();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('pageshow', syncThemeState);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('pageshow', syncThemeState);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -266,7 +310,7 @@ export default function Layout({ children }) {
   };
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    const nextTheme = getResolvedTheme() === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = nextTheme;
     document.documentElement.style.colorScheme = nextTheme;
     localStorage.setItem('atrava-theme', nextTheme);
