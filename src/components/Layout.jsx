@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { auth, waitForAuthRestore } from '@/lib/firebase';
+import ConfirmationModal from '@/app/policies/ConfirmationModal';
 import {
   checkAuthStatus,
   clearAuthAndRedirect,
@@ -134,6 +136,8 @@ export default function Layout({ children }) {
   const [userRole, setUserRole] = useState(null);
   const [userPhotoUrl, setUserPhotoUrl] = useState('');
   const [roleLoaded, setRoleLoaded] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const [logoutBusy, setLogoutBusy] = useState(false);
   const [theme, setTheme] = useState(() => {
     if (typeof document === 'undefined') {
       return 'light';
@@ -242,17 +246,22 @@ export default function Layout({ children }) {
   }, [pathname]);
 
   const handleLogout = async () => {
+    setLogoutBusy(true);
     try {
       await signOut(auth);
       clearAuthCookie();
       setUserEmail('');
       setUserRole(null);
       setUserPhotoUrl('');
+      setLogoutModalOpen(false);
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
       clearAuthCookie();
+      setLogoutModalOpen(false);
       router.push('/login');
+    } finally {
+      setLogoutBusy(false);
     }
   };
 
@@ -317,7 +326,7 @@ export default function Layout({ children }) {
               </button>
               <div className="flex items-center space-x-3">
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-[var(--surface-2)] ring-1 ring-[var(--border-soft)]">
-                  <img src="/logo.png" alt="ATRAVA Defense logo" className="h-10 w-10 object-contain" />
+                  <Image src="/logo.png" alt="ATRAVA Defense logo" width={40} height={40} className="h-10 w-10 object-contain" />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold tracking-tight theme-text-primary">ATRAVA Defense</h1>
@@ -350,7 +359,7 @@ export default function Layout({ children }) {
                   </span>
                 </button>
                 <button
-                  onClick={handleLogout}
+                  onClick={() => setLogoutModalOpen(true)}
                   className="theme-button-neutral flex h-10 w-10 items-center justify-center rounded-xl p-0 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:hover:border-red-900/50 dark:hover:bg-red-950/20 dark:hover:text-red-300"
                   aria-label="Sign out"
                   title="Sign out"
@@ -427,6 +436,21 @@ export default function Layout({ children }) {
           </div>
         </main>
       </div>
+
+      <ConfirmationModal
+        open={logoutModalOpen}
+        title="Sign out of ATRAVA Defense?"
+        description="Your current session will be closed on this device and you will be returned to the login page."
+        confirmLabel="Sign out"
+        tone="red"
+        busy={logoutBusy}
+        onCancel={() => {
+          if (!logoutBusy) {
+            setLogoutModalOpen(false);
+          }
+        }}
+        onConfirm={handleLogout}
+      />
     </div>
   );
 }
