@@ -229,6 +229,8 @@ export function middleware(request) {
   const isFirebaseHelperRoute =
     pathname.startsWith('/__/auth') || pathname.startsWith('/__/firebase');
   const isPublicRoute = publicRoutes.includes(pathname) || isFirebaseHelperRoute;
+  const shouldAttachCsp =
+    isHomePage || pathname === "/login" || isFirebaseHelperRoute;
 
   // Check for auth token in cookies
   const token = request.cookies.get("authToken")?.value;
@@ -242,27 +244,38 @@ export function middleware(request) {
 
   // If trying to access login page with token, allow it (client-side will validate)
   // Client-side validation will redirect if token is invalid
-  if (isHomePage) {
+  if (shouldAttachCsp) {
     const nonce = btoa(crypto.randomUUID());
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
 
+    const isAuthRoute = pathname === "/login" || isFirebaseHelperRoute;
+
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
-      "form-action 'self'",
+      `form-action 'self'${isAuthRoute ? " https://accounts.google.com" : ""}`,
       "frame-ancestors 'none'",
       "object-src 'none'",
       `script-src 'self' 'nonce-${nonce}'${
+        isAuthRoute ? " https://apis.google.com https://accounts.google.com" : ""
+      }${
         isDevelopment ? " 'unsafe-eval'" : ""
+      }`,
+      `script-src-elem 'self' 'nonce-${nonce}'${
+        isAuthRoute ? " https://apis.google.com https://accounts.google.com" : ""
       }`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
       "font-src 'self' data:",
-      "connect-src 'self' https://cdn.jsdelivr.net",
+      `connect-src 'self' https://cdn.jsdelivr.net${
+        isAuthRoute
+          ? " https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://accounts.google.com https://apis.google.com"
+          : ""
+      }`,
       "worker-src 'self' blob:",
       "manifest-src 'self'",
-      "frame-src 'none'",
+      `frame-src ${isAuthRoute ? "'self' https://accounts.google.com https://apis.google.com https://*.firebaseapp.com" : "'none'"}`,
       "media-src 'self'",
       "child-src 'self' blob:",
       "upgrade-insecure-requests",
