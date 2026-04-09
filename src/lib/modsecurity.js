@@ -880,7 +880,7 @@ function generateSecurityMisconfigRules(ruleIdBase) {
     setvar:'tx.anomaly_score=+%{tx.warning_anomaly_score}'"\n\n`;
 
   // Debug/development endpoints
-  rules += `SecRule REQUEST_FILENAME|REQUEST_URI "@rx (?i)(?:/debug|/test|/dev|/staging|/admin|/phpinfo|/info\\.php|/test\\.php|/dev\\.php|/console|/shell|/cmd)" \\
+  rules += `SecRule REQUEST_FILENAME|REQUEST_URI "@rx (?i)(?:/debug(?:/|$)|/test(?:/|$)|/dev(?:/|$)|/staging(?:/|$)|/phpinfo(?:/|$)|/info\\.php(?:$|[/?#])|/test\\.php(?:$|[/?#])|/dev\\.php(?:$|[/?#])|/console(?:/|$)|/shell(?:/|$)|/cmd(?:/|$))" \\
     "id:${ruleIdBase + 2},phase:2,block,msg:'Security Misconfiguration: Debug/Development Endpoint Access',\\
     logdata:'Matched Data: %{MATCHED_VAR} found within %{MATCHED_VAR_NAME}',\\
     severity:'WARNING',\\
