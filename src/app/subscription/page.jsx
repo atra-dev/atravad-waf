@@ -91,18 +91,18 @@ function ComparisonCard({ plan, active }) {
     <div
         className={`rounded-[26px] border p-5 shadow-sm transition-colors ${
           active
-          ? 'border-cyan-400/90 bg-[linear-gradient(145deg,color-mix(in_srgb,#f0fdff_92%,var(--surface-2))_0%,color-mix(in_srgb,#d7f4ff_78%,var(--surface-2))_52%,color-mix(in_srgb,#cffafe_68%,var(--surface-2))_100%)] text-[var(--text-primary)] shadow-[0_20px_60px_rgba(14,116,144,0.16)] ring-1 ring-cyan-500/30'
+          ? 'border-cyan-400/90 bg-[linear-gradient(145deg,color-mix(in_srgb,#f0fdff_92%,var(--surface-2))_0%,color-mix(in_srgb,#d7f4ff_78%,var(--surface-2))_52%,color-mix(in_srgb,#cffafe_68%,var(--surface-2))_100%)] text-[var(--text-primary)] shadow-[0_20px_60px_rgba(14,116,144,0.16)] ring-1 ring-cyan-500/30 dark:border-cyan-300 dark:bg-[linear-gradient(145deg,color-mix(in_srgb,#082032_88%,var(--surface-2))_0%,color-mix(in_srgb,#10324a_82%,var(--surface-2))_55%,color-mix(in_srgb,#134e66_72%,var(--surface-3))_100%)] dark:text-white dark:shadow-[0_24px_70px_rgba(2,8,23,0.48)] dark:ring-cyan-300/35'
           : 'theme-surface text-[var(--text-primary)]'
         }`}
       >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-700 dark:text-cyan-300' : 'theme-text-muted'}`}>
+          <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${active ? 'text-cyan-700 dark:text-cyan-200' : 'theme-text-muted'}`}>
             {plan.name}
           </p>
-          <p className={`mt-3 text-3xl font-semibold tracking-tight ${active ? 'text-[var(--text-primary)]' : 'theme-text-primary'}`}>
+          <p className={`mt-3 text-3xl font-semibold tracking-tight ${active ? 'text-[var(--text-primary)] dark:text-white' : 'theme-text-primary'}`}>
             {plan.websitePrice}
-            {plan.websiteCadence ? <span className={`ml-1 text-base font-medium ${active ? 'text-[var(--text-secondary)]' : 'theme-text-muted'}`}>{plan.websiteCadence}</span> : null}
+            {plan.websiteCadence ? <span className={`ml-1 text-base font-medium ${active ? 'text-[var(--text-secondary)] dark:text-slate-200' : 'theme-text-muted'}`}>{plan.websiteCadence}</span> : null}
           </p>
         </div>
         {active ? (
@@ -111,21 +111,21 @@ function ComparisonCard({ plan, active }) {
           </span>
         ) : null}
       </div>
-      <p className={`mt-4 text-sm leading-7 ${active ? 'text-[var(--text-secondary)]' : 'theme-text-secondary'}`}>
+      <p className={`mt-4 text-sm leading-7 ${active ? 'text-[var(--text-secondary)] dark:text-slate-200' : 'theme-text-secondary'}`}>
         {plan.description}
       </p>
       <div className="mt-5 space-y-3">
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-[var(--text-secondary)]' : 'theme-text-muted'}>Sites</span>
-          <span className="font-semibold">{plan.limits.maxApps}</span>
+          <span className={active ? 'text-[var(--text-secondary)] dark:text-slate-200' : 'theme-text-muted'}>Sites</span>
+          <span className={`font-semibold ${active ? 'dark:text-white' : ''}`}>{plan.limits.maxApps}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-[var(--text-secondary)]' : 'theme-text-muted'}>Policies</span>
-          <span className="font-semibold">{plan.limits.maxPolicies}</span>
+          <span className={active ? 'text-[var(--text-secondary)] dark:text-slate-200' : 'theme-text-muted'}>Policies</span>
+          <span className={`font-semibold ${active ? 'dark:text-white' : ''}`}>{plan.limits.maxPolicies}</span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className={active ? 'text-[var(--text-secondary)]' : 'theme-text-muted'}>Logs</span>
-          <span className="font-semibold">{formatHoursFromDays(plan.limits.logRetentionDays)}</span>
+          <span className={active ? 'text-[var(--text-secondary)] dark:text-slate-200' : 'theme-text-muted'}>Logs</span>
+          <span className={`font-semibold ${active ? 'dark:text-white' : ''}`}>{formatHoursFromDays(plan.limits.logRetentionDays)}</span>
         </div>
       </div>
     </div>
