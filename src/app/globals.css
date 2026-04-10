@@ -260,6 +260,46 @@ aside nav::-webkit-scrollbar-thumb:hover {
   --tw-ring-color: var(--border-soft) !important;
 }
 
+.super-admin-fixed {
+  color-scheme: light;
+}
+
+.super-admin-fixed .bg-white {
+  background-color: #ffffff !important;
+}
+
+.super-admin-fixed .bg-slate-50 {
+  background-color: #f8fafc !important;
+}
+
+.super-admin-fixed .bg-slate-100 {
+  background-color: #f1f5f9 !important;
+}
+
+.super-admin-fixed .border-slate-200 {
+  border-color: #e2e8f0 !important;
+}
+
+.super-admin-fixed .border-slate-300 {
+  border-color: #cbd5e1 !important;
+}
+
+.super-admin-fixed .text-slate-950,
+.super-admin-fixed .text-slate-900 {
+  color: #0f172a !important;
+}
+
+.super-admin-fixed .text-slate-800,
+.super-admin-fixed .text-slate-700 {
+  color: #334155 !important;
+}
+
+.super-admin-fixed .text-slate-600,
+.super-admin-fixed .text-slate-500,
+.super-admin-fixed .text-slate-400 {
+  color: #64748b !important;
+}
+
 @keyframes homepageFadeUp {
   from {
     opacity: 0;

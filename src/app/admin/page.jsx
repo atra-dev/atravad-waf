@@ -672,7 +672,7 @@ export default function SuperAdminPage() {
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="super-admin-fixed space-y-8">
         {toast ? (
           <div
             className={`rounded-xl border px-4 py-3 text-sm font-medium ${
