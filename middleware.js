@@ -225,12 +225,11 @@ export function middleware(request) {
   }
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/", "/login"];
+  const isLoginRoute = pathname === "/login" || pathname.startsWith("/login/");
   const isFirebaseHelperRoute =
-    pathname.startsWith('/__/auth') || pathname.startsWith('/__/firebase');
-  const isPublicRoute = publicRoutes.includes(pathname) || isFirebaseHelperRoute;
-  const shouldAttachCsp =
-    isHomePage || pathname === "/login" || isFirebaseHelperRoute;
+    pathname.startsWith("/__/auth") || pathname.startsWith("/__/firebase");
+  const isPublicRoute = isHomePage || isLoginRoute || isFirebaseHelperRoute;
+  const shouldAttachCsp = isHomePage || isLoginRoute || isFirebaseHelperRoute;
 
   // Check for auth token in cookies
   const token = request.cookies.get("authToken")?.value;
@@ -249,7 +248,7 @@ export function middleware(request) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
 
-    const isAuthRoute = pathname === "/login" || isFirebaseHelperRoute;
+    const isAuthRoute = isLoginRoute || isFirebaseHelperRoute;
 
     const contentSecurityPolicy = [
       "default-src 'self'",
