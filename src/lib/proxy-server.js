@@ -343,6 +343,15 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
     return headers;
   }
 
+  const authScriptSources =
+    "https://apis.google.com https://accounts.google.com https://www.gstatic.com";
+  const authConnectSources =
+    "https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://www.gstatic.com https://*.firebaseio.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://*.web.app";
+  const authFrameSources =
+    "'self' https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://*.web.app";
+  const authChildSources =
+    "'self' blob: https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://*.web.app";
+
   const originalCsp = sanitizeHeaderValue(
     headers["Content-Security-Policy"] || headers["content-security-policy"],
   );
@@ -402,7 +411,7 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
     nextHeaders["Content-Security-Policy"] = originalCsp;
   } else {
     nextHeaders["Content-Security-Policy"] =
-      "default-src 'self'; base-uri 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' https://apis.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://accounts.google.com https://apis.google.com https://cdn.jsdelivr.net; worker-src 'self' blob:; manifest-src 'self'; frame-src 'self' https://accounts.google.com https://apis.google.com https://*.firebaseapp.com; media-src 'self'; child-src 'self' blob:; upgrade-insecure-requests";
+      `default-src 'self'; base-uri 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' ${authScriptSources}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com; font-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net ${authConnectSources}; worker-src 'self' blob:; manifest-src 'self'; frame-src ${authFrameSources}; media-src 'self'; child-src ${authChildSources}; upgrade-insecure-requests`;
   }
 
   if (req?.secure || req?.socket?.encrypted) {

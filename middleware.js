@@ -250,29 +250,40 @@ export function middleware(request) {
 
     const isAuthRoute = isLoginRoute || isFirebaseHelperRoute;
 
+    const authScriptSources =
+      "https://apis.google.com https://accounts.google.com https://www.gstatic.com";
+    const authConnectSources =
+      "https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://www.gstatic.com https://*.firebaseio.com https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://*.web.app";
+    const authFrameSources =
+      "'self' https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://*.web.app";
+    const authChildSources =
+      "'self' blob: https://accounts.google.com https://apis.google.com https://*.firebaseapp.com https://*.web.app";
+
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
       `form-action 'self'${isAuthRoute ? " https://accounts.google.com" : ""}`,
       "frame-ancestors 'none'",
       "object-src 'none'",
-      `script-src 'self' 'nonce-${nonce}' https://apis.google.com https://accounts.google.com${
+      `script-src 'self' 'nonce-${nonce}'${
+        isAuthRoute ? ` ${authScriptSources}` : ""
+      }${
         isDevelopment ? " 'unsafe-eval'" : ""
       }`,
-      `script-src-elem 'self' 'nonce-${nonce}' https://apis.google.com https://accounts.google.com`,
+      `script-src-elem 'self' 'nonce-${nonce}'${
+        isAuthRoute ? ` ${authScriptSources}` : ""
+      }`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
       "font-src 'self' data:",
       `connect-src 'self' https://cdn.jsdelivr.net${
-        isAuthRoute
-          ? " https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com https://accounts.google.com https://apis.google.com"
-          : ""
+        isAuthRoute ? ` ${authConnectSources}` : ""
       }`,
       "worker-src 'self' blob:",
       "manifest-src 'self'",
-      `frame-src ${isAuthRoute ? "'self' https://accounts.google.com https://apis.google.com https://*.firebaseapp.com" : "'none'"}`,
+      `frame-src ${isAuthRoute ? authFrameSources : "'none'"}`,
       "media-src 'self'",
-      "child-src 'self' blob:",
+      `child-src ${isAuthRoute ? authChildSources : "'self' blob:"}`,
       "upgrade-insecure-requests",
     ]
       .filter(Boolean)
