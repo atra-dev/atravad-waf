@@ -256,14 +256,10 @@ export function middleware(request) {
       `form-action 'self'${isAuthRoute ? " https://accounts.google.com" : ""}`,
       "frame-ancestors 'none'",
       "object-src 'none'",
-      `script-src 'self' 'nonce-${nonce}'${
-        isAuthRoute ? " https://apis.google.com https://accounts.google.com" : ""
-      }${
+      `script-src 'self' 'nonce-${nonce}' https://apis.google.com https://accounts.google.com${
         isDevelopment ? " 'unsafe-eval'" : ""
       }`,
-      `script-src-elem 'self' 'nonce-${nonce}'${
-        isAuthRoute ? " https://apis.google.com https://accounts.google.com" : ""
-      }`,
+      `script-src-elem 'self' 'nonce-${nonce}' https://apis.google.com https://accounts.google.com`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
       "font-src 'self' data:",
