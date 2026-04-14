@@ -248,8 +248,6 @@ export function middleware(request) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-nonce", nonce);
 
-    const isAuthRoute = isLoginRoute || isFirebaseHelperRoute;
-
     const authScriptSources =
       "https://apis.google.com https://accounts.google.com https://www.gstatic.com";
     const authConnectSources =
@@ -262,28 +260,22 @@ export function middleware(request) {
     const contentSecurityPolicy = [
       "default-src 'self'",
       "base-uri 'self'",
-      `form-action 'self'${isAuthRoute ? " https://accounts.google.com" : ""}`,
+      "form-action 'self' https://accounts.google.com",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      `script-src 'self' 'nonce-${nonce}'${
-        isAuthRoute ? ` ${authScriptSources}` : ""
-      }${
+      `script-src 'self' 'nonce-${nonce}' ${authScriptSources}${
         isDevelopment ? " 'unsafe-eval'" : ""
       }`,
-      `script-src-elem 'self' 'nonce-${nonce}'${
-        isAuthRoute ? ` ${authScriptSources}` : ""
-      }`,
+      `script-src-elem 'self' 'nonce-${nonce}' ${authScriptSources}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
       "font-src 'self' data:",
-      `connect-src 'self' https://cdn.jsdelivr.net${
-        isAuthRoute ? ` ${authConnectSources}` : ""
-      }`,
+      `connect-src 'self' https://cdn.jsdelivr.net ${authConnectSources}`,
       "worker-src 'self' blob:",
       "manifest-src 'self'",
-      `frame-src ${isAuthRoute ? authFrameSources : "'none'"}`,
+      `frame-src ${authFrameSources}`,
       "media-src 'self'",
-      `child-src ${isAuthRoute ? authChildSources : "'self' blob:"}`,
+      `child-src ${authChildSources}`,
       "upgrade-insecure-requests",
     ]
       .filter(Boolean)
