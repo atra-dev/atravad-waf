@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'motion/react';
+import { SiteHeader } from '@/components/SiteHeader';
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
@@ -222,8 +223,10 @@ export default function HomePageClient() {
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[920px] bg-[radial-gradient(circle_at_50%_0%,rgba(111,18,36,0.18),transparent_34%)]" />
 
       <section ref={heroRef} className="relative">
-        <div className="mx-auto max-w-7xl px-6 pb-24 pt-8 lg:px-8 lg:pb-32 lg:pt-10">
-          <div className="grid gap-12 xl:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.12fr)] xl:items-start">
+        <div className="mx-auto max-w-7xl px-6 pb-24 pt-6 lg:px-8 lg:pb-32">
+          <SiteHeader />
+
+          <div className="grid gap-12 pt-16 xl:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.12fr)] xl:items-start">
             <MotionSection>
               <motion.div variants={itemVariants}>
                 <Badge>Operational cyber defense for production web assets</Badge>

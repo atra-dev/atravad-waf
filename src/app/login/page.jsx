@@ -469,7 +469,7 @@ function LoginPageFallback() {
     <div className="min-h-screen overflow-hidden bg-[#07090f] text-[#f7efe0]">
       <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_16%_18%,rgba(116,18,38,0.34),transparent_26%),radial-gradient(circle_at_82%_16%,rgba(186,151,63,0.18),transparent_20%),linear-gradient(180deg,#090c14_0%,#080b12_36%,#130712_66%,#f5efe5_66%,#f5efe5_100%)]" />
       <div className="mx-auto max-w-7xl animate-pulse px-6 pb-16 pt-10 lg:px-8 lg:pb-20">
-        <div className="flex justify-center pt-14">
+        <div className="flex justify-center pt-4">
           <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-[#d4a64f]/18 bg-[linear-gradient(180deg,#fffaf0_0%,#f6efe3_100%)] shadow-[0_32px_100px_rgba(2,6,23,0.42)]">
             <div className="border-b border-[#ead9b5] bg-[#f7eed7] px-8 py-8">
               <div className="h-3 w-20 rounded bg-[#cfae6a]" />
