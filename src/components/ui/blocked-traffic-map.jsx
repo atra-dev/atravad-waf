@@ -1,6 +1,13 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { geoEqualEarth } from 'd3-geo';
+
+const emptySubscribe = () => () => {};
+
+function useIsClient() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
 
 let ComposableMap;
 let Geographies;
@@ -174,6 +181,19 @@ function buildRoutePath(route) {
 }
 
 export function BlockedTrafficMap() {
+  const isClient = useIsClient();
+
+  if (!isClient) {
+    return (
+      <div className="relative overflow-hidden">
+        <div className="relative min-h-[520px]">
+          <div className="pointer-events-none absolute inset-x-10 top-4 h-32 rounded-full bg-[radial-gradient(circle,rgba(124,22,33,0.18),transparent_68%)] blur-3xl" />
+          <div className="pointer-events-none absolute bottom-8 right-14 h-28 w-28 rounded-full bg-[radial-gradient(circle,rgba(212,166,79,0.14),transparent_70%)] blur-2xl" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden">
       <div className="relative">

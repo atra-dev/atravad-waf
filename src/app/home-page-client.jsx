@@ -1,22 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'motion/react';
-import {
-  Activity,
-  ArrowRight,
-  ChevronDown,
-  Globe2,
-  LockKeyhole,
-  Radar,
-  Server,
-  Shield,
-  Sparkles,
-  UserRound,
-  X,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { BlockedTrafficMap } from '@/components/ui/blocked-traffic-map';
@@ -75,67 +63,6 @@ const defenseCounters = [
     value: 24000,
     suffix: '+',
     detail: 'Demonstrates the volume of request-level decisions a managed edge layer can process and inspect.',
-  },
-];
-
-const capabilityHighlights = [
-  {
-    icon: Shield,
-    title: 'Threat-Led Request Inspection',
-    description:
-      'Inspect live traffic before origin delivery using ModSecurity-backed controls and managed reverse-proxy enforcement.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Virtual Patching',
-    description:
-      'Apply fast policy-level mitigation for exposed weaknesses without waiting for code deployment at origin.',
-  },
-  {
-    icon: Globe2,
-    title: 'Bot and Abuse Controls',
-    description:
-      'Detect hostile crawlers, scripted probes, scraping patterns, and repeated abuse paths across protected applications.',
-  },
-  {
-    icon: Activity,
-    title: 'Operator Visibility',
-    description:
-      'Review blocked traffic, high-risk sources, trends, and tenant-scoped activity from one command surface.',
-  },
-  {
-    icon: Radar,
-    title: 'Geo, IP, and Rate Enforcement',
-    description:
-      'Respond quickly with IP controls, CIDR rules, geo restrictions, and adaptive rate limiting during pressure events.',
-  },
-  {
-    icon: LockKeyhole,
-    title: 'Managed SSL and Routing',
-    description:
-      'Support production onboarding with managed certificates, custom SSL, edge routing, and domain activation flows.',
-  },
-];
-
-const proofPoints = [
-  { label: 'Protection model', value: 'Reverse-proxy WAF edge' },
-  { label: 'Inspection engine', value: 'ModSecurity v3 + OWASP CRS' },
-  { label: 'Operations view', value: 'Logs, analytics, dashboards, policy audit' },
-  { label: 'Team profile', value: 'Built and operated by Filipino cybersecurity talent' },
-];
-
-const operationsPanels = [
-  {
-    title: 'Traffic Command',
-    description: 'Track blocked versus allowed traffic, identify spike windows, and isolate noisy sources fast.',
-  },
-  {
-    title: 'Policy Control',
-    description: 'Assign protections by app, tune exceptions carefully, and preserve audit visibility during changes.',
-  },
-  {
-    title: 'Incident Review',
-    description: 'Use log detail, top IPs, attack types, and trend views to accelerate validation and response.',
   },
 ];
 
@@ -229,27 +156,6 @@ const pricingPlans = [
   },
 ];
 
-const sectionNavItems = [
-  { label: 'Capabilities', href: '#capabilities', sectionId: 'capabilities' },
-  { label: 'Traffic Flow', href: '#traffic-flow', sectionId: 'traffic-flow' },
-  { label: 'Threat Map', href: '#threat-map', sectionId: 'threat-map' },
-  { label: 'Command Layer', href: '#command-layer', sectionId: 'command-layer' },
-  { label: 'Deployment Flow', href: '#deployment-flow', sectionId: 'deployment-flow' },
-  { label: 'Pricing', href: '#pricing', sectionId: 'pricing' },
-  { label: 'Created By', href: '#created-by', sectionId: 'created-by' },
-];
-
-const primaryNavItems = [
-  { label: 'Capabilities', href: '#capabilities', sectionId: 'capabilities' },
-  { label: 'Traffic Flow', href: '#traffic-flow', sectionId: 'traffic-flow' },
-  { label: 'Threat Map', href: '#threat-map', sectionId: 'threat-map' },
-  { label: 'Pricing', href: '#pricing', sectionId: 'pricing' },
-];
-
-const secondaryNavItems = sectionNavItems.filter(
-  (item) => !primaryNavItems.some((primaryItem) => primaryItem.sectionId === item.sectionId)
-);
-
 const sectionVariants = {
   hidden: { opacity: 0, y: 36 },
   visible: {
@@ -302,72 +208,12 @@ function MotionSection({ className, children }) {
 }
 
 export default function HomePageClient() {
-  const [activeSection, setActiveSection] = useState('');
-  const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const heroRef = useRef(null);
-  const navDropdownRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ['start start', 'end start'],
   });
   const wallYPrimary = useTransform(scrollYProgress, [0, 1], [0, -70]);
-
-  useEffect(() => {
-    const sections = sectionNavItems
-      .map((item) => document.getElementById(item.sectionId))
-      .filter(Boolean);
-
-    if (sections.length === 0) return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntries = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-
-        if (visibleEntries.length > 0) {
-          setActiveSection(visibleEntries[0].target.id);
-        }
-      },
-      {
-        rootMargin: '-20% 0px -55% 0px',
-        threshold: [0.2, 0.35, 0.5, 0.7],
-      }
-    );
-
-    sections.forEach((section) => observer.observe(section));
-
-    return () => {
-      sections.forEach((section) => observer.unobserve(section));
-      observer.disconnect();
-    };
-  }, []);
-
-  function handleSectionNavClick(event, href) {
-    if (!href.startsWith('#')) {
-      return;
-    }
-
-    const target = document.querySelector(href);
-    if (!target) {
-      return;
-    }
-
-    event.preventDefault();
-    setIsNavDropdownOpen(false);
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  useEffect(() => {
-    function handlePointerDown(event) {
-      if (navDropdownRef.current && !navDropdownRef.current.contains(event.target)) {
-        setIsNavDropdownOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, []);
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#07090f] text-[#f1ece2]">
@@ -376,100 +222,8 @@ export default function HomePageClient() {
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[920px] bg-[radial-gradient(circle_at_50%_0%,rgba(111,18,36,0.18),transparent_34%)]" />
 
       <section ref={heroRef} className="relative">
-        <div className="mx-auto max-w-7xl px-6 pb-24 pt-6 lg:px-8 lg:pb-32">
-          <motion.header
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-40 flex flex-wrap items-center justify-between gap-4 rounded-[32px] border border-[#a97b35]/20 bg-[#070b13]/78 px-5 py-3 backdrop-blur-xl"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d4a64f]/30 bg-[#f3e2b7] shadow-[0_16px_44px_rgba(0,0,0,0.45)]">
-                <Image src="/logo.png" alt="ATRAVA Defense" width={32} height={32} className="h-8 w-8 object-contain" priority />
-              </div>
-              <div>
-                <p className="text-sm font-semibold tracking-[0.22em] text-[#f5e7c8]">ATRAVA Defense</p>
-                <p className="text-xs text-[#d8c7a1]/70">Managed WAF-as-a-service</p>
-              </div>
-              </div>
-              <nav className="hidden items-center gap-8 lg:flex">
-                {primaryNavItems.map((item) => {
-                  const isActive = activeSection === item.sectionId;
-                  return (
-                    <a
-                    key={item.label}
-                    href={item.href}
-                    onClick={(event) => handleSectionNavClick(event, item.href)}
-                    className={cn(
-                      condensedUiClass,
-                      'text-lg font-semibold transition-colors',
-                      isActive
-                        ? 'text-[#d4a64f]'
-                        : 'text-[#f6ead2] hover:text-[#d4a64f]'
-                    )}
-                    >
-                      {item.label}
-                    </a>
-                  );
-                })}
-                <div ref={navDropdownRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsNavDropdownOpen((current) => !current)}
-                    className={cn(
-                      condensedUiClass,
-                      'inline-flex items-center gap-2 text-lg font-semibold transition-colors',
-                      secondaryNavItems.some((item) => item.sectionId === activeSection)
-                        ? 'text-[#d4a64f]'
-                        : 'text-[#f6ead2] hover:text-[#d4a64f]'
-                    )}
-                  >
-                    More
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 transition-transform duration-200',
-                        isNavDropdownOpen ? 'rotate-180' : 'rotate-0'
-                      )}
-                    />
-                  </button>
-                  {isNavDropdownOpen ? (
-                    <div className="absolute left-1/2 top-full z-50 mt-4 w-64 -translate-x-1/2 rounded-[24px] border border-[#a97b35]/20 bg-[#0a0d15]/95 p-3 shadow-[0_18px_60px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-                      <div className="space-y-1">
-                        {secondaryNavItems.map((item) => {
-                          const isActive = activeSection === item.sectionId;
-                          return (
-                            <a
-                              key={item.label}
-                              href={item.href}
-                              onClick={(event) => handleSectionNavClick(event, item.href)}
-                              className={cn(
-                                condensedUiClass,
-                                'block rounded-2xl px-4 py-3 text-sm font-semibold transition-colors',
-                                isActive
-                                  ? 'bg-[#22130f] text-[#d4a64f]'
-                                  : 'text-[#e9dcc0] hover:bg-[#151924] hover:text-[#fff4d8]'
-                              )}
-                            >
-                              {item.label}
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </nav>
-            <div className="flex items-center gap-3">
-              <Link href="/login" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), condensedUiClass, 'hidden md:inline-flex')}>
-                Sign in
-              </Link>
-              <Link href="/login" className={cn(buttonVariants({ size: 'sm' }), condensedUiClass)}>
-                Protect a site
-              </Link>
-            </div>
-          </motion.header>
-
-          <div className="grid gap-12 pt-16 xl:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.12fr)] xl:items-start">
+        <div className="mx-auto max-w-7xl px-6 pb-24 pt-8 lg:px-8 lg:pb-32 lg:pt-10">
+          <div className="grid gap-12 xl:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.12fr)] xl:items-start">
             <MotionSection>
               <motion.div variants={itemVariants}>
                 <Badge>Operational cyber defense for production web assets</Badge>
@@ -519,8 +273,8 @@ export default function HomePageClient() {
                 <Link href="/login" className={cn(buttonVariants({ size: 'lg' }), condensedUiClass)}>
                   Open the command center
                 </Link>
-                <a href="#capabilities" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), condensedUiClass)}>
-                  Review capabilities
+                <a href="#deployment-flow" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), condensedUiClass)}>
+                  See deployment flow
                 </a>
               </motion.div>
             </MotionSection>
@@ -620,255 +374,12 @@ export default function HomePageClient() {
         </div>
       </section>
 
-      <section id="traffic-flow" className="bg-[linear-gradient(180deg,#0b0d15_0%,#220916_100%)] py-24 text-[#f7efe0]">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <MotionSection className="max-w-3xl">
-            <motion.div variants={itemVariants}>
-              <SectionEyebrow>Traffic Flow</SectionEyebrow>
-            </motion.div>
-            <motion.h2 variants={itemVariants} className={cn(condensedHeadingClass, 'mt-5 text-4xl leading-tight text-[#fff4d8] sm:text-5xl')}>
-              Traffic before origin.
-            </motion.h2>
-            <motion.p variants={itemVariants} className="mt-5 text-base leading-7 text-[#ccbda1]">
-              Allowed traffic passes. Malicious traffic stops at the edge.
-            </motion.p>
-          </MotionSection>
-
-          <MotionSection className="mt-14 space-y-8">
-            <motion.div
-              variants={itemVariants}
-              className="relative px-6 py-8"
-            >
-              <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_58%,rgba(82,19,33,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(191,152,70,0.08),transparent_18%)]" />
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#b99454]">
-                      Traffic behavior
-                    </p>
-                    <h3 className="mt-3 text-2xl font-semibold text-[#fff2d2]">
-                      Allowed vs blocked requests
-                    </h3>
-                  </div>
-                <div className="flex flex-wrap gap-3">
-                  <span className="rounded-full border border-[#065f46]/40 bg-[#081a15] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#86efac]">
-                    Allowed to origin
-                  </span>
-                  <span className="rounded-full border border-[#7f1d1d]/40 bg-[#2a0d0f] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[#fca5a5]">
-                    Blocked by WAF
-                  </span>
-                </div>
-              </div>
-
-                <div className="mt-8">
-                  <div className="relative hidden lg:block">
-                    <div className="pointer-events-none absolute left-[13.5%] right-[8.5%] top-10 h-px bg-[linear-gradient(90deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))]" />
-
-                    <motion.div
-                      className="absolute top-[32px] z-20 h-5 w-5 rounded-full bg-[#10b981] shadow-[0_0_26px_rgba(16,185,129,0.8)]"
-                      animate={{
-                        left: ['13.5%', '33.5%', '33.5%', '63.5%', '63.5%', '89%', '89%'],
-                        opacity: [0, 1, 1, 1, 1, 1, 0],
-                      }}
-                      transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        repeatType: 'loop',
-                        ease: 'linear',
-                        times: [0, 0.16, 0.22, 0.42, 0.5, 0.7, 0.76],
-                      }}
-                    />
-
-                    <motion.div
-                      className="absolute top-[32px] z-20 h-5 w-5 rounded-full bg-[#b91c1c] shadow-[0_0_26px_rgba(185,28,28,0.8)]"
-                      animate={{
-                        left: ['13.5%', '33.5%', '33.5%', '63.5%', '63.5%'],
-                        opacity: [0, 1, 1, 1, 0],
-                      }}
-                      transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        repeatType: 'loop',
-                        ease: 'linear',
-                        times: [0.52, 0.68, 0.74, 0.88, 0.94],
-                      }}
-                    />
-
-                    <motion.div
-                      className="absolute left-[63.5%] top-[18px] z-30 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full border border-[#7f1d1d]/45 bg-[#2a0d0f]"
-                      animate={{ opacity: [0, 0, 1, 1, 0], scale: [0.72, 0.72, 1.08, 1, 0.9] }}
-                      transition={{ duration: 8, repeat: Infinity, repeatType: 'loop', ease: 'linear', times: [0, 0.88, 0.92, 0.97, 1] }}
-                    >
-                      <X className="h-6 w-6 text-[#fca5a5]" />
-                    </motion.div>
-                    <motion.div
-                      className="absolute left-[63.5%] top-[78px] z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#7f1d1d]/35 bg-[#1a0a0c] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#fca5a5]"
-                      animate={{ opacity: [0, 0, 1, 1, 0], y: [6, 6, 0, 0, -4] }}
-                      transition={{ duration: 8, repeat: Infinity, repeatType: 'loop', ease: 'linear', times: [0, 0.9, 0.94, 0.98, 1] }}
-                    >
-                      Blocked
-                    </motion.div>
-
-                    <div className="relative z-10 flex items-start justify-between">
-                      <div className="flex w-[140px] flex-col items-center text-center">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/8 bg-transparent">
-                          <UserRound className="h-9 w-9 text-[#fff2d2]" />
-                        </div>
-                        <p className="mt-3 text-sm font-semibold text-[#f2e3c0]">User</p>
-                      </div>
-
-                      <div className="flex w-[140px] flex-col items-center text-center">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-[#d4a64f]/18 bg-transparent">
-                          <Globe2 className="h-9 w-9 text-[#fff2d2]" />
-                        </div>
-                        <p className="mt-3 text-sm font-semibold text-[#f2e3c0]">Public Web</p>
-                      </div>
-
-                      <div className="flex w-[180px] flex-col items-center text-center">
-                        <div className="flex h-24 w-24 items-center justify-center rounded-full border border-[#d4a64f]/20 bg-transparent p-3">
-                          <Image src="/logo.png" alt="ATRAVA Defense" width={56} height={56} className="h-14 w-14 object-contain" />
-                        </div>
-                        <motion.p
-                          className="mt-3 text-sm font-semibold"
-                          animate={{ color: ['#86efac', '#86efac', '#86efac', '#fca5a5', '#fca5a5'] }}
-                          transition={{ duration: 8, repeat: Infinity, ease: 'linear', times: [0, 0.7, 0.76, 0.88, 1] }}
-                        >
-                          Edge inspection
-                        </motion.p>
-                      </div>
-
-                      <div className="flex w-[150px] flex-col items-center text-center">
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full border border-white/8 bg-transparent">
-                          <Server className="h-9 w-9 text-[#f2e3c0]" />
-                        </div>
-                        <p className="mt-3 text-sm font-semibold text-[#f2e3c0]">Origin</p>
-                      </div>
-                    </div>
-                  </div>
-
-                <div className="space-y-4 lg:hidden">
-                  <div className="rounded-[24px] border border-[#d4a64f]/10 bg-white/[0.03] p-5">
-                    <p className="text-sm font-semibold text-[#fff2d2]">User → Web → ATRAVA Defense → Origin Server</p>
-                    <p className="mt-3 text-sm leading-7 text-[#d7c7a6]">
-                      Clean requests are forwarded to origin. Malicious requests are inspected and blocked at ATRAVA Defense.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              </motion.div>
-            </MotionSection>
-        </div>
-      </section>
-
-      <section id="capabilities" className="bg-[linear-gradient(180deg,#07090f_0%,#0d1018_100%)] py-24 text-[#f7efe0]">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <MotionSection className="max-w-3xl">
-            <motion.div variants={itemVariants}>
-              <SectionEyebrow>Core capabilities</SectionEyebrow>
-            </motion.div>
-            <motion.h2 variants={itemVariants} className={cn(condensedHeadingClass, 'mt-5 text-4xl leading-tight text-[#fff4d8] sm:text-5xl')}>
-              Core controls for production-grade web application defense.
-            </motion.h2>
-            <motion.p variants={itemVariants} className="mt-5 text-lg leading-8 text-[#ccbda1]">
-              ATRAVA Defense combines edge inspection, managed policy enforcement, certificate handling, and
-              operational visibility so teams can protect websites and APIs with stronger control and cleaner response workflows.
-            </motion.p>
-          </MotionSection>
-
-          <MotionSection className="mt-14">
-            <div className="grid gap-6 md:grid-cols-6">
-              {capabilityHighlights.map((item, index) => {
-                const Icon = item.icon;
-                const layoutClasses = [
-                  'md:col-span-2',
-                  'md:col-span-2',
-                  'md:col-span-2',
-                  'md:col-span-3',
-                  'md:col-span-3',
-                  'md:col-span-6',
-                ];
-                return (
-                  <motion.div key={item.title} variants={itemVariants}>
-                    <Card className={cn(layoutClasses[index], 'h-full')}>
-                      <CardHeader>
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#d4a64f]/18 bg-[#1a120d] text-[#d4a64f]">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <CardTitle>{item.title}</CardTitle>
-                        <CardDescription>{item.description}</CardDescription>
-                      </CardHeader>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </MotionSection>
-        </div>
-      </section>
-
-      <section id="command-layer" className="bg-[linear-gradient(180deg,#2a0a18_0%,#110d16_100%)] py-24 text-[#f7efe0]">
-        <div className="mx-auto grid max-w-7xl gap-16 px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:px-8">
-          <MotionSection>
-            <motion.div variants={itemVariants}>
-              <SectionEyebrow>Command layer</SectionEyebrow>
-            </motion.div>
-            <motion.h2 variants={itemVariants} className={cn(condensedHeadingClass, 'mt-5 text-4xl leading-tight sm:text-5xl')}>
-              One defense plane for protection, monitoring, and analysis.
-            </motion.h2>
-              <motion.p variants={itemVariants} className="mt-5 max-w-xl text-lg leading-8 text-[#d6c5a6]">
-              ATRAVA Defense is positioned not just as a blocking layer, but as an operations surface for live
-              websites, security review, and attack analysis.
-              </motion.p>
-            <motion.div variants={itemVariants} className="mt-10 space-y-5">
-              {proofPoints.map((item, index) => (
-                <div key={item.label} className="flex items-start gap-4">
-                  <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d4a64f]/25 bg-[radial-gradient(circle_at_center,rgba(212,166,79,0.16),rgba(9,6,6,0.95))] text-sm font-semibold text-[#d4a64f]">
-                    {String(index + 1).padStart(2, '0')}
-                  </div>
-                  <div className="border-l border-[#d4a64f]/12 pl-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#b99454]">{item.label}</p>
-                    <p className="mt-2 text-xl font-semibold text-[#fff2d2]">{item.value}</p>
-                  </div>
-                </div>
-              ))}
-            </motion.div>
-          </MotionSection>
-
-          <MotionSection>
-            <div className="relative">
-              <div className="pointer-events-none absolute left-10 right-10 top-8 hidden h-px bg-[linear-gradient(90deg,rgba(212,166,79,0.12),rgba(212,166,79,0.45),rgba(212,166,79,0.12))] sm:block" />
-              <div className="grid gap-8 sm:grid-cols-3">
-                {operationsPanels.map((panel, index) => (
-                  <motion.div key={panel.title} variants={itemVariants} className="relative">
-                    <div className="mb-5 flex items-center gap-4 sm:flex-col sm:items-start">
-                      <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full border border-[#d4a64f]/28 bg-[radial-gradient(circle_at_center,rgba(124,22,33,0.28),rgba(8,5,5,0.96))] shadow-[0_0_0_8px_rgba(9,5,5,0.92)]">
-                        <span className="text-lg font-semibold tracking-[0.12em] text-[#d4a64f]">
-                          {String(index + 1).padStart(2, '0')}
-                        </span>
-                      </div>
-                      <div className="sm:mt-4">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#b99454]">
-                          {panel.title}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="max-w-sm text-base leading-8 text-[#decfb3]">
-                      {panel.description}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </MotionSection>
-        </div>
-      </section>
-
       <section id="deployment-flow" className="bg-[linear-gradient(180deg,#090b12_0%,#170915_100%)] py-24 text-[#f7efe0]">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <MotionSection className="text-center">
             <motion.div variants={itemVariants}>
               <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#d4a64f]">
-                // Deployment_Flow
+                {'// Deployment_Flow'}
               </p>
             </motion.div>
             <motion.h2 variants={itemVariants} className={cn(condensedHeadingClass, 'mt-5 text-4xl leading-tight sm:text-5xl lg:text-6xl')}>
@@ -1099,7 +610,7 @@ export default function HomePageClient() {
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#d4a64f]">Platform</p>
               <div className="mt-4 space-y-3 text-sm text-[#d7c7a6]">
-                <a href="#capabilities" className="block transition-colors hover:text-[#f5e7c8]">Capabilities</a>
+                <a href="#deployment-flow" className="block transition-colors hover:text-[#f5e7c8]">Deployment flow</a>
                 <a href="#threat-map" className="block transition-colors hover:text-[#f5e7c8]">Threat Map</a>
                 <a href="#pricing" className="block transition-colors hover:text-[#f5e7c8]">Pricing</a>
               </div>

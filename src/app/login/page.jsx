@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { 
   signInWithEmailAndPassword, 
@@ -13,45 +12,6 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-const trustPoints = [
-  { label: 'Protection model', value: 'Managed reverse proxy WAF' },
-  { label: 'Inspection engine', value: 'ModSecurity v3 + OWASP CRS' },
-  { label: 'Operational model', value: 'Managed SOC-backed access' },
-];
-
-const platformSignals = [
-  'Managed tenant access and role-based onboarding',
-  'Security analytics, logs, and policy control in one dashboard',
-  'Google or password sign-in based on provisioned access',
-];
-
-function ShieldIcon({ className = 'h-6 w-6' }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path
-        d="M12 3l7 3v5c0 4.4-2.9 8.4-7 9.7C7.9 19.4 5 15.4 5 11V6l7-3Z"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m9.5 12 1.8 1.8 3.7-4.1"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function SectionEyebrow({ children }) {
-  return (
-    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#d4a64f]">
-      {children}
-    </p>
-  );
-}
 
 function LoginPageContent() {
   const [email, setEmail] = useState('');
@@ -371,49 +331,9 @@ function LoginPageContent() {
         </div>
       ) : null}
 
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 pb-10 pt-4 lg:px-8 lg:pb-12 lg:pt-4">
-        <header className="flex items-center justify-between rounded-full border border-[#a97b35]/20 bg-[#070b13]/78 px-5 py-2.5 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d4a64f]/30 bg-[#f3e2b7] shadow-[0_16px_44px_rgba(0,0,0,0.45)]">
-              <Image src="/logo.png" alt="ATRAVA Defense" width={32} height={32} className="h-8 w-8 object-contain" priority />
-            </div>
-            <div>
-              <p className="text-sm font-semibold tracking-[0.2em] text-[#f5e7c8]">ATRAVA Defense</p>
-              <p className="text-xs text-[#d8c7a1]/70">Managed WAF-as-a-service</p>
-            </div>
-          </div>
-          <div className="rounded-full border border-[#d4a64f]/25 bg-[#2a1c0f]/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#f1d7a0]">
-            Managed access portal
-          </div>
-        </header>
-
-        <div className="grid flex-1 gap-10 pt-8 lg:grid-cols-[minmax(0,1.06fr)_446px] lg:items-center lg:gap-12 lg:pt-10">
-          <section className="flex min-h-0 flex-col justify-center">
-            <div>
-              <SectionEyebrow>Customer access</SectionEyebrow>
-                <h1 className="mt-3 max-w-[11.6ch] font-serif text-[2.5rem] leading-[0.92] text-[#fff6df] sm:text-[2.95rem] xl:max-w-[14.4ch] xl:text-[3.42rem]">
-                Secure sign-in for managed WAF operations, tenant access, and security visibility.
-              </h1>
-              <p className="mt-5 max-w-[35rem] text-[0.98rem] leading-8 text-[#dbcdb5]">
-                Access the ATRAVA Defense dashboard to manage protected applications, review attack telemetry,
-                update policies, and operate within your provisioned tenant scope.
-              </p>
-            </div>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {trustPoints.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-[24px] border border-[#d4a64f]/12 bg-[linear-gradient(180deg,rgba(26,14,12,0.7),rgba(8,5,5,0.82))] p-5 backdrop-blur"
-                >
-                  <p className="text-xs uppercase tracking-[0.25em] text-[#bfae8d]">{item.label}</p>
-                  <p className="mt-3 text-[0.9rem] font-semibold leading-8 text-[#fff2d2] xl:text-[0.98rem]">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="relative flex min-h-0 items-center pt-2 lg:justify-end lg:pt-0">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-6 pb-10 pt-8 lg:px-8 lg:pb-12 lg:pt-10">
+        <div className="flex flex-1 flex-col items-center justify-center pt-2 lg:pt-4">
+          <section className="relative flex w-full max-w-[446px] min-h-0 items-center justify-center pt-2 lg:pt-0">
             <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-[#7c1621]/24 blur-3xl" />
             <div className="absolute -right-4 bottom-8 h-36 w-36 rounded-full bg-[#d4a64f]/16 blur-3xl" />
             <div className="relative w-full overflow-hidden rounded-[32px] border border-[#d4a64f]/18 bg-[linear-gradient(180deg,#fffaf0_0%,#f6efe3_100%)] text-[#1b140f] shadow-[0_32px_100px_rgba(2,6,23,0.42)]">
@@ -548,31 +468,9 @@ function LoginPageFallback() {
   return (
     <div className="min-h-screen overflow-hidden bg-[#07090f] text-[#f7efe0]">
       <div className="absolute inset-x-0 top-0 -z-10 h-[760px] bg-[radial-gradient(circle_at_16%_18%,rgba(116,18,38,0.34),transparent_26%),radial-gradient(circle_at_82%_16%,rgba(186,151,63,0.18),transparent_20%),linear-gradient(180deg,#090c14_0%,#080b12_36%,#130712_66%,#f5efe5_66%,#f5efe5_100%)]" />
-      <div className="mx-auto max-w-7xl animate-pulse px-6 pb-16 pt-6 lg:px-8 lg:pb-20">
-        <div className="rounded-full border border-[#a97b35]/20 bg-[#070b13]/78 px-5 py-3 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-[#d4a64f]/25" />
-            <div className="space-y-2">
-              <div className="h-3 w-32 rounded bg-[#f5e7c8]/25" />
-              <div className="h-3 w-24 rounded bg-[#d8c7a1]/15" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-14 pt-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(400px,0.95fr)] lg:items-center">
-          <div className="space-y-6">
-            <div className="h-3 w-28 rounded bg-[#d4a64f]/30" />
-            <div className="h-14 max-w-2xl rounded bg-[#fff6df]/15" />
-            <div className="h-14 max-w-xl rounded bg-[#fff6df]/10" />
-            <div className="h-5 max-w-2xl rounded bg-[#d8c7a1]/12" />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="h-28 rounded-3xl bg-[#1c110d]/80" />
-              <div className="h-28 rounded-3xl bg-[#1c110d]/80" />
-              <div className="h-28 rounded-3xl bg-[#1c110d]/80" />
-            </div>
-          </div>
-
-          <div className="overflow-hidden rounded-[32px] border border-[#d4a64f]/18 bg-[linear-gradient(180deg,#fffaf0_0%,#f6efe3_100%)] shadow-[0_32px_100px_rgba(2,6,23,0.42)]">
+      <div className="mx-auto max-w-7xl animate-pulse px-6 pb-16 pt-10 lg:px-8 lg:pb-20">
+        <div className="flex justify-center pt-14">
+          <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-[#d4a64f]/18 bg-[linear-gradient(180deg,#fffaf0_0%,#f6efe3_100%)] shadow-[0_32px_100px_rgba(2,6,23,0.42)]">
             <div className="border-b border-[#ead9b5] bg-[#f7eed7] px-8 py-8">
               <div className="h-3 w-20 rounded bg-[#cfae6a]" />
               <div className="mt-3 h-10 w-52 rounded bg-[#dcc9a4]" />
