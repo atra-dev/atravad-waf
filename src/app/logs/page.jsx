@@ -50,6 +50,7 @@ export default function LogsPage() {
     action: '',
     search: '',
   });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [exporting, setExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('logs'); // 'logs', 'geographic', 'traffic'
@@ -103,6 +104,13 @@ export default function LogsPage() {
       cursorHistory: [],
     }));
   }, []);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearch(filters.search);
+    }, 450);
+    return () => clearTimeout(handle);
+  }, [filters.search]);
 
   const normalizeSeverity = (severity) => {
     const value = String(severity || '').trim().toLowerCase();
@@ -190,10 +198,14 @@ export default function LogsPage() {
       if (filters.site) params.append('site', filters.site);
       if (filters.severity) params.append('severity', filters.severity);
       if (filters.action) params.append('decision', filters.action);
-      if (filters.search.trim()) params.append('search', filters.search.trim());
+      if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
       const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Logs request failed (${response.status}): ${body.slice(0, 220)}`);
+      }
       const data = await response.json();
       if (Array.isArray(data.logs)) {
         let filteredLogs = data.logs;
@@ -270,7 +282,7 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.pageSize]);
+  }, [debouncedSearch, filters, pagination.pageSize]);
 
   const fetchAnalyticsSummary = useCallback(async (forceRefresh = false) => {
     setLoading(true);
@@ -278,12 +290,13 @@ export default function LogsPage() {
       const params = new URLSearchParams();
       params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
       if (filters.site) params.append('site', filters.site);
-      if (filters.severity) params.append('severity', filters.severity);
-      if (filters.action) params.append('decision', filters.action);
-      if (filters.search.trim()) params.append('search', filters.search.trim());
       if (forceRefresh) params.append('_ts', String(Date.now()));
 
       const response = await fetch(`/api/logs/analytics?${params.toString()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Analytics request failed (${response.status}): ${body.slice(0, 220)}`);
+      }
       const data = await response.json();
       setAnalyticsData(data);
     } catch (error) {
@@ -291,7 +304,7 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [debouncedSearch, filters]);
 
   const checkTenantAndFetchData = useCallback(async () => {
     try {

@@ -138,6 +138,10 @@ export default function AnalyticsPage() {
     setLoading(true);
     try {
       const response = await fetch(`/api/logs/analytics?hours=${ANALYTICS_DISPLAY_HOURS}&attacksOnly=true`);
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Analytics request failed (${response.status}): ${body.slice(0, 220)}`);
+      }
       const data = await response.json();
 
       setAnalytics({
