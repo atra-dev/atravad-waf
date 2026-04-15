@@ -71,7 +71,13 @@ export default function LogsPage() {
     tone: 'blue',
   });
   const [logCount, setLogCount] = useState(0);
-  const totalRequests = Number(
+  const hasActiveFilters = Boolean(
+    filters.site ||
+    filters.severity ||
+    filters.action ||
+    filters.search.trim()
+  );
+  const analyticsRequestCount = Number(
     analyticsData?.summary?.visibleRequestCount ??
     analyticsData?.summary?.totalRequests ??
     0
@@ -87,9 +93,9 @@ export default function LogsPage() {
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
-  const visibleAnalyticsCount = Number(
-    analyticsData?.summary?.visibleRequestCount ?? analyticsData?.summary?.totalRequests ?? logs.length
-  );
+  const visibleAnalyticsCount = hasActiveFilters
+    ? Number(logCount || logs.length)
+    : Number(analyticsRequestCount || logCount || logs.length);
 
   const updateFilters = useCallback((updater) => {
     setFilters((prev) => {
@@ -1015,7 +1021,7 @@ export default function LogsPage() {
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Logs ({totalRequests} requests)
+                Logs ({visibleAnalyticsCount} requests)
               </button>
               <button
                 onClick={() => setActiveTab('geographic')}
