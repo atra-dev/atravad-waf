@@ -47,6 +47,18 @@ function normalizeRequestUri(value) {
   return uri || null;
 }
 
+function buildSearchIps(rawLog) {
+  const values = [
+    normalizeIpAddress(rawLog?.ipAddress || ''),
+    normalizeIpAddress(rawLog?.clientIp || ''),
+    ...(Array.isArray(rawLog?.forwardedFor)
+      ? rawLog.forwardedFor.map((value) => normalizeIpAddress(String(value || '')))
+      : []),
+  ].filter(Boolean);
+
+  return Array.from(new Set(values));
+}
+
 function getRollupDocumentId(tenantName, bucketKey, site) {
   const siteKey = site ? encodeCounterKey(site) : 'unknown-site';
   return `${tenantName}_${bucketKey}_${siteKey}`;
@@ -203,6 +215,7 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
     decision,
     site,
     siteNormalized: site,
+    searchIps: buildSearchIps(rawLog),
     requestMethod: normalizeRequestMethod(rawLog.method || rawLog.request?.method),
     requestUri: normalizeRequestUri(rawLog.uri || rawLog.request?.uri || rawLog.request?.path),
     expiresAt: new Date(new Date(timestamp).getTime() + FIRESTORE_LOG_TTL_MS),

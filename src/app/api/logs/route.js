@@ -378,47 +378,9 @@ export async function GET(request) {
       baseQuery = baseQuery.where('uri', '==', requestUri);
     }
 
+    const queryWithoutIpSearch = baseQuery;
     if (normalizedSearchIp) {
-      const [ipSnapshot, clientIpSnapshot, forwardedForSnapshot] = await Promise.all([
-        baseQuery.where('ipAddress', '==', normalizedSearchIp).get(),
-        baseQuery.where('clientIp', '==', normalizedSearchIp).get(),
-        baseQuery.where('forwardedFor', 'array-contains', normalizedSearchIp).get(),
-      ]);
-
-      const mergedDocs = new Map();
-      for (const snapshot of [ipSnapshot, clientIpSnapshot, forwardedForSnapshot]) {
-        for (const doc of snapshot.docs) {
-          mergedDocs.set(doc.id, doc);
-        }
-      }
-
-      const orderedLogs = Array.from(mergedDocs.values())
-        .map(mapLogDocument)
-        .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
-
-      const totalStoredCount = orderedLogs.length;
-
-      if (countOnly) {
-        return NextResponse.json({ totalStoredCount });
-      }
-
-      const cursorIndex = cursor
-        ? orderedLogs.findIndex((log) => log.id === cursor)
-        : -1;
-      const startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
-      const visibleLogs = orderedLogs.slice(startIndex, startIndex + pageSize);
-      const hasMore = startIndex + pageSize < orderedLogs.length;
-      const nextCursor = hasMore ? visibleLogs[visibleLogs.length - 1]?.id || null : null;
-
-      return NextResponse.json({
-        logs: visibleLogs,
-        count: visibleLogs.length,
-        totalStoredCount,
-        hasMore,
-        pageSize,
-        nextCursor,
-        maxLookbackHours,
-      });
+      baseQuery = baseQuery.where('searchIps', 'array-contains', normalizedSearchIp);
     }
 
     let totalStoredCount = null;
@@ -441,7 +403,45 @@ export async function GET(request) {
     }
 
     const logsSnapshot = await query.get();
-    const docs = logsSnapshot.docs;
+    let docs = logsSnapshot.docs;
+
+    // Backward compatibility for older log documents that do not have "searchIps" populated.
+    // Keep this fallback bounded so it does not recreate the unbounded expensive scans.
+    if (normalizedSearchIp && docs.length === 0 && !cursor) {
+      const fallbackLimit = pageSize + 1;
+      const [ipSnapshot, clientIpSnapshot, forwardedForSnapshot] = await Promise.all([
+        queryWithoutIpSearch
+          .where('ipAddress', '==', normalizedSearchIp)
+          .orderBy('timestamp', 'desc')
+          .limit(fallbackLimit)
+          .get(),
+        queryWithoutIpSearch
+          .where('clientIp', '==', normalizedSearchIp)
+          .orderBy('timestamp', 'desc')
+          .limit(fallbackLimit)
+          .get(),
+        queryWithoutIpSearch
+          .where('forwardedFor', 'array-contains', normalizedSearchIp)
+          .orderBy('timestamp', 'desc')
+          .limit(fallbackLimit)
+          .get(),
+      ]);
+
+      const mergedDocs = new Map();
+      for (const snapshot of [ipSnapshot, clientIpSnapshot, forwardedForSnapshot]) {
+        for (const doc of snapshot.docs) {
+          mergedDocs.set(doc.id, doc);
+        }
+      }
+
+      docs = Array.from(mergedDocs.values()).sort((a, b) =>
+        String(b.get('timestamp') || '').localeCompare(String(a.get('timestamp') || ''))
+      );
+
+      if (includeCount) {
+        totalStoredCount = mergedDocs.size;
+      }
+    }
     const hasMore = docs.length > pageSize;
     const visibleDocs = hasMore ? docs.slice(0, pageSize) : docs;
     const logs = visibleDocs.map(mapLogDocument);
