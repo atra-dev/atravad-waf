@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -93,9 +93,17 @@ export default function LogsPage() {
   const [showTenantForm, setShowTenantForm] = useState(false);
   const [tenantFormData, setTenantFormData] = useState({ name: '' });
   const [submittingTenant, setSubmittingTenant] = useState(false);
+  const lastLogsRequestKeyRef = useRef('');
+  const lastAnalyticsRequestKeyRef = useRef('');
   const visibleAnalyticsCount = hasActiveFilters
-    ? Number(logCount || logs.length)
-    : Number(analyticsRequestCount || logCount || logs.length);
+    ? Number.isFinite(Number(logCount))
+      ? Number(logCount)
+      : logs.length
+    : Number.isFinite(Number(analyticsRequestCount)) && Number(analyticsRequestCount) > 0
+      ? Number(analyticsRequestCount)
+      : Number.isFinite(Number(logCount))
+        ? Number(logCount)
+        : logs.length;
 
   const updateFilters = useCallback((updater) => {
     setFilters((prev) => {
@@ -206,6 +214,11 @@ export default function LogsPage() {
       if (filters.action) params.append('decision', filters.action);
       if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
       if (forceRefresh) params.append('_ts', String(Date.now()));
+      const logsRequestKey = `${params.toString()}|page:${pageToFetch}`;
+      if (!forceRefresh && lastLogsRequestKeyRef.current === logsRequestKey) {
+        return;
+      }
+      lastLogsRequestKeyRef.current = logsRequestKey;
 
       const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) {
@@ -236,10 +249,10 @@ export default function LogsPage() {
             return getDecisionKey(log) === filters.action;
           });
         }
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          const normalizedSearchDomain = normalizeDomainInput(filters.search);
-          const normalizedSearchIp = normalizeIpAddress(filters.search);
+        if (debouncedSearch.trim()) {
+          const searchLower = debouncedSearch.toLowerCase();
+          const normalizedSearchDomain = normalizeDomainInput(debouncedSearch);
+          const normalizedSearchIp = normalizeIpAddress(debouncedSearch);
           filteredLogs = filteredLogs.filter(log =>
             (log.message && log.message.toLowerCase().includes(searchLower)) ||
             (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
@@ -261,11 +274,11 @@ export default function LogsPage() {
         }
 
         setLogs(filteredLogs);
-        setLogCount((current) => (
+        setLogCount(
           Number.isFinite(Number(data.totalStoredCount))
             ? Number(data.totalStoredCount)
-            : current
-        ));
+            : filteredLogs.length
+        );
         setPagination((prev) => ({
           ...prev,
           page: pageToFetch,
@@ -297,6 +310,11 @@ export default function LogsPage() {
       params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
       if (filters.site) params.append('site', filters.site);
       if (forceRefresh) params.append('_ts', String(Date.now()));
+      const analyticsRequestKey = params.toString();
+      if (!forceRefresh && lastAnalyticsRequestKeyRef.current === analyticsRequestKey) {
+        return;
+      }
+      lastAnalyticsRequestKeyRef.current = analyticsRequestKey;
 
       const response = await fetch(`/api/logs/analytics?${params.toString()}`, { cache: 'no-store' });
       if (!response.ok) {
@@ -310,7 +328,7 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filters]);
+  }, [filters]);
 
   const checkTenantAndFetchData = useCallback(async () => {
     try {
