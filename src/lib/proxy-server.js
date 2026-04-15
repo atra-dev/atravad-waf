@@ -315,6 +315,25 @@ function mergeVaryHeader(currentValue, additions = []) {
   return Array.from(values.values()).join(", ");
 }
 
+/**
+ * Vercel Security Checkpoint (bot protection) runs challenge.v2.min.js which uses eval().
+ * CSP script-src must include 'unsafe-eval' or verification fails with Code 11.
+ */
+function ensureScriptSrcAllowsUnsafeEval(csp) {
+  if (!csp || typeof csp !== "string") return csp;
+  if (csp.includes("'unsafe-eval'") || csp.includes('"unsafe-eval"')) {
+    return csp;
+  }
+  return csp
+    .split(/\s*;\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((part) =>
+      /^script-src\s/i.test(part) ? `${part} 'unsafe-eval'` : part,
+    )
+    .join("; ");
+}
+
 function isHtmlNavigationRequest(req) {
   const method = String(req?.method || "GET").toUpperCase();
   if (method !== "GET" && method !== "HEAD") return false;
@@ -408,10 +427,11 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
   }
 
   if (originalCsp) {
-    nextHeaders["Content-Security-Policy"] = originalCsp;
+    nextHeaders["Content-Security-Policy"] =
+      ensureScriptSrcAllowsUnsafeEval(originalCsp);
   } else {
     nextHeaders["Content-Security-Policy"] =
-      `default-src 'self'; base-uri 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' ${authScriptSources}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com; font-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net ${authConnectSources}; worker-src 'self' blob:; manifest-src 'self'; frame-src ${authFrameSources}; media-src 'self'; child-src ${authChildSources}; upgrade-insecure-requests`;
+      `default-src 'self'; base-uri 'self'; form-action 'self' https://accounts.google.com; frame-ancestors 'none'; object-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' ${authScriptSources}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com; font-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net ${authConnectSources}; worker-src 'self' blob:; manifest-src 'self'; frame-src ${authFrameSources}; media-src 'self'; child-src ${authChildSources}; upgrade-insecure-requests`;
   }
 
   if (req?.secure || req?.socket?.encrypted) {

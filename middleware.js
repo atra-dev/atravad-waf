@@ -207,7 +207,6 @@ function createOriginBlockedResponse() {
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   const host = request.nextUrl.hostname || request.headers.get("host") || "";
-  const isDevelopment = process.env.NODE_ENV !== "production";
   const isHomePage = pathname === "/";
   const expectedOriginSecret = process.env.ORIGIN_AUTH_SECRET || "";
   const actualOriginSecret = request.headers.get(ORIGIN_AUTH_HEADER) || "";
@@ -263,9 +262,7 @@ export function middleware(request) {
       "form-action 'self' https://accounts.google.com",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      `script-src 'self' 'nonce-${nonce}' ${authScriptSources}${
-        isDevelopment ? " 'unsafe-eval'" : ""
-      }`,
+      `script-src 'self' 'nonce-${nonce}' ${authScriptSources} 'unsafe-eval'`,
       `script-src-elem 'self' 'nonce-${nonce}' ${authScriptSources}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://flagcdn.com https://www.gravatar.com",
