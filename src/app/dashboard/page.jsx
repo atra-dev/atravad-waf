@@ -24,12 +24,67 @@ const ShieldIcon = ({ className }) => (
   </svg>
 );
 
+const BlockedIpIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7M5 5l6 6-6 6" />
+  </svg>
+);
+
+const GlobeBlockedIcon = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12h18M12 3c2.5 2.5 4 5.8 4 9s-1.5 6.5-4 9m0-18c-2.5 2.5-4 5.8-4 9s1.5 6.5 4 9m9-9a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8l8 8M16 8l-8 8" />
+  </svg>
+);
+
+function getPolicyAccessControlStats(policies = []) {
+  const latestByName = new Map();
+
+  for (const policy of Array.isArray(policies) ? policies : []) {
+    const key = String(policy?.name || '').trim() || String(policy?.id || '');
+    if (!key || latestByName.has(key)) continue;
+    latestByName.set(key, policy);
+  }
+
+  const blockedIps = new Set();
+  const blockedCountries = new Set();
+
+  for (const policy of latestByName.values()) {
+    const ipAccessControl = policy?.policy?.ipAccessControl || policy?.ipAccessControl || {};
+    if (Boolean(ipAccessControl?.enabled)) {
+      for (const entry of Array.isArray(ipAccessControl.blacklist) ? ipAccessControl.blacklist : []) {
+        const normalized = String(entry || '').trim();
+        if (normalized) blockedIps.add(normalized);
+      }
+      for (const entry of Array.isArray(ipAccessControl.blacklistCIDR) ? ipAccessControl.blacklistCIDR : []) {
+        const normalized = String(entry || '').trim();
+        if (normalized) blockedIps.add(normalized);
+      }
+    }
+
+    const geoBlocking = policy?.policy?.geoBlocking || policy?.geoBlocking || {};
+    if (Boolean(geoBlocking?.enabled)) {
+      for (const country of Array.isArray(geoBlocking.blockedCountries) ? geoBlocking.blockedCountries : []) {
+        const normalized = String(country || '').trim().toUpperCase();
+        if (normalized) blockedCountries.add(normalized);
+      }
+    }
+  }
+
+  return {
+    blockedIpCount: blockedIps.size,
+    blockedCountryCount: blockedCountries.size,
+  };
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState({
     tenantName: '',
     tenantId: null,
     appCount: 0,
     policyCount: 0,
+    blockedIpCount: 0,
+    blockedCountryCount: 0,
     hasTenant: false,
   });
   const [loading, setLoading] = useState(true);
@@ -62,6 +117,7 @@ export default function DashboardPage() {
       const appsArray = Array.isArray(apps) ? apps : [];
       const policiesArray = Array.isArray(policies) ? policies : [];
       const uniquePolicies = new Set(policiesArray.map((policy) => policy.name));
+      const policyAccessControlStats = getPolicyAccessControlStats(policiesArray);
 
       const userHasTenantName = user?.tenantName &&
         typeof user.tenantName === 'string' &&
@@ -74,6 +130,8 @@ export default function DashboardPage() {
         tenantId: tenant?.id || null,
         appCount: appsArray.length,
         policyCount: uniquePolicies.size,
+        blockedIpCount: policyAccessControlStats.blockedIpCount,
+        blockedCountryCount: policyAccessControlStats.blockedCountryCount,
         hasTenant,
       });
     } catch (error) {
@@ -83,6 +141,8 @@ export default function DashboardPage() {
         tenantId: null,
         appCount: 0,
         policyCount: 0,
+        blockedIpCount: 0,
+        blockedCountryCount: 0,
         hasTenant: false,
       });
     } finally {
@@ -130,10 +190,12 @@ export default function DashboardPage() {
 
         {!loading && data.hasTenant && (
           <>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
               <StatCard title="Organization" value={data.tenantName} icon={TenantIcon} subtitle="Active tenant" />
               <StatCard title="Sites" value={data.appCount} icon={AppsIcon} subtitle="Protected sites" />
               <StatCard title="Security Policies" value={data.policyCount} icon={ShieldIcon} subtitle="Active policies" />
+              <StatCard title="Blocked IPs" value={data.blockedIpCount} icon={BlockedIpIcon} subtitle="Unique blocked sources" />
+              <StatCard title="Blocked Countries" value={data.blockedCountryCount} icon={GlobeBlockedIcon} subtitle="Countries with blocked traffic" />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
