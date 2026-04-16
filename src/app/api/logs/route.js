@@ -4,7 +4,7 @@ import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { geolocateIpCached } from '@/lib/geolocation';
 import { normalizeDomainInput } from '@/lib/domain-utils';
-import { normalizeIpAddress } from '@/lib/ip-utils';
+import { isValidIp, normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { persistSecurityLog } from '@/lib/log-storage';
 import { getTenantSummary } from '@/lib/tenant-subscription';
@@ -351,6 +351,7 @@ export async function GET(request) {
     const requestUri = normalizeRequestUri(searchParams.get('uri'));
     const search = String(searchParams.get('search') || '').trim();
     const normalizedSearchIp = normalizeIpAddress(search);
+    const isIpSearch = Boolean(search) && isValidIp(normalizedSearchIp);
     const searchLower = search.toLowerCase();
     const searchUpper = search.toUpperCase();
     const blockedFilter =
@@ -388,7 +389,7 @@ export async function GET(request) {
     }
 
     let effectiveBaseQuery = baseQuery;
-    if (!normalizedSearchIp && search) {
+    if (!isIpSearch && search) {
       // Only try country matching for “country-like” input.
       // This avoids breaking existing message/rule/search text matching.
       const isPotentialCountryQuery =
@@ -414,7 +415,7 @@ export async function GET(request) {
       }
     }
 
-    if (normalizedSearchIp) {
+    if (isIpSearch) {
       const ipSearchQuery = baseQuery.where('searchIps', 'array-contains', normalizedSearchIp);
       const ipSnapshot = await ipSearchQuery.get();
       const orderedLogs = ipSnapshot.docs
