@@ -257,11 +257,14 @@ export default function LogsPage() {
           const searchLower = debouncedSearch.toLowerCase();
           const normalizedSearchDomain = normalizeDomainInput(debouncedSearch);
           const normalizedSearchIp = normalizeIpAddress(debouncedSearch);
+          const normalizedSearchCountryCode = debouncedSearch.toUpperCase();
           filteredLogs = filteredLogs.filter(log =>
             (log.message && log.message.toLowerCase().includes(searchLower)) ||
             (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
             (log.nodeId && log.nodeId.toLowerCase().includes(searchLower)) ||
             (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
+            (log.geoCountry && String(log.geoCountry).toLowerCase().includes(searchLower)) ||
+            (log.geoCountryCode && String(log.geoCountryCode).toUpperCase() === normalizedSearchCountryCode) ||
             (log.ipAddress && normalizeIpAddress(log.ipAddress) === normalizedSearchIp) ||
             (log.clientIp && normalizeIpAddress(log.clientIp) === normalizedSearchIp) ||
             (

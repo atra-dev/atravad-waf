@@ -84,6 +84,13 @@ function normalizeRequestUri(value) {
   return uri || null;
 }
 
+function toTitleCase(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function deriveDecision(log) {
   const decision = String(log?.decision || '').trim().toLowerCase();
   if (decision === 'blocked') return 'waf_blocked';
@@ -344,6 +351,8 @@ export async function GET(request) {
     const requestUri = normalizeRequestUri(searchParams.get('uri'));
     const search = String(searchParams.get('search') || '').trim();
     const normalizedSearchIp = normalizeIpAddress(search);
+    const searchLower = search.toLowerCase();
+    const searchUpper = search.toUpperCase();
     const blockedFilter =
       blockedParam === 'true' ? true : blockedParam === 'false' ? false : null;
     const countOnly = String(searchParams.get('countOnly') || '')
@@ -376,6 +385,33 @@ export async function GET(request) {
     }
     if (requestUri) {
       baseQuery = baseQuery.where('uri', '==', requestUri);
+    }
+
+    let effectiveBaseQuery = baseQuery;
+    if (!normalizedSearchIp && search) {
+      // Only try country matching for “country-like” input.
+      // This avoids breaking existing message/rule/search text matching.
+      const isPotentialCountryQuery =
+        searchLower.length >= 2 &&
+        searchLower.length <= 50 &&
+        !/[0-9]/.test(searchLower) &&
+        /^[a-z\s-]+$/.test(searchLower);
+
+      if (isPotentialCountryQuery) {
+        const countryCodeCandidate = /^[A-Z]{2}$/.test(searchUpper) ? searchUpper : null;
+        const countryNameCandidate = toTitleCase(searchLower);
+
+        if (countryCodeCandidate || countryNameCandidate) {
+          const candidateQuery = countryCodeCandidate
+            ? effectiveBaseQuery.where('geoCountryCode', '==', countryCodeCandidate)
+            : effectiveBaseQuery.where('geoCountry', '==', countryNameCandidate);
+
+          const preview = await candidateQuery.orderBy('timestamp', 'desc').limit(1).get();
+          if (!preview.empty) {
+            effectiveBaseQuery = candidateQuery;
+          }
+        }
+      }
     }
 
     if (normalizedSearchIp) {
@@ -412,7 +448,7 @@ export async function GET(request) {
 
     let totalStoredCount = null;
     if (includeCount) {
-      const countSnapshot = await baseQuery.count().get();
+      const countSnapshot = await effectiveBaseQuery.count().get();
       totalStoredCount = Number(countSnapshot?.data()?.count || 0);
     }
 
@@ -420,7 +456,7 @@ export async function GET(request) {
       return NextResponse.json({ totalStoredCount });
     }
 
-    let query = baseQuery.orderBy('timestamp', 'desc').limit(pageSize + 1);
+    let query = effectiveBaseQuery.orderBy('timestamp', 'desc').limit(pageSize + 1);
 
     if (cursor) {
       const cursorDoc = await adminDb.collection('logs').doc(cursor).get();
