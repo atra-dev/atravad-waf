@@ -389,31 +389,16 @@ export async function GET(request) {
     }
 
     let effectiveBaseQuery = baseQuery;
-    if (!isIpSearch && search) {
-      // Only try country matching for “country-like” input.
-      // This avoids breaking existing message/rule/search text matching.
-      const isPotentialCountryQuery =
-        searchLower.length >= 2 &&
-        searchLower.length <= 50 &&
-        !/[0-9]/.test(searchLower) &&
-        /^[a-z\s-]+$/.test(searchLower);
-
-      if (isPotentialCountryQuery) {
-        const countryCodeCandidate = /^[A-Z]{2}$/.test(searchUpper) ? searchUpper : null;
-        const countryNameCandidate = toTitleCase(searchLower);
-
-        if (countryCodeCandidate || countryNameCandidate) {
-          const candidateQuery = countryCodeCandidate
-            ? effectiveBaseQuery.where('geoCountryCode', '==', countryCodeCandidate)
-            : effectiveBaseQuery.where('geoCountry', '==', countryNameCandidate);
-
-          const preview = await candidateQuery.orderBy('timestamp', 'desc').limit(1).get();
-          if (!preview.empty) {
-            effectiveBaseQuery = candidateQuery;
-          }
-        }
-      }
-    }
+    const isPotentialCountryQuery =
+      !isIpSearch &&
+      searchLower.length >= 2 &&
+      searchLower.length <= 50 &&
+      !/[0-9]/.test(searchLower) &&
+      /^[a-z\s-]+$/.test(searchLower);
+    const countryCodeCandidate = isPotentialCountryQuery && /^[A-Z]{2}$/.test(searchUpper)
+      ? searchUpper
+      : null;
+    const countryNameCandidate = isPotentialCountryQuery ? toTitleCase(searchLower) : null;
 
     if (isIpSearch) {
       const ipSearchQuery = baseQuery.where('searchIps', 'array-contains', normalizedSearchIp);
@@ -445,6 +430,51 @@ export async function GET(request) {
         nextCursor,
         maxLookbackHours,
       });
+    }
+
+    if (isPotentialCountryQuery) {
+      // Avoid fragile composite-index requirements for country filtering by scanning
+      // the already time-bounded result set, then paginating in memory.
+      const scanSnapshot = await baseQuery.orderBy('timestamp', 'desc').get();
+      const orderedLogs = scanSnapshot.docs
+        .map(mapLogDocument)
+        .filter((log) => {
+          const logCountry = String(log?.geoCountry || '').trim().toLowerCase();
+          const logCountryCode = String(log?.geoCountryCode || '').trim().toUpperCase();
+          if (countryCodeCandidate) {
+            return logCountryCode === countryCodeCandidate;
+          }
+          if (countryNameCandidate) {
+            return logCountry === String(countryNameCandidate).toLowerCase();
+          }
+          return false;
+        });
+
+      if (orderedLogs.length > 0) {
+        const totalStoredCount = orderedLogs.length;
+
+        if (countOnly) {
+          return NextResponse.json({ totalStoredCount });
+        }
+
+        const cursorIndex = cursor
+          ? orderedLogs.findIndex((log) => log.id === cursor)
+          : -1;
+        const startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
+        const visibleLogs = orderedLogs.slice(startIndex, startIndex + pageSize);
+        const hasMore = startIndex + pageSize < orderedLogs.length;
+        const nextCursor = hasMore ? visibleLogs[visibleLogs.length - 1]?.id || null : null;
+
+        return NextResponse.json({
+          logs: visibleLogs,
+          count: visibleLogs.length,
+          totalStoredCount,
+          hasMore,
+          pageSize,
+          nextCursor,
+          maxLookbackHours,
+        });
+      }
     }
 
     let totalStoredCount = null;
