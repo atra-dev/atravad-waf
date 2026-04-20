@@ -97,7 +97,7 @@ const deploymentSteps = [
 const pricingPlans = [
   {
     name: 'Managed Essential',
-    price: '$19',
+    price: '$15',
     cadence: '/mo',
     description: 'For smaller teams that need guided onboarding and dependable baseline managed web protection.',
     highlight: false,
@@ -112,7 +112,7 @@ const pricingPlans = [
   },
   {
     name: 'Managed Professional',
-    price: '$89',
+    price: '$75',
     cadence: '/mo',
     description: 'For growing operations that need stronger controls, deeper visibility, and regular policy tuning.',
     highlight: true,
@@ -127,7 +127,7 @@ const pricingPlans = [
   },
   {
     name: 'Managed Business',
-    price: '$189',
+    price: '$149',
     cadence: '/mo',
     description: 'For business-critical platforms that need broader coverage and faster escalation support.',
     highlight: false,

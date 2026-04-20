@@ -19,9 +19,9 @@ export const PLAN_CATALOG = {
   [PLAN_IDS.ESSENTIAL]: {
     id: PLAN_IDS.ESSENTIAL,
     name: 'Managed Essential',
-    websitePrice: '$19',
+    websitePrice: '$15',
     websiteCadence: '/mo',
-    annualPrepayLabel: '$190 billed annually',
+    annualPrepayLabel: '$150 billed annually',
     description:
       'Managed WAF protection for smaller organizations that need baseline coverage, onboarding help, and predictable operating cost.',
     highlight: false,
@@ -54,9 +54,9 @@ export const PLAN_CATALOG = {
   [PLAN_IDS.PROFESSIONAL]: {
     id: PLAN_IDS.PROFESSIONAL,
     name: 'Managed Professional',
-    websitePrice: '$89',
+    websitePrice: '$75',
     websiteCadence: '/mo',
-    annualPrepayLabel: '$890 billed annually',
+    annualPrepayLabel: '$750 billed annually',
     description:
       'Managed WAF operations for growing businesses that need deeper visibility, faster support, and more room for policy tuning.',
     highlight: true,
@@ -89,9 +89,9 @@ export const PLAN_CATALOG = {
   [PLAN_IDS.BUSINESS]: {
     id: PLAN_IDS.BUSINESS,
     name: 'Managed Business',
-    websitePrice: '$189',
+    websitePrice: '$149',
     websiteCadence: '/mo',
-    annualPrepayLabel: '$1,890 billed annually',
+    annualPrepayLabel: '$1,490 billed annually',
     description:
       'High-touch managed protection for business-critical workloads that need faster escalation, richer retention, and stronger operational support.',
     highlight: false,
