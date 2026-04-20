@@ -18,6 +18,13 @@ function parseAsnNumber(asValue) {
   return match ? `AS${match[1]}` : null;
 }
 
+function deriveUsageType(data = {}) {
+  if (data.proxy === true) return 'Proxy/VPN';
+  if (data.hosting === true) return 'Hosting Provider';
+  if (data.mobile === true) return 'Mobile Network';
+  return 'Fixed Line ISP';
+}
+
 /**
  * Extract hostname from URL and resolve to IP address
  * @param {string} originUrl - Full URL (e.g., https://origin.example.com)
@@ -65,6 +72,11 @@ export async function geolocateIp(ip) {
       continentCode: null,
       asn: null,
       asnName: null,
+      isp: null,
+      organization: null,
+      hostname: null,
+      domain: null,
+      usageType: null,
     };
   }
 
@@ -79,13 +91,18 @@ export async function geolocateIp(ip) {
       continentCode: null, // Will use default region
       asn: null,
       asnName: 'Private Network',
+      isp: 'Private Network',
+      organization: null,
+      hostname: null,
+      domain: null,
+      usageType: 'Private Network',
       isPrivate: true,
     };
   }
 
   try {
     const response = await fetch(
-      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode,as,asname`,
+      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode,as,asname,isp,org,reverse,mobile,proxy,hosting`,
       {
         headers: {
           'Accept': 'application/json',
@@ -110,6 +127,11 @@ export async function geolocateIp(ip) {
         continentCode: null,
         asn: null,
         asnName: null,
+        isp: null,
+        organization: null,
+        hostname: null,
+        domain: null,
+        usageType: null,
       };
     }
 
@@ -122,6 +144,11 @@ export async function geolocateIp(ip) {
       continentCode: data.continentCode,
       asn: parseAsnNumber(data.as),
       asnName: String(data.asname || '').trim() || null,
+      isp: String(data.isp || '').trim() || null,
+      organization: String(data.org || '').trim() || null,
+      hostname: String(data.reverse || '').trim() || null,
+      domain: String(data.reverse || '').trim().split('.').slice(-2).join('.') || null,
+      usageType: deriveUsageType(data),
     };
   } catch (error) {
     console.error(`Error geolocating IP ${normalizedIp}:`, error.message);
@@ -135,6 +162,11 @@ export async function geolocateIp(ip) {
       continentCode: null,
       asn: null,
       asnName: null,
+      isp: null,
+      organization: null,
+      hostname: null,
+      domain: null,
+      usageType: null,
     };
   }
 }
@@ -152,6 +184,11 @@ export async function geolocateIpCached(ip) {
       continentCode: null,
       asn: null,
       asnName: null,
+      isp: null,
+      organization: null,
+      hostname: null,
+      domain: null,
+      usageType: null,
     };
   }
 
@@ -189,6 +226,11 @@ export async function geolocateOrigin(originUrl) {
       continentCode: null,
       asn: null,
       asnName: null,
+      isp: null,
+      organization: null,
+      hostname: null,
+      domain: null,
+      usageType: null,
     };
   }
 

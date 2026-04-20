@@ -1266,6 +1266,11 @@ export class ProxyWAFServer {
             entry.geoContinentCode = geo.continentCode || null;
             entry.geoAsn = geo.asn || null;
             entry.geoAsnName = geo.asnName || null;
+            entry.geoIsp = geo.isp || null;
+            entry.geoOrganization = geo.organization || null;
+            entry.geoHostname = geo.hostname || null;
+            entry.geoDomain = geo.domain || null;
+            entry.geoUsageType = geo.usageType || null;
             entry.geoIsPrivate = Boolean(geo.isPrivate);
           }
         }

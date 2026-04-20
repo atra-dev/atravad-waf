@@ -267,6 +267,11 @@ export default function LogsPage() {
             (log.geoCountryCode && String(log.geoCountryCode).toUpperCase() === normalizedSearchCountryCode) ||
             (log.geoAsn && String(log.geoAsn).toLowerCase().includes(searchLower)) ||
             (log.geoAsnName && String(log.geoAsnName).toLowerCase().includes(searchLower)) ||
+            (log.geoIsp && String(log.geoIsp).toLowerCase().includes(searchLower)) ||
+            (log.geoOrganization && String(log.geoOrganization).toLowerCase().includes(searchLower)) ||
+            (log.geoHostname && String(log.geoHostname).toLowerCase().includes(searchLower)) ||
+            (log.geoDomain && String(log.geoDomain).toLowerCase().includes(searchLower)) ||
+            (log.geoUsageType && String(log.geoUsageType).toLowerCase().includes(searchLower)) ||
             (log.ipAddress && normalizeIpAddress(log.ipAddress) === normalizedSearchIp) ||
             (log.clientIp && normalizeIpAddress(log.clientIp) === normalizedSearchIp) ||
             (
@@ -1461,6 +1466,10 @@ export default function LogsPage() {
                         {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
                         {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
                         {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
+                        {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
+                        {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
+                        {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
+                        {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
                       </dl>
                     </div>
                   </div>

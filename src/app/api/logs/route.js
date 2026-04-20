@@ -108,6 +108,11 @@ function matchesTextSearch(log, search) {
     (log.geoCountryCode && String(log.geoCountryCode).toLowerCase() === searchLower) ||
     (log.geoAsn && String(log.geoAsn).toLowerCase().includes(searchLower)) ||
     (log.geoAsnName && String(log.geoAsnName).toLowerCase().includes(searchLower)) ||
+    (log.geoIsp && String(log.geoIsp).toLowerCase().includes(searchLower)) ||
+    (log.geoOrganization && String(log.geoOrganization).toLowerCase().includes(searchLower)) ||
+    (log.geoHostname && String(log.geoHostname).toLowerCase().includes(searchLower)) ||
+    (log.geoDomain && String(log.geoDomain).toLowerCase().includes(searchLower)) ||
+    (log.geoUsageType && String(log.geoUsageType).toLowerCase().includes(searchLower)) ||
     (
       normalizedSearchDomain &&
       (
@@ -303,6 +308,11 @@ export async function POST(request) {
         geoContinentCode: geo?.success ? geo.continentCode || null : null,
         geoAsn: geo?.success ? geo.asn || null : null,
         geoAsnName: geo?.success ? geo.asnName || null : null,
+        geoIsp: geo?.success ? geo.isp || null : null,
+        geoOrganization: geo?.success ? geo.organization || null : null,
+        geoHostname: geo?.success ? geo.hostname || null : null,
+        geoDomain: geo?.success ? geo.domain || null : null,
+        geoUsageType: geo?.success ? geo.usageType || null : null,
         geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
       }, { trafficLoggingConfig });
       writtenLogs.push(savedLog);
