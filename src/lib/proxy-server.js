@@ -1008,15 +1008,10 @@ export class ProxyWAFServer {
       parsePositiveInt(
         options.applicationRefreshIntervalMs ??
           process.env.ATRAVAD_APP_REFRESH_INTERVAL_SEC,
-        300,
+        60,
       ) * 1000;
-    this.policyRefreshIntervalMs =
-      parsePositiveInt(
-        options.policyRefreshIntervalMs ??
-          process.env.ATRAVAD_POLICY_REFRESH_INTERVAL_SEC,
-        300,
-      ) * 1000;
-    this.policyLastLoadedAt = new Map();
+    this.policyRealtimeUnsubs = [];
+    this.policyRealtimeDebounceTimer = null;
     this.tenantName = options.tenantName || null;
     // Multi-tenant: support single name or comma-separated list (Firestore 'in' max 10)
     this.tenantNames = this.tenantName
@@ -1110,8 +1105,10 @@ export class ProxyWAFServer {
 
     // Load applications from Firestore and refresh on a fixed interval to avoid
     // long-lived Firestore subscriptions that scale poorly with tenant growth.
+    // Optional: ATRAVAD_POLICY_REALTIME_REFRESH=true + tenant filter reloads policies on policy doc changes.
     void this.loadApplications();
     this.setupApplicationRefresh();
+    this.setupPolicyRealtimeListener();
   }
 
   shouldLogRequest(pathname, blocked, statusCode) {
@@ -1379,24 +1376,9 @@ export class ProxyWAFServer {
       return;
     }
 
-    const now = Date.now();
-    const cachedAt = this.policyLastLoadedAt.get(app.policyId) || 0;
-    const hasCachedPolicy =
-      this.modSecurity?.policies instanceof Map &&
-      this.modSecurity.policies.has(app.policyId);
-
-    if (
-      hasCachedPolicy &&
-      this.policyRefreshIntervalMs > 0 &&
-      now - cachedAt < this.policyRefreshIntervalMs
-    ) {
-      return;
-    }
-
     try {
       const policy = await this.modSecurity.loadPolicy(app.policyId);
       if (policy) {
-        this.policyLastLoadedAt.set(app.policyId, now);
         console.log(
           `Loaded policy "${policy.name}" for application ${app.domain}`,
         );
@@ -1539,15 +1521,67 @@ export class ProxyWAFServer {
     if (!adminDb || this.applicationRefreshIntervalMs <= 0) return;
 
     this.applicationRefreshInterval = setInterval(() => {
-      if (this.applicationRefreshInFlight) return;
-      this.applicationRefreshInFlight = this.loadApplications()
-        .catch((error) => {
-          console.error("Error refreshing applications:", error);
-        })
-        .finally(() => {
-          this.applicationRefreshInFlight = null;
-        });
+      this.scheduleApplicationsReload("interval");
     }, this.applicationRefreshIntervalMs);
+  }
+
+  /**
+   * Coalesced reload of applications + policies (used by interval and realtime policy listener).
+   */
+  scheduleApplicationsReload(reason = "refresh") {
+    if (!adminDb || this.applicationRefreshInFlight) return;
+    this.applicationRefreshInFlight = this.loadApplications()
+      .catch((error) => {
+        console.error(`Error refreshing applications (${reason}):`, error);
+      })
+      .finally(() => {
+        this.applicationRefreshInFlight = null;
+      });
+  }
+
+  /**
+   * When ATRAVAD_POLICY_REALTIME_REFRESH is true and the proxy is scoped to tenant(s),
+   * subscribe to policy document changes and reload the WAF config without waiting for the poll interval.
+   */
+  setupPolicyRealtimeListener() {
+    if (!adminDb) return;
+    if (!parseBooleanEnv(process.env.ATRAVAD_POLICY_REALTIME_REFRESH, false)) {
+      return;
+    }
+    const tenantNames = this.tenantNames;
+    if (!tenantNames?.length) {
+      console.warn(
+        "ATRAVAD_POLICY_REALTIME_REFRESH is enabled but no tenant filter is set (ATRAVAD tenant env). Skipping policy listener to avoid watching all policies.",
+      );
+      return;
+    }
+
+    let query = adminDb.collection("policies");
+    if (tenantNames.length === 1) {
+      query = query.where("tenantName", "==", tenantNames[0]);
+    } else {
+      query = query.where("tenantName", "in", tenantNames);
+    }
+
+    const unsubscribe = query.onSnapshot(
+      () => {
+        if (this.policyRealtimeDebounceTimer) {
+          clearTimeout(this.policyRealtimeDebounceTimer);
+        }
+        this.policyRealtimeDebounceTimer = setTimeout(() => {
+          this.policyRealtimeDebounceTimer = null;
+          if (this.applicationRefreshInFlight) return;
+          this.scheduleApplicationsReload("policy realtime");
+        }, 400);
+      },
+      (error) => {
+        console.error("ATRAVAD: policy realtime listener error:", error);
+      },
+    );
+    this.policyRealtimeUnsubs.push(unsubscribe);
+    console.log(
+      "ATRAVAD: policy realtime refresh enabled (Firestore listener on policies).",
+    );
   }
 
   /**
@@ -2570,6 +2604,18 @@ export class ProxyWAFServer {
     if (this.applicationRefreshInterval) {
       clearInterval(this.applicationRefreshInterval);
       this.applicationRefreshInterval = null;
+    }
+    for (const unsub of this.policyRealtimeUnsubs) {
+      try {
+        unsub();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.policyRealtimeUnsubs = [];
+    if (this.policyRealtimeDebounceTimer) {
+      clearTimeout(this.policyRealtimeDebounceTimer);
+      this.policyRealtimeDebounceTimer = null;
     }
 
     // Stop health checks
