@@ -512,7 +512,7 @@ export default function LogsPage() {
     setExporting(true);
     try {
       const csvContent = [
-        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Code'].join(','),
+        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Flag'].join(','),
         ...logs.map(log => [
           new Date(log.timestamp).toISOString(),
           log.severity || '',
@@ -522,7 +522,7 @@ export default function LogsPage() {
           `"${(log.message || '').replace(/"/g, '""')}"`,
           log.ipAddress || '',
           log.geoCountry || 'Unknown',
-          String(log.geoCountryCode || '').trim().toUpperCase() || '',
+          getCountryFlagEmoji(log.geoCountryCode) || '',
         ].join(','))
       ].join('\n');
 
@@ -580,10 +580,16 @@ export default function LogsPage() {
     );
   };
 
+  const getCountryFlagImageUrl = (countryCode) => {
+    const normalizedCode = String(countryCode || '').trim().toLowerCase();
+    if (!/^[a-z]{2}$/.test(normalizedCode) || normalizedCode === 'xx') return '';
+    return `https://flagcdn.com/w40/${normalizedCode}.png`;
+  };
+
   const getLogCountryDisplay = (log) => {
     const countryName = String(log?.geoCountry || '').trim() || 'Unknown';
-    const flag = getCountryFlagEmoji(log?.geoCountryCode);
-    return flag ? `${flag} ${countryName}` : countryName;
+    const flagUrl = getCountryFlagImageUrl(log?.geoCountryCode);
+    return { countryName, flagUrl };
   };
 
   const getLogSiteKey = useCallback((log) => (
@@ -1255,7 +1261,24 @@ export default function LogsPage() {
                           {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
-                          {getLogCountryDisplay(log)}
+                          {(() => {
+                            const { countryName, flagUrl } = getLogCountryDisplay(log);
+                            return (
+                              <div className="flex items-center gap-2">
+                                {flagUrl ? (
+                                  <img
+                                    src={flagUrl}
+                                    alt={`${countryName} flag`}
+                                    className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="inline-flex h-4 w-5 items-center justify-center text-[10px] theme-text-muted">-</span>
+                                )}
+                                <span>{countryName}</span>
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}
