@@ -512,7 +512,7 @@ export default function LogsPage() {
     setExporting(true);
     try {
       const csvContent = [
-        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address'].join(','),
+        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Code'].join(','),
         ...logs.map(log => [
           new Date(log.timestamp).toISOString(),
           log.severity || '',
@@ -521,6 +521,8 @@ export default function LogsPage() {
           log.ruleId || '',
           `"${(log.message || '').replace(/"/g, '""')}"`,
           log.ipAddress || '',
+          log.geoCountry || 'Unknown',
+          String(log.geoCountryCode || '').trim().toUpperCase() || '',
         ].join(','))
       ].join('\n');
 
@@ -569,6 +571,20 @@ export default function LogsPage() {
   const getLogMethod = (log) => String(log?.method || log?.request?.method || '').trim() || '-';
 
   const getLogUri = (log) => String(log?.uri || log?.request?.uri || log?.request?.path || '').trim() || '-';
+
+  const getCountryFlagEmoji = (countryCode) => {
+    const normalizedCode = String(countryCode || '').trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(normalizedCode) || normalizedCode === 'XX') return '';
+    return String.fromCodePoint(
+      ...normalizedCode.split('').map((char) => 127397 + char.charCodeAt(0))
+    );
+  };
+
+  const getLogCountryDisplay = (log) => {
+    const countryName = String(log?.geoCountry || '').trim() || 'Unknown';
+    const flag = getCountryFlagEmoji(log?.geoCountryCode);
+    return flag ? `${flag} ${countryName}` : countryName;
+  };
 
   const getLogSiteKey = useCallback((log) => (
     normalizeDomainInput(String(log?.siteNormalized || log?.site || log?.source || log?.request?.host || ''))
@@ -1189,6 +1205,9 @@ export default function LogsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         IP Address
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Country
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--surface-2)]">
@@ -1234,6 +1253,9 @@ export default function LogsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
                           {normalizeIpAddress(log.ipAddress || log.clientIp || '') || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
+                          {getLogCountryDisplay(log)}
                         </td>
                       </tr>
                     ))}
