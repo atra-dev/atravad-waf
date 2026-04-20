@@ -25,6 +25,7 @@ import {
 } from "./letsencrypt.js";
 import { normalizeDomainInput } from "./domain-utils.js";
 import { geolocateIpCached } from "./geolocation.js";
+import { getIpReputationIntelCached } from "./ip-reputation.js";
 import {
   buildForwardedForHeader,
   normalizeIpAddress,
@@ -1259,6 +1260,7 @@ export class ProxyWAFServer {
         }
         if (clientIp) {
           const geo = await geolocateIpCached(clientIp);
+          const reputation = await getIpReputationIntelCached(clientIp);
           if (geo?.success) {
             entry.geoCountry = geo.country || null;
             entry.geoCountryCode = geo.countryCode || null;
@@ -1273,6 +1275,16 @@ export class ProxyWAFServer {
             entry.geoUsageType = geo.usageType || null;
             entry.geoIsPrivate = Boolean(geo.isPrivate);
           }
+          entry.ipReputationScore = Number.isFinite(Number(reputation?.score))
+            ? Number(reputation.score)
+            : null;
+          entry.ipReputationLevel = reputation?.level || null;
+          entry.ipReputationSources = Array.isArray(reputation?.sources) ? reputation.sources : [];
+          entry.ipReputationReasons = Array.isArray(reputation?.reasons) ? reputation.reasons : [];
+          entry.ipReputationReportCount = Number.isFinite(Number(reputation?.reportCount))
+            ? Number(reputation.reportCount)
+            : 0;
+          entry.ipReputationLastReportedAt = reputation?.lastReportedAt || null;
         }
         await persistSecurityLog(adminDb, entry, { trafficLoggingConfig });
       } catch (err) {

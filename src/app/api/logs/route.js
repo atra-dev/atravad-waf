@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { checkAuthorization } from '@/lib/rbac';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { geolocateIpCached } from '@/lib/geolocation';
+import { getIpReputationIntelCached } from '@/lib/ip-reputation';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { isValidIp, normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
@@ -113,6 +114,9 @@ function matchesTextSearch(log, search) {
     (log.geoHostname && String(log.geoHostname).toLowerCase().includes(searchLower)) ||
     (log.geoDomain && String(log.geoDomain).toLowerCase().includes(searchLower)) ||
     (log.geoUsageType && String(log.geoUsageType).toLowerCase().includes(searchLower)) ||
+    (log.ipReputationLevel && String(log.ipReputationLevel).toLowerCase().includes(searchLower)) ||
+    (log.ipReputationSources && Array.isArray(log.ipReputationSources) && log.ipReputationSources.some((value) => String(value || '').toLowerCase().includes(searchLower))) ||
+    (log.ipReputationReasons && Array.isArray(log.ipReputationReasons) && log.ipReputationReasons.some((value) => String(value || '').toLowerCase().includes(searchLower))) ||
     (
       normalizedSearchDomain &&
       (
@@ -266,6 +270,7 @@ export async function POST(request) {
         ? log.forwardedFor.map((value) => normalizeIpAddress(String(value || ''))).filter(Boolean)
         : [];
       const geo = clientIp ? await geolocateIpCached(clientIp) : null;
+      const reputation = clientIp ? await getIpReputationIntelCached(clientIp) : null;
       const normalizedLevel = normalizeLevel(log.level || 'info') || 'info';
       const normalizedSeverity = normalizeSeverity(log.severity || null) || null;
       const savedLog = await persistSecurityLog(adminDb, {
@@ -314,6 +319,14 @@ export async function POST(request) {
         geoDomain: geo?.success ? geo.domain || null : null,
         geoUsageType: geo?.success ? geo.usageType || null : null,
         geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
+        ipReputationScore: Number.isFinite(Number(reputation?.score)) ? Number(reputation.score) : null,
+        ipReputationLevel: reputation?.level || null,
+        ipReputationSources: Array.isArray(reputation?.sources) ? reputation.sources : [],
+        ipReputationReasons: Array.isArray(reputation?.reasons) ? reputation.reasons : [],
+        ipReputationReportCount: Number.isFinite(Number(reputation?.reportCount))
+          ? Number(reputation.reportCount)
+          : 0,
+        ipReputationLastReportedAt: reputation?.lastReportedAt || null,
       }, { trafficLoggingConfig });
       writtenLogs.push(savedLog);
     }

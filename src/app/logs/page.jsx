@@ -172,6 +172,122 @@ export default function LogsPage() {
     };
   };
 
+  const getIpReputation = (log) => {
+    const providerScore = Number(log?.ipReputationScore);
+    const providerLevel = String(log?.ipReputationLevel || '').trim().toLowerCase();
+    if (Number.isFinite(providerScore) && providerScore >= 0 && providerScore <= 100) {
+      let label = 'Low';
+      let className = 'border-emerald-500/35 bg-emerald-500/12 text-emerald-300';
+      if (providerLevel === 'critical' || providerScore >= 75) {
+        label = 'Critical';
+        className = 'border-red-500/45 bg-red-500/14 text-red-300';
+      } else if (providerLevel === 'high' || providerScore >= 50) {
+        label = 'High';
+        className = 'border-rose-500/45 bg-rose-500/14 text-rose-300';
+      } else if (providerLevel === 'medium' || providerScore >= 25) {
+        label = 'Medium';
+        className = 'border-amber-500/45 bg-amber-500/14 text-amber-300';
+      }
+
+      const sources = Array.isArray(log?.ipReputationSources) ? log.ipReputationSources : [];
+      const reasons = Array.isArray(log?.ipReputationReasons) ? log.ipReputationReasons : [];
+      const reportCount = Number(log?.ipReputationReportCount || 0);
+      const sourceLabel = sources.length > 0 ? `OSINT Source: ${sources.join(', ')}` : 'OSINT source score';
+
+      return {
+        score: Math.round(providerScore),
+        label,
+        className,
+        reasons: [
+          sourceLabel,
+          reportCount > 0 ? `Community reports: ${reportCount}` : null,
+          ...reasons,
+        ].filter(Boolean),
+      };
+    }
+
+    const reasons = [];
+    let score = 0;
+
+    const decision = getDecisionKey(log);
+    const severity = normalizeSeverity(log?.severity);
+    const usageType = String(log?.geoUsageType || '').toLowerCase();
+    const message = String(log?.message || '').toLowerCase();
+    const asnName = String(log?.geoAsnName || '').toLowerCase();
+
+    if (decision === 'waf_blocked') {
+      score += 35;
+      reasons.push('Request blocked by WAF');
+    } else if (decision === 'origin_denied') {
+      score += 20;
+      reasons.push('Request denied by origin');
+    }
+
+    if (severity === 'critical') {
+      score += 35;
+      reasons.push('Critical severity event');
+    } else if (severity === 'high') {
+      score += 25;
+      reasons.push('High severity event');
+    } else if (severity === 'medium' || severity === 'warning') {
+      score += 10;
+      reasons.push('Elevated severity event');
+    }
+
+    if (usageType === 'proxy/vpn') {
+      score += 25;
+      reasons.push('IP categorized as proxy/VPN');
+    } else if (usageType === 'hosting provider') {
+      score += 20;
+      reasons.push('IP from hosting/datacenter network');
+    } else if (usageType === 'mobile network') {
+      score += 5;
+      reasons.push('IP from mobile network');
+    }
+
+    if (
+      message.includes('sql injection') ||
+      message.includes('cross-site scripting') ||
+      message.includes('xss') ||
+      message.includes('path traversal') ||
+      message.includes('rce') ||
+      message.includes('bot')
+    ) {
+      score += 20;
+      reasons.push('Attack-pattern keyword detected');
+    }
+
+    if (asnName.includes('cloud') || asnName.includes('hosting') || asnName.includes('datacenter')) {
+      score += 8;
+      reasons.push('ASN associated with cloud/hosting infrastructure');
+    }
+
+    if (log?.geoIsPrivate) {
+      score = Math.max(score - 25, 0);
+      reasons.push('Private/local IP address');
+    }
+
+    let label = 'Low';
+    let className = 'border-emerald-500/35 bg-emerald-500/12 text-emerald-300';
+    if (score >= 75) {
+      label = 'Critical';
+      className = 'border-red-500/45 bg-red-500/14 text-red-300';
+    } else if (score >= 50) {
+      label = 'High';
+      className = 'border-rose-500/45 bg-rose-500/14 text-rose-300';
+    } else if (score >= 25) {
+      label = 'Medium';
+      className = 'border-amber-500/45 bg-amber-500/14 text-amber-300';
+    }
+
+    return {
+      score: Math.min(Math.max(score, 0), 100),
+      label,
+      className,
+      reasons: reasons.length > 0 ? reasons : ['No high-risk indicators found for this request'],
+    };
+  };
+
   const fetchSites = useCallback(async () => {
     try {
       const response = await fetch('/api/apps');
@@ -272,6 +388,9 @@ export default function LogsPage() {
             (log.geoHostname && String(log.geoHostname).toLowerCase().includes(searchLower)) ||
             (log.geoDomain && String(log.geoDomain).toLowerCase().includes(searchLower)) ||
             (log.geoUsageType && String(log.geoUsageType).toLowerCase().includes(searchLower)) ||
+            (log.ipReputationLevel && String(log.ipReputationLevel).toLowerCase().includes(searchLower)) ||
+            (Array.isArray(log.ipReputationSources) && log.ipReputationSources.some((value) => String(value || '').toLowerCase().includes(searchLower))) ||
+            (Array.isArray(log.ipReputationReasons) && log.ipReputationReasons.some((value) => String(value || '').toLowerCase().includes(searchLower))) ||
             (log.ipAddress && normalizeIpAddress(log.ipAddress) === normalizedSearchIp) ||
             (log.clientIp && normalizeIpAddress(log.clientIp) === normalizedSearchIp) ||
             (
@@ -1398,15 +1517,60 @@ export default function LogsPage() {
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <div className="theme-surface rounded-2xl p-4 sm:p-5">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Event Summary</h3>
-                      <dl className="mt-3">
-                        {renderDetailRow('Rule ID', deriveRuleId(selectedLog), { mono: true })}
-                        {renderDetailRow('Rule Message', simplifyRuleMessage(selectedLog), { breakWords: true })}
-                        {renderDetailRow('Status Code', selectedLog.statusCode ?? '-')}
-                        {renderDetailRow('Decision', selectedLog.decision || '-', { mono: true })}
-                        {renderDetailRow('Message', selectedLog.message || '-', { breakWords: true })}
-                      </dl>
+                    <div className="space-y-4">
+                      <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Event Summary</h3>
+                        <dl className="mt-3">
+                          {renderDetailRow('Rule ID', deriveRuleId(selectedLog), { mono: true })}
+                          {renderDetailRow('Rule Message', simplifyRuleMessage(selectedLog), { breakWords: true })}
+                          {renderDetailRow('Status Code', selectedLog.statusCode ?? '-')}
+                          {renderDetailRow('Decision', selectedLog.decision || '-', { mono: true })}
+                          {renderDetailRow('Message', selectedLog.message || '-', { breakWords: true })}
+                        </dl>
+                      </div>
+
+                      <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">IP Reputation</h3>
+                        {(() => {
+                          const reputation = getIpReputation(selectedLog);
+                          return (
+                            <div className="mt-3 space-y-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${reputation.className}`}>
+                                  {reputation.label} Risk
+                                </span>
+                                <span className="text-xs font-semibold theme-text-muted">
+                                  Score: {reputation.score}/100
+                                </span>
+                              </div>
+                              <div className="h-2 rounded-full bg-[var(--border-soft)]">
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    reputation.score >= 75
+                                      ? 'bg-red-500'
+                                      : reputation.score >= 50
+                                        ? 'bg-rose-500'
+                                        : reputation.score >= 25
+                                          ? 'bg-amber-500'
+                                          : 'bg-emerald-500'
+                                  }`}
+                                  style={{ width: `${reputation.score}%` }}
+                                />
+                              </div>
+                              <div className="theme-inset-surface rounded-xl px-3 py-2.5">
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">
+                                  Detection Signals
+                                </p>
+                                <ul className="space-y-1 text-sm theme-text-primary">
+                                  {reputation.reasons.map((reason) => (
+                                    <li key={reason}>- {reason}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
 
                     <div className="space-y-4">
