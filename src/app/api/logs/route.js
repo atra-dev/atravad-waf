@@ -91,6 +91,34 @@ function toTitleCase(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function matchesTextSearch(log, search) {
+  if (!search) return true;
+
+  const searchLower = String(search || '').trim().toLowerCase();
+  if (!searchLower) return true;
+
+  const normalizedSearchDomain = normalizeDomainInput(searchLower);
+
+  return (
+    (log.message && String(log.message).toLowerCase().includes(searchLower)) ||
+    (log.source && String(log.source).toLowerCase().includes(searchLower)) ||
+    (log.nodeId && String(log.nodeId).toLowerCase().includes(searchLower)) ||
+    (log.ruleId && String(log.ruleId).toLowerCase().includes(searchLower)) ||
+    (log.geoCountry && String(log.geoCountry).toLowerCase().includes(searchLower)) ||
+    (log.geoCountryCode && String(log.geoCountryCode).toLowerCase() === searchLower) ||
+    (log.geoAsn && String(log.geoAsn).toLowerCase().includes(searchLower)) ||
+    (log.geoAsnName && String(log.geoAsnName).toLowerCase().includes(searchLower)) ||
+    (
+      normalizedSearchDomain &&
+      (
+        normalizeDomainInput(String(log.source || '')) === normalizedSearchDomain ||
+        normalizeDomainInput(String(log.request?.host || '')) === normalizedSearchDomain ||
+        normalizeDomainInput(String(log.nodeId || '')) === normalizedSearchDomain
+      )
+    )
+  );
+}
+
 function deriveDecision(log) {
   const decision = String(log?.decision || '').trim().toLowerCase();
   if (decision === 'blocked') return 'waf_blocked';
@@ -273,6 +301,8 @@ export async function POST(request) {
         geoCountryCode: geo?.success ? geo.countryCode || null : null,
         geoContinent: geo?.success ? geo.continent || null : null,
         geoContinentCode: geo?.success ? geo.continentCode || null : null,
+        geoAsn: geo?.success ? geo.asn || null : null,
+        geoAsnName: geo?.success ? geo.asnName || null : null,
         geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
       }, { trafficLoggingConfig });
       writtenLogs.push(savedLog);
@@ -388,17 +418,7 @@ export async function GET(request) {
       baseQuery = baseQuery.where('uri', '==', requestUri);
     }
 
-    let effectiveBaseQuery = baseQuery;
-    const isPotentialCountryQuery =
-      !isIpSearch &&
-      searchLower.length >= 2 &&
-      searchLower.length <= 50 &&
-      !/[0-9]/.test(searchLower) &&
-      /^[a-z\s-]+$/.test(searchLower);
-    const countryCodeCandidate = isPotentialCountryQuery && /^[A-Z]{2}$/.test(searchUpper)
-      ? searchUpper
-      : null;
-    const countryNameCandidate = isPotentialCountryQuery ? toTitleCase(searchLower) : null;
+    const effectiveBaseQuery = baseQuery;
 
     if (isIpSearch) {
       const ipSearchQuery = baseQuery.where('searchIps', 'array-contains', normalizedSearchIp);
@@ -432,23 +452,13 @@ export async function GET(request) {
       });
     }
 
-    if (isPotentialCountryQuery) {
-      // Avoid fragile composite-index requirements for country filtering by scanning
+    if (!isIpSearch && search) {
+      // Avoid fragile composite-index requirements for text filtering by scanning
       // the already time-bounded result set, then paginating in memory.
       const scanSnapshot = await baseQuery.orderBy('timestamp', 'desc').get();
       const orderedLogs = scanSnapshot.docs
         .map(mapLogDocument)
-        .filter((log) => {
-          const logCountry = String(log?.geoCountry || '').trim().toLowerCase();
-          const logCountryCode = String(log?.geoCountryCode || '').trim().toUpperCase();
-          if (countryCodeCandidate) {
-            return logCountryCode === countryCodeCandidate;
-          }
-          if (countryNameCandidate) {
-            return logCountry === String(countryNameCandidate).toLowerCase();
-          }
-          return false;
-        });
+        .filter((log) => matchesTextSearch(log, search));
 
       if (orderedLogs.length > 0) {
         const totalStoredCount = orderedLogs.length;
@@ -475,6 +485,20 @@ export async function GET(request) {
           maxLookbackHours,
         });
       }
+
+      if (countOnly) {
+        return NextResponse.json({ totalStoredCount: 0 });
+      }
+
+      return NextResponse.json({
+        logs: [],
+        count: 0,
+        totalStoredCount: 0,
+        hasMore: false,
+        pageSize,
+        nextCursor: null,
+        maxLookbackHours,
+      });
     }
 
     let totalStoredCount = null;

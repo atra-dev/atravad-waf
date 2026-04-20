@@ -265,6 +265,8 @@ export default function LogsPage() {
             (log.ruleId && log.ruleId.toString().includes(searchLower)) ||
             (log.geoCountry && String(log.geoCountry).toLowerCase().includes(searchLower)) ||
             (log.geoCountryCode && String(log.geoCountryCode).toUpperCase() === normalizedSearchCountryCode) ||
+            (log.geoAsn && String(log.geoAsn).toLowerCase().includes(searchLower)) ||
+            (log.geoAsnName && String(log.geoAsnName).toLowerCase().includes(searchLower)) ||
             (log.ipAddress && normalizeIpAddress(log.ipAddress) === normalizedSearchIp) ||
             (log.clientIp && normalizeIpAddress(log.clientIp) === normalizedSearchIp) ||
             (
@@ -512,7 +514,7 @@ export default function LogsPage() {
     setExporting(true);
     try {
       const csvContent = [
-        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Flag'].join(','),
+        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Flag', 'ASN', 'ASN Name'].join(','),
         ...logs.map(log => [
           new Date(log.timestamp).toISOString(),
           log.severity || '',
@@ -523,6 +525,8 @@ export default function LogsPage() {
           log.ipAddress || '',
           log.geoCountry || 'Unknown',
           getCountryFlagEmoji(log.geoCountryCode) || '',
+          log.geoAsn || '',
+          `"${String(log.geoAsnName || '').replace(/"/g, '""')}"`,
         ].join(','))
       ].join('\n');
 
@@ -1200,7 +1204,7 @@ export default function LogsPage() {
                         Action
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Source
+                        Site
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Rule ID
@@ -1455,6 +1459,8 @@ export default function LogsPage() {
                         {renderDetailRow('User Agent', selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-', { breakWords: true })}
                         {renderDetailRow('Country', selectedLog.geoCountry || '-')}
                         {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
+                        {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
+                        {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
                       </dl>
                     </div>
                   </div>

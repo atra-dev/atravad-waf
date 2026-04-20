@@ -13,6 +13,11 @@ const dnsResolve = promisify(dns.resolve4);
 const geoCache = new Map();
 const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+function parseAsnNumber(asValue) {
+  const match = String(asValue || '').trim().match(/^AS(\d+)/i);
+  return match ? `AS${match[1]}` : null;
+}
+
 /**
  * Extract hostname from URL and resolve to IP address
  * @param {string} originUrl - Full URL (e.g., https://origin.example.com)
@@ -58,6 +63,8 @@ export async function geolocateIp(ip) {
       countryCode: null,
       continent: null,
       continentCode: null,
+      asn: null,
+      asnName: null,
     };
   }
 
@@ -70,13 +77,15 @@ export async function geolocateIp(ip) {
       countryCode: 'XX',
       continent: 'Unknown',
       continentCode: null, // Will use default region
+      asn: null,
+      asnName: 'Private Network',
       isPrivate: true,
     };
   }
 
   try {
     const response = await fetch(
-      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode`,
+      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode,as,asname`,
       {
         headers: {
           'Accept': 'application/json',
@@ -99,6 +108,8 @@ export async function geolocateIp(ip) {
         countryCode: null,
         continent: null,
         continentCode: null,
+        asn: null,
+        asnName: null,
       };
     }
 
@@ -109,6 +120,8 @@ export async function geolocateIp(ip) {
       countryCode: data.countryCode,
       continent: data.continent,
       continentCode: data.continentCode,
+      asn: parseAsnNumber(data.as),
+      asnName: String(data.asname || '').trim() || null,
     };
   } catch (error) {
     console.error(`Error geolocating IP ${normalizedIp}:`, error.message);
@@ -120,6 +133,8 @@ export async function geolocateIp(ip) {
       countryCode: null,
       continent: null,
       continentCode: null,
+      asn: null,
+      asnName: null,
     };
   }
 }
@@ -135,6 +150,8 @@ export async function geolocateIpCached(ip) {
       countryCode: null,
       continent: null,
       continentCode: null,
+      asn: null,
+      asnName: null,
     };
   }
 
@@ -170,6 +187,8 @@ export async function geolocateOrigin(originUrl) {
       countryCode: null,
       continent: null,
       continentCode: null,
+      asn: null,
+      asnName: null,
     };
   }
 
