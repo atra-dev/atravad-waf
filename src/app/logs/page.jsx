@@ -1359,7 +1359,7 @@ export default function LogsPage() {
                 className="fixed inset-0 bg-black/50"
                 onClick={() => setSelectedLog(null)}
               />
-              <div className="theme-modal relative w-full max-w-4xl overflow-hidden rounded-2xl">
+              <div className="theme-modal relative w-full max-w-6xl overflow-hidden rounded-2xl">
                 <div className="flex items-start justify-between gap-4 border-b border-[var(--border-soft)] bg-[var(--surface-1)] px-5 py-5 sm:px-6">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Security Event</p>
@@ -1381,7 +1381,7 @@ export default function LogsPage() {
                   </button>
                 </div>
 
-                <div className="max-h-[72vh] overflow-y-auto bg-[var(--surface-3)] px-4 py-4 sm:px-5 sm:py-5">
+                <div className="max-h-[74vh] overflow-y-auto bg-[var(--surface-3)] px-4 py-4 sm:px-5 sm:py-5">
                   <div className="flex flex-wrap gap-2">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${getSeverityColor(selectedLog.severity)}`}>
                       {String(selectedLog.severity || 'info').toUpperCase()}
@@ -1397,7 +1397,7 @@ export default function LogsPage() {
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
+                  <div className="mt-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div className="theme-surface rounded-2xl p-4 sm:p-5">
                       <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Event Summary</h3>
                       <dl className="mt-3">
@@ -1409,68 +1409,76 @@ export default function LogsPage() {
                       </dl>
                     </div>
 
-                    <div className="theme-surface rounded-2xl p-4 sm:p-5">
-                      <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Request Context</h3>
-                      <dl className="mt-3">
-                        {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}
-                        <div className="border-b border-[var(--border-soft)] py-2.5">
-                          <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">Client IP</dt>
-                          <dd className="space-y-3">
-                            <div className="theme-inset-surface overflow-hidden rounded-xl px-3 py-2.5">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-5 theme-text-primary sm:whitespace-pre sm:[scrollbar-width:thin]">
-                                  {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
+                    <div className="space-y-4">
+                      <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Request Context</h3>
+                        <dl className="mt-3">
+                          {renderDetailRow('Site', getLogSource(selectedLog), { breakAll: true })}
+                          <div className="border-b border-[var(--border-soft)] py-2.5">
+                            <dt className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">Client IP</dt>
+                            <dd className="space-y-3">
+                              <div className="theme-inset-surface overflow-hidden rounded-xl px-3 py-2.5">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-5 theme-text-primary sm:whitespace-pre sm:[scrollbar-width:thin]">
+                                    {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
+                                  </div>
+                                  {getLogIpAccessState(selectedLog) === 'blocked' ? (
+                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-300">
+                                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.53-10.78a.75.75 0 00-1.06-1.06L10 8.69 7.53 6.22a.75.75 0 00-1.06 1.06L8.94 9.75l-2.47 2.47a.75.75 0 101.06 1.06L10 10.81l2.47 2.47a.75.75 0 001.06-1.06l-2.47-2.47 2.47-2.47z" clipRule="evenodd" />
+                                      </svg>
+                                      Blocked
+                                    </span>
+                                  ) : null}
+                                  {getLogIpAccessState(selectedLog) === 'allowed' ? (
+                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3-3a1 1 0 111.414-1.42l2.293 2.294 6.543-6.544a1 1 0 011.415 0z" clipRule="evenodd" />
+                                      </svg>
+                                      Allowed
+                                    </span>
+                                  ) : null}
                                 </div>
-                                {getLogIpAccessState(selectedLog) === 'blocked' ? (
-                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-300">
-                                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.53-10.78a.75.75 0 00-1.06-1.06L10 8.69 7.53 6.22a.75.75 0 00-1.06 1.06L8.94 9.75l-2.47 2.47a.75.75 0 101.06 1.06L10 10.81l2.47 2.47a.75.75 0 001.06-1.06l-2.47-2.47 2.47-2.47z" clipRule="evenodd" />
-                                    </svg>
-                                    Blocked
-                                  </span>
-                                ) : null}
-                                {getLogIpAccessState(selectedLog) === 'allowed' ? (
-                                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
-                                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                      <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3-3a1 1 0 111.414-1.42l2.293 2.294 6.543-6.544a1 1 0 011.415 0z" clipRule="evenodd" />
-                                    </svg>
-                                    Allowed
-                                  </span>
-                                ) : null}
                               </div>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleRequestIpAccessUpdate('allow')}
-                                disabled={policyActionBusy}
-                                className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-300 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Allow
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRequestIpAccessUpdate('block')}
-                                disabled={policyActionBusy}
-                                className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Block
-                              </button>
-                            </div>
-                          </dd>
-                        </div>
-                        {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
-                        {renderDetailRow('URI', getLogUri(selectedLog), { mono: true, breakAll: true })}
-                        {renderDetailRow('User Agent', selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-', { breakWords: true })}
-                        {renderDetailRow('Country', selectedLog.geoCountry || '-')}
-                        {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
-                        {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
-                        {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
-                        {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
-                        {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
-                        {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
-                        {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
-                      </dl>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestIpAccessUpdate('allow')}
+                                  disabled={policyActionBusy}
+                                  className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-emerald-300 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Allow
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestIpAccessUpdate('block')}
+                                  disabled={policyActionBusy}
+                                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-red-300 transition hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  Block
+                                </button>
+                              </div>
+                            </dd>
+                          </div>
+                          {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
+                          {renderDetailRow('URI', getLogUri(selectedLog), { mono: true, breakAll: true })}
+                          {renderDetailRow('User Agent', selectedLog.userAgent || selectedLog.request?.headers?.['user-agent'] || '-', { breakWords: true })}
+                        </dl>
+                      </div>
+
+                      <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Network Intelligence</h3>
+                        <dl className="mt-3">
+                          {renderDetailRow('Country', selectedLog.geoCountry || '-')}
+                          {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
+                          {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
+                          {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
+                          {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
+                          {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
+                          {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
+                          {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
+                        </dl>
+                      </div>
                     </div>
                   </div>
 

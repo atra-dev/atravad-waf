@@ -25,6 +25,54 @@ function deriveUsageType(data = {}) {
   return 'Fixed Line ISP';
 }
 
+function normalizeDomain(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized || !normalized.includes('.')) return null;
+  return normalized;
+}
+
+function deriveDomainFromHostname(hostname) {
+  const normalized = normalizeDomain(hostname);
+  if (!normalized) return null;
+  const parts = normalized.split('.').filter(Boolean);
+  if (parts.length < 2) return normalized;
+  const secondLevelSuffixes = new Set(['com', 'net', 'org', 'gov', 'edu', 'co']);
+  if (parts.length >= 3 && secondLevelSuffixes.has(parts[parts.length - 2])) {
+    return parts.slice(-3).join('.');
+  }
+  return parts.slice(-2).join('.');
+}
+
+async function fetchIpWhoisDetails(ip) {
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data?.success === false) return null;
+
+    const connection = data?.connection || {};
+    const domain =
+      normalizeDomain(connection.domain) ||
+      deriveDomainFromHostname(connection.hostname) ||
+      null;
+    const hostname = String(connection.hostname || '').trim() || null;
+    const isp = String(connection.isp || '').trim() || null;
+    const organization = String(connection.org || '').trim() || null;
+    const asn = connection.asn ? `AS${String(connection.asn).replace(/^AS/i, '').trim()}` : null;
+
+    return { domain, hostname, isp, organization, asn };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 /**
  * Extract hostname from URL and resolve to IP address
  * @param {string} originUrl - Full URL (e.g., https://origin.example.com)
@@ -135,6 +183,10 @@ export async function geolocateIp(ip) {
       };
     }
 
+    const ipWhois = await fetchIpWhoisDetails(normalizedIp);
+    const reverseHostname = String(data.reverse || '').trim() || null;
+    const fallbackDomain = deriveDomainFromHostname(reverseHostname);
+
     return {
       success: true,
       ip: normalizedIp,
@@ -142,12 +194,12 @@ export async function geolocateIp(ip) {
       countryCode: data.countryCode,
       continent: data.continent,
       continentCode: data.continentCode,
-      asn: parseAsnNumber(data.as),
+      asn: ipWhois?.asn || parseAsnNumber(data.as),
       asnName: String(data.asname || '').trim() || null,
-      isp: String(data.isp || '').trim() || null,
-      organization: String(data.org || '').trim() || null,
-      hostname: String(data.reverse || '').trim() || null,
-      domain: String(data.reverse || '').trim().split('.').slice(-2).join('.') || null,
+      isp: ipWhois?.isp || String(data.isp || '').trim() || null,
+      organization: ipWhois?.organization || String(data.org || '').trim() || null,
+      hostname: ipWhois?.hostname || reverseHostname,
+      domain: ipWhois?.domain || fallbackDomain,
       usageType: deriveUsageType(data),
     };
   } catch (error) {
