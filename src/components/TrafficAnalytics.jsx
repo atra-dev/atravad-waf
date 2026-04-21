@@ -65,6 +65,8 @@ function getDecisionKey(log) {
  * Displays time-series charts and traffic patterns
  */
 export default function TrafficAnalytics({ logs = [], analytics = null }) {
+  const [copyState, setCopyState] = useState('idle');
+
   // Process logs for time-series data
   const timeSeriesData = useMemo(() => {
     if (analytics?.timeSeries) {
@@ -181,6 +183,23 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
       .sort((a, b) => b.totalBlocked - a.totalBlocked)
       .slice(0, 10);
   }, [logs]);
+
+  const handleCopyBlockedIps = async () => {
+    if (topBlockedIPs.length === 0 || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      setCopyState('error');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(topBlockedIPs.map((item) => item.ip).join('\n'));
+      setCopyState('copied');
+      window.setTimeout(() => setCopyState('idle'), 2000);
+    } catch (error) {
+      console.error('Failed to copy blocked IPs:', error);
+      setCopyState('error');
+      window.setTimeout(() => setCopyState('idle'), 2000);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -339,7 +358,29 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
               <thead className="bg-[var(--surface-3)]">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase theme-text-muted">Rank</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase theme-text-muted">IP Address</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase theme-text-muted">
+                    <div className="flex items-center gap-2">
+                      <span>IP Address</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyBlockedIps}
+                        className="inline-flex items-center justify-center rounded-md border border-[var(--border-soft)] bg-[var(--surface-2)] p-1.5 theme-text-secondary transition hover:border-[var(--accent-strong)] hover:text-[var(--accent-strong)]"
+                        aria-label="Copy all blocked IP addresses"
+                        title={
+                          copyState === 'copied'
+                            ? 'Copied'
+                            : copyState === 'error'
+                              ? 'Copy failed'
+                              : 'Copy all blocked IP addresses'
+                        }
+                      >
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                          <path d="M6 2.75A2.25 2.25 0 003.75 5v8.5A2.25 2.25 0 006 15.75h6.5A2.25 2.25 0 0014.75 13.5V5A2.25 2.25 0 0012.5 2.75H6z" />
+                          <path d="M8.5 16.75A3.25 3.25 0 015.25 13.5V6.25H5A2.25 2.25 0 002.75 8.5v6.5A2.25 2.25 0 005 17.25h6.5a2.25 2.25 0 002.07-1.375 3.23 3.23 0 01-1.07.18H8.5z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase theme-text-muted">Blocked by WAF</th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase theme-text-muted">Blocked by Origin</th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase theme-text-muted">Total Blocked</th>
