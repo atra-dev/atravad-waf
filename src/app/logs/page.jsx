@@ -55,6 +55,7 @@ export default function LogsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('logs'); // 'logs', 'geographic', 'traffic'
   const [selectedLog, setSelectedLog] = useState(null);
+  const [showNetworkIntelligence, setShowNetworkIntelligence] = useState(false);
   const [policyActionState, setPolicyActionState] = useState({
     open: false,
     title: '',
@@ -169,122 +170,6 @@ export default function LogsPage() {
     return {
       label: 'Allowed',
       className: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    };
-  };
-
-  const getIpReputation = (log) => {
-    const providerScore = Number(log?.ipReputationScore);
-    const providerLevel = String(log?.ipReputationLevel || '').trim().toLowerCase();
-    if (Number.isFinite(providerScore) && providerScore >= 0 && providerScore <= 100) {
-      let label = 'Low';
-      let className = 'border-emerald-500/35 bg-emerald-500/12 text-emerald-300';
-      if (providerLevel === 'critical' || providerScore >= 75) {
-        label = 'Critical';
-        className = 'border-red-500/45 bg-red-500/14 text-red-300';
-      } else if (providerLevel === 'high' || providerScore >= 50) {
-        label = 'High';
-        className = 'border-rose-500/45 bg-rose-500/14 text-rose-300';
-      } else if (providerLevel === 'medium' || providerScore >= 25) {
-        label = 'Medium';
-        className = 'border-amber-500/45 bg-amber-500/14 text-amber-300';
-      }
-
-      const sources = Array.isArray(log?.ipReputationSources) ? log.ipReputationSources : [];
-      const reasons = Array.isArray(log?.ipReputationReasons) ? log.ipReputationReasons : [];
-      const reportCount = Number(log?.ipReputationReportCount || 0);
-      const sourceLabel = sources.length > 0 ? `OSINT Source: ${sources.join(', ')}` : 'OSINT source score';
-
-      return {
-        score: Math.round(providerScore),
-        label,
-        className,
-        reasons: [
-          sourceLabel,
-          reportCount > 0 ? `Community reports: ${reportCount}` : null,
-          ...reasons,
-        ].filter(Boolean),
-      };
-    }
-
-    const reasons = [];
-    let score = 0;
-
-    const decision = getDecisionKey(log);
-    const severity = normalizeSeverity(log?.severity);
-    const usageType = String(log?.geoUsageType || '').toLowerCase();
-    const message = String(log?.message || '').toLowerCase();
-    const asnName = String(log?.geoAsnName || '').toLowerCase();
-
-    if (decision === 'waf_blocked') {
-      score += 35;
-      reasons.push('Request blocked by WAF');
-    } else if (decision === 'origin_denied') {
-      score += 20;
-      reasons.push('Request denied by origin');
-    }
-
-    if (severity === 'critical') {
-      score += 35;
-      reasons.push('Critical severity event');
-    } else if (severity === 'high') {
-      score += 25;
-      reasons.push('High severity event');
-    } else if (severity === 'medium' || severity === 'warning') {
-      score += 10;
-      reasons.push('Elevated severity event');
-    }
-
-    if (usageType === 'proxy/vpn') {
-      score += 25;
-      reasons.push('IP categorized as proxy/VPN');
-    } else if (usageType === 'hosting provider') {
-      score += 20;
-      reasons.push('IP from hosting/datacenter network');
-    } else if (usageType === 'mobile network') {
-      score += 5;
-      reasons.push('IP from mobile network');
-    }
-
-    if (
-      message.includes('sql injection') ||
-      message.includes('cross-site scripting') ||
-      message.includes('xss') ||
-      message.includes('path traversal') ||
-      message.includes('rce') ||
-      message.includes('bot')
-    ) {
-      score += 20;
-      reasons.push('Attack-pattern keyword detected');
-    }
-
-    if (asnName.includes('cloud') || asnName.includes('hosting') || asnName.includes('datacenter')) {
-      score += 8;
-      reasons.push('ASN associated with cloud/hosting infrastructure');
-    }
-
-    if (log?.geoIsPrivate) {
-      score = Math.max(score - 25, 0);
-      reasons.push('Private/local IP address');
-    }
-
-    let label = 'Low';
-    let className = 'border-emerald-500/35 bg-emerald-500/12 text-emerald-300';
-    if (score >= 75) {
-      label = 'Critical';
-      className = 'border-red-500/45 bg-red-500/14 text-red-300';
-    } else if (score >= 50) {
-      label = 'High';
-      className = 'border-rose-500/45 bg-rose-500/14 text-rose-300';
-    } else if (score >= 25) {
-      label = 'Medium';
-      className = 'border-amber-500/45 bg-amber-500/14 text-amber-300';
-    }
-
-    return {
-      score: Math.min(Math.max(score, 0), 100),
-      label,
-      className,
-      reasons: reasons.length > 0 ? reasons : ['No high-risk indicators found for this request'],
     };
   };
 
@@ -1020,8 +905,11 @@ export default function LogsPage() {
     if (!selectedLog) {
       setSelectedLogStoredCount(null);
       setSelectedLogExactCount(null);
+      setShowNetworkIntelligence(false);
       return;
     }
+
+    setShowNetworkIntelligence(false);
 
     const selectedSite = normalizeDomainInput(
       String(selectedLog.siteNormalized || selectedLog.site || selectedLog.source || selectedLog.request?.host || '')
@@ -1528,49 +1416,6 @@ export default function LogsPage() {
                           {renderDetailRow('Message', selectedLog.message || '-', { breakWords: true })}
                         </dl>
                       </div>
-
-                      <div className="theme-surface rounded-2xl p-4 sm:p-5">
-                        <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">IP Reputation</h3>
-                        {(() => {
-                          const reputation = getIpReputation(selectedLog);
-                          return (
-                            <div className="mt-3 space-y-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${reputation.className}`}>
-                                  {reputation.label} Risk
-                                </span>
-                                <span className="text-xs font-semibold theme-text-muted">
-                                  Score: {reputation.score}/100
-                                </span>
-                              </div>
-                              <div className="h-2 rounded-full bg-[var(--border-soft)]">
-                                <div
-                                  className={`h-2 rounded-full ${
-                                    reputation.score >= 75
-                                      ? 'bg-red-500'
-                                      : reputation.score >= 50
-                                        ? 'bg-rose-500'
-                                        : reputation.score >= 25
-                                          ? 'bg-amber-500'
-                                          : 'bg-emerald-500'
-                                  }`}
-                                  style={{ width: `${reputation.score}%` }}
-                                />
-                              </div>
-                              <div className="theme-inset-surface rounded-xl px-3 py-2.5">
-                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">
-                                  Detection Signals
-                                </p>
-                                <ul className="space-y-1 text-sm theme-text-primary">
-                                  {reputation.reasons.map((reason) => (
-                                    <li key={reason}>- {reason}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
                     </div>
 
                     <div className="space-y-4">
@@ -1586,22 +1431,35 @@ export default function LogsPage() {
                                   <div className="min-w-0 overflow-x-auto whitespace-pre-wrap font-mono text-sm leading-5 theme-text-primary sm:whitespace-pre sm:[scrollbar-width:thin]">
                                     {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
                                   </div>
-                                  {getLogIpAccessState(selectedLog) === 'blocked' ? (
-                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-300">
-                                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.53-10.78a.75.75 0 00-1.06-1.06L10 8.69 7.53 6.22a.75.75 0 00-1.06 1.06L8.94 9.75l-2.47 2.47a.75.75 0 101.06 1.06L10 10.81l2.47 2.47a.75.75 0 001.06-1.06l-2.47-2.47 2.47-2.47z" clipRule="evenodd" />
+                                  <div className="flex shrink-0 items-start gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowNetworkIntelligence((prev) => !prev)}
+                                      className="inline-flex items-center justify-center rounded-lg border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 theme-text-secondary transition hover:border-[var(--accent-strong)] hover:text-[var(--accent-strong)]"
+                                      aria-label={showNetworkIntelligence ? 'Hide network intelligence' : 'Show network intelligence'}
+                                      title={showNetworkIntelligence ? 'Hide network intelligence' : 'Show network intelligence'}
+                                    >
+                                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M18 10A8 8 0 112 10a8 8 0 0116 0zm-7-3a1 1 0 10-2 0 1 1 0 002 0zm-2 2a1 1 0 000 2v3a1 1 0 102 0v-3a1 1 0 00-1-1z" clipRule="evenodd" />
                                       </svg>
-                                      Blocked
-                                    </span>
-                                  ) : null}
-                                  {getLogIpAccessState(selectedLog) === 'allowed' ? (
-                                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
-                                      <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3-3a1 1 0 111.414-1.42l2.293 2.294 6.543-6.544a1 1 0 011.415 0z" clipRule="evenodd" />
-                                      </svg>
-                                      Allowed
-                                    </span>
-                                  ) : null}
+                                    </button>
+                                    {getLogIpAccessState(selectedLog) === 'blocked' ? (
+                                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-red-500/35 bg-red-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-300">
+                                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.53-10.78a.75.75 0 00-1.06-1.06L10 8.69 7.53 6.22a.75.75 0 00-1.06 1.06L8.94 9.75l-2.47 2.47a.75.75 0 101.06 1.06L10 10.81l2.47 2.47a.75.75 0 001.06-1.06l-2.47-2.47 2.47-2.47z" clipRule="evenodd" />
+                                        </svg>
+                                        Blocked
+                                      </span>
+                                    ) : null}
+                                    {getLogIpAccessState(selectedLog) === 'allowed' ? (
+                                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-500/35 bg-emerald-500/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                                        <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                          <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.415 0l-3-3a1 1 0 111.414-1.42l2.293 2.294 6.543-6.544a1 1 0 011.415 0z" clipRule="evenodd" />
+                                        </svg>
+                                        Allowed
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -1622,6 +1480,32 @@ export default function LogsPage() {
                                   Block
                                 </button>
                               </div>
+                              {showNetworkIntelligence ? (
+                                <div className="theme-inset-surface rounded-xl px-3 py-3">
+                                  <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">
+                                      Network Intelligence
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowNetworkIntelligence(false)}
+                                      className="text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-secondary transition hover:theme-text-primary"
+                                    >
+                                      Close
+                                    </button>
+                                  </div>
+                                  <dl>
+                                    {renderDetailRow('Country', selectedLog.geoCountry || '-')}
+                                    {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
+                                    {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
+                                    {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
+                                    {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
+                                    {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
+                                    {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
+                                    {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
+                                  </dl>
+                                </div>
+                              ) : null}
                             </dd>
                           </div>
                           {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
@@ -1630,20 +1514,7 @@ export default function LogsPage() {
                         </dl>
                       </div>
 
-                      <div className="theme-surface rounded-2xl p-4 sm:p-5">
-                        <h3 className="text-sm font-semibold uppercase tracking-[0.12em] theme-text-muted">Network Intelligence</h3>
-                        <dl className="mt-3">
-                          {renderDetailRow('Country', selectedLog.geoCountry || '-')}
-                          {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
-                          {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
-                          {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
-                          {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
-                          {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
-                          {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
-                          {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
-                        </dl>
                       </div>
-                    </div>
                   </div>
 
                 </div>
