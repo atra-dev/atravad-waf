@@ -1434,10 +1434,10 @@ export default function LogsPage() {
                                   <div className="flex shrink-0 items-start gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => setShowNetworkIntelligence((prev) => !prev)}
+                                      onClick={() => setShowNetworkIntelligence(true)}
                                       className="inline-flex items-center justify-center rounded-lg border border-[var(--border-soft)] bg-[var(--surface-2)] p-2 theme-text-secondary transition hover:border-[var(--accent-strong)] hover:text-[var(--accent-strong)]"
-                                      aria-label={showNetworkIntelligence ? 'Hide network intelligence' : 'Show network intelligence'}
-                                      title={showNetworkIntelligence ? 'Hide network intelligence' : 'Show network intelligence'}
+                                      aria-label="Show network intelligence"
+                                      title="Show network intelligence"
                                     >
                                       <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                         <path fillRule="evenodd" d="M18 10A8 8 0 112 10a8 8 0 0116 0zm-7-3a1 1 0 10-2 0 1 1 0 002 0zm-2 2a1 1 0 000 2v3a1 1 0 102 0v-3a1 1 0 00-1-1z" clipRule="evenodd" />
@@ -1480,32 +1480,6 @@ export default function LogsPage() {
                                   Block
                                 </button>
                               </div>
-                              {showNetworkIntelligence ? (
-                                <div className="theme-inset-surface rounded-xl px-3 py-3">
-                                  <div className="mb-2 flex items-center justify-between gap-3">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-muted">
-                                      Network Intelligence
-                                    </p>
-                                    <button
-                                      type="button"
-                                      onClick={() => setShowNetworkIntelligence(false)}
-                                      className="text-[11px] font-semibold uppercase tracking-[0.12em] theme-text-secondary transition hover:theme-text-primary"
-                                    >
-                                      Close
-                                    </button>
-                                  </div>
-                                  <dl>
-                                    {renderDetailRow('Country', selectedLog.geoCountry || '-')}
-                                    {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
-                                    {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
-                                    {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
-                                    {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
-                                    {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
-                                    {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
-                                    {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
-                                  </dl>
-                                </div>
-                              ) : null}
                             </dd>
                           </div>
                           {renderDetailRow('Method', getLogMethod(selectedLog), { mono: true })}
@@ -1521,10 +1495,54 @@ export default function LogsPage() {
               </div>
             </div>
           </div>
-        )}
-        <ConfirmationModal
-          open={policyActionState.open}
-          title={policyActionState.title}
+          )}
+          {selectedLog && showNetworkIntelligence && (
+            <div className="fixed inset-0 z-[60] overflow-y-auto">
+              <div className="flex min-h-full items-center justify-center p-3 sm:p-4">
+                <div
+                  className="fixed inset-0 bg-black/60"
+                  onClick={() => setShowNetworkIntelligence(false)}
+                />
+                <div className="theme-modal relative w-full max-w-2xl overflow-hidden rounded-2xl">
+                  <div className="flex items-start justify-between gap-4 border-b border-[var(--border-soft)] bg-[var(--surface-1)] px-5 py-5 sm:px-6">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Client IP</p>
+                      <h2 className="mt-1 text-2xl font-semibold tracking-tight theme-text-primary sm:text-[2rem]">Network Intelligence</h2>
+                      <p className="mt-1 text-sm font-mono theme-text-secondary">
+                        {normalizeIpAddress(selectedLog.ipAddress || selectedLog.clientIp || '') || '-'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowNetworkIntelligence(false)}
+                      className="theme-button-neutral shrink-0 rounded-xl p-2 transition"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="max-h-[74vh] overflow-y-auto bg-[var(--surface-3)] px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="theme-surface rounded-2xl p-4 sm:p-5">
+                      <dl>
+                        {renderDetailRow('Country', selectedLog.geoCountry || '-')}
+                        {renderDetailRow('Continent', selectedLog.geoContinent || '-')}
+                        {renderDetailRow('ASN', selectedLog.geoAsn || '-', { mono: true })}
+                        {renderDetailRow('ASN Name', selectedLog.geoAsnName || '-', { breakWords: true })}
+                        {renderDetailRow('ISP', selectedLog.geoIsp || '-', { breakWords: true })}
+                        {renderDetailRow('Usage Type', selectedLog.geoUsageType || '-')}
+                        {renderDetailRow('Hostname(s)', selectedLog.geoHostname || '-', { breakWords: true })}
+                        {renderDetailRow('Domain Name', selectedLog.geoDomain || '-', { breakWords: true })}
+                      </dl>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <ConfirmationModal
+            open={policyActionState.open}
+            title={policyActionState.title}
           description={policyActionState.description}
           confirmLabel={policyActionState.confirmLabel}
           tone={policyActionState.tone}
