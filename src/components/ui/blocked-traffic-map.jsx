@@ -38,11 +38,21 @@ const mapProjection = geoEqualEarth()
   .translate(MAP_TRANSLATE);
 
 function normalizeCountryName(value) {
-  return String(value || '')
+  const normalized = String(value || '')
     .toLowerCase()
     .replace(/[().,']/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+  if (normalized === 'united states' || normalized === 'usa' || normalized === 'us') {
+    return 'united states of america';
+  }
+
+  if (normalized === 'uk') {
+    return 'united kingdom';
+  }
+
+  return normalized;
 }
 
 function getCountryIdentifiers(geo) {
