@@ -46,6 +46,26 @@ const heroHeadlineWords = [
   'business.',
 ];
 
+const homepageThreatMapData = {
+  attackPoints: [
+    { id: 'mock-de-1', latitude: 52.52, longitude: 13.405, country: 'Germany', countryCode: 'DE', blocked: 12 },
+    { id: 'mock-no-1', latitude: 59.9139, longitude: 10.7522, country: 'Norway', countryCode: 'NO', blocked: 9 },
+    { id: 'mock-kz-1', latitude: 43.2389, longitude: 76.8897, country: 'Kazakhstan', countryCode: 'KZ', blocked: 8 },
+    { id: 'mock-vn-1', latitude: 21.0285, longitude: 105.8542, country: 'Vietnam', countryCode: 'VN', blocked: 7 },
+    { id: 'mock-jp-1', latitude: 35.6762, longitude: 139.6503, country: 'Japan', countryCode: 'JP', blocked: 6 },
+    { id: 'mock-au-1', latitude: -33.8688, longitude: 151.2093, country: 'Australia', countryCode: 'AU', blocked: 5 },
+  ],
+  countries: [
+    { code: 'DE', name: 'Germany', count: 12, blocked: 12, wafBlocked: 10, originDenied: 2, allowed: 0 },
+    { code: 'NO', name: 'Norway', count: 9, blocked: 9, wafBlocked: 9, originDenied: 0, allowed: 0 },
+    { code: 'KZ', name: 'Kazakhstan', count: 8, blocked: 8, wafBlocked: 7, originDenied: 1, allowed: 0 },
+    { code: 'VN', name: 'Vietnam', count: 7, blocked: 7, wafBlocked: 6, originDenied: 1, allowed: 0 },
+    { code: 'JP', name: 'Japan', count: 6, blocked: 6, wafBlocked: 5, originDenied: 1, allowed: 0 },
+    { code: 'AU', name: 'Australia', count: 5, blocked: 5, wafBlocked: 4, originDenied: 1, allowed: 0 },
+  ],
+  protectedCountries: ['Philippines'],
+};
+
 const defenseCounters = [
   {
     label: 'Malicious requests blocked',
@@ -208,18 +228,16 @@ function MotionSection({ className, children }) {
   );
 }
 
-export default function HomePageClient({ threatMapData = null }) {
+export default function HomePageClient() {
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ['start start', 'end start'],
   });
   const wallYPrimary = useTransform(scrollYProgress, [0, 1], [0, -70]);
-  const attackPoints = Array.isArray(threatMapData?.attackPoints) ? threatMapData.attackPoints : [];
-  const countries = Array.isArray(threatMapData?.countries) ? threatMapData.countries : [];
-  const protectedCountries = Array.isArray(threatMapData?.protectedCountries)
-    ? threatMapData.protectedCountries
-    : [];
+  const attackPoints = homepageThreatMapData.attackPoints;
+  const countries = homepageThreatMapData.countries;
+  const protectedCountries = homepageThreatMapData.protectedCountries;
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#07090f] text-[#f1ece2]">
