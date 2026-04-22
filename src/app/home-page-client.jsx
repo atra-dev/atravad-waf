@@ -48,20 +48,18 @@ const heroHeadlineWords = [
 
 const homepageThreatMapData = {
   attackPoints: [
-    { id: 'mock-de-1', latitude: 52.52, longitude: 13.405, country: 'Germany', countryCode: 'DE', blocked: 12 },
-    { id: 'mock-no-1', latitude: 59.9139, longitude: 10.7522, country: 'Norway', countryCode: 'NO', blocked: 9 },
-    { id: 'mock-kz-1', latitude: 43.2389, longitude: 76.8897, country: 'Kazakhstan', countryCode: 'KZ', blocked: 8 },
-    { id: 'mock-vn-1', latitude: 21.0285, longitude: 105.8542, country: 'Vietnam', countryCode: 'VN', blocked: 7 },
+    { id: 'mock-us-1', latitude: 37.0902, longitude: -95.7129, country: 'United States', countryCode: 'US', blocked: 14 },
+    { id: 'mock-br-1', latitude: -14.235, longitude: -51.9253, country: 'Brazil', countryCode: 'BR', blocked: 11 },
+    { id: 'mock-ca-1', latitude: 56.1304, longitude: -106.3468, country: 'Canada', countryCode: 'CA', blocked: 9 },
+    { id: 'mock-cn-1', latitude: 35.8617, longitude: 104.1954, country: 'China', countryCode: 'CN', blocked: 13 },
     { id: 'mock-jp-1', latitude: 35.6762, longitude: 139.6503, country: 'Japan', countryCode: 'JP', blocked: 6 },
-    { id: 'mock-au-1', latitude: -33.8688, longitude: 151.2093, country: 'Australia', countryCode: 'AU', blocked: 5 },
   ],
   countries: [
-    { code: 'DE', name: 'Germany', count: 12, blocked: 12, wafBlocked: 10, originDenied: 2, allowed: 0 },
-    { code: 'NO', name: 'Norway', count: 9, blocked: 9, wafBlocked: 9, originDenied: 0, allowed: 0 },
-    { code: 'KZ', name: 'Kazakhstan', count: 8, blocked: 8, wafBlocked: 7, originDenied: 1, allowed: 0 },
-    { code: 'VN', name: 'Vietnam', count: 7, blocked: 7, wafBlocked: 6, originDenied: 1, allowed: 0 },
+    { code: 'US', name: 'United States', count: 14, blocked: 14, wafBlocked: 12, originDenied: 2, allowed: 0 },
+    { code: 'CN', name: 'China', count: 13, blocked: 13, wafBlocked: 11, originDenied: 2, allowed: 0 },
+    { code: 'BR', name: 'Brazil', count: 11, blocked: 11, wafBlocked: 9, originDenied: 2, allowed: 0 },
+    { code: 'CA', name: 'Canada', count: 9, blocked: 9, wafBlocked: 8, originDenied: 1, allowed: 0 },
     { code: 'JP', name: 'Japan', count: 6, blocked: 6, wafBlocked: 5, originDenied: 1, allowed: 0 },
-    { code: 'AU', name: 'Australia', count: 5, blocked: 5, wafBlocked: 4, originDenied: 1, allowed: 0 },
   ],
   protectedCountries: ['Philippines'],
 };
