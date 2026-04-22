@@ -6,6 +6,7 @@ async function getHomePageThreatMapData() {
   if (!adminDb) {
     return {
       attackPoints: [],
+      countries: [],
       protectedCountries: [],
     };
   }
@@ -17,11 +18,31 @@ async function getHomePageThreatMapData() {
     ]);
 
     const attackPointMap = new Map();
+    const countryMap = new Map();
 
     for (const doc of logsSnapshot.docs) {
       const data = doc.data();
       const decision = String(data?.decision || '').trim().toLowerCase();
       if (decision !== 'waf_blocked' && decision !== 'origin_denied') continue;
+
+      const countryCode = String(data?.geoCountryCode || '').trim().toUpperCase();
+      const countryName = String(data?.geoCountry || '').trim() || countryCode || 'Unknown';
+      if (countryCode) {
+        const existingCountry = countryMap.get(countryCode) || {
+          code: countryCode,
+          name: countryName,
+          count: 0,
+          blocked: 0,
+          wafBlocked: 0,
+          originDenied: 0,
+          allowed: 0,
+        };
+        existingCountry.count += 1;
+        existingCountry.blocked += 1;
+        if (decision === 'waf_blocked') existingCountry.wafBlocked += 1;
+        if (decision === 'origin_denied') existingCountry.originDenied += 1;
+        countryMap.set(countryCode, existingCountry);
+      }
 
       const latitude = Number(data?.geoLatitude);
       const longitude = Number(data?.geoLongitude);
@@ -44,6 +65,9 @@ async function getHomePageThreatMapData() {
     const attackPoints = Array.from(attackPointMap.values())
       .sort((a, b) => b.blocked - a.blocked)
       .slice(0, 36);
+    const countries = Array.from(countryMap.values())
+      .sort((a, b) => b.blocked - a.blocked)
+      .slice(0, 12);
 
     const protectedCountries = Array.from(
       new Set(
@@ -55,12 +79,14 @@ async function getHomePageThreatMapData() {
 
     return {
       attackPoints,
+      countries,
       protectedCountries,
     };
   } catch (error) {
     console.error('Error loading homepage threat map data:', error);
     return {
       attackPoints: [],
+      countries: [],
       protectedCountries: [],
     };
   }

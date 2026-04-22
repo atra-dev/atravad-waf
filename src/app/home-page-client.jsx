@@ -216,6 +216,7 @@ export default function HomePageClient({ threatMapData = null }) {
   });
   const wallYPrimary = useTransform(scrollYProgress, [0, 1], [0, -70]);
   const attackPoints = Array.isArray(threatMapData?.attackPoints) ? threatMapData.attackPoints : [];
+  const countries = Array.isArray(threatMapData?.countries) ? threatMapData.countries : [];
   const protectedCountries = Array.isArray(threatMapData?.protectedCountries)
     ? threatMapData.protectedCountries
     : [];
@@ -289,7 +290,11 @@ export default function HomePageClient({ threatMapData = null }) {
             <MotionSection className="relative xl:pt-0">
               <div className="relative">
                 <motion.div id="threat-map" style={{ y: wallYPrimary }} className="relative z-10 scroll-mt-28">
-                  <BlockedTrafficMap attackPoints={attackPoints} protectedCountries={protectedCountries} />
+                  <BlockedTrafficMap
+                    attackPoints={attackPoints}
+                    countries={countries}
+                    protectedCountries={protectedCountries}
+                  />
                 </motion.div>
               </div>
             </MotionSection>
