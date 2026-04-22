@@ -143,9 +143,13 @@ function buildProtectedCountryEntries(protectedCountries, geographies) {
       });
       const coordinates = getGeoCoordinates(geo);
       if (!geo || !coordinates) return null;
+      const identifiers = getCountryIdentifiers(geo);
       return {
         name,
+        normalizedName: normalizeCountryName(name),
         geo,
+        codes: identifiers.codes,
+        names: identifiers.names,
         coordinates,
       };
     })
@@ -153,10 +157,28 @@ function buildProtectedCountryEntries(protectedCountries, geographies) {
     .slice(0, 3);
 }
 
-function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
-  if (protectedEntries.length === 0) return [];
+function isDomesticSourceForTarget({ sourceCode, sourceName, target }) {
+  if (!target) return false;
 
-  return (Array.isArray(blockedCountries) ? blockedCountries : [])
+  const normalizedSourceCode = String(sourceCode || '').trim().toUpperCase();
+  const normalizedSourceName = normalizeCountryName(sourceName);
+
+  if (normalizedSourceCode && target.codes.includes(normalizedSourceCode)) {
+    return true;
+  }
+
+  if (normalizedSourceName && target.names.includes(normalizedSourceName)) {
+    return true;
+  }
+
+  return normalizedSourceName && normalizedSourceName === target.normalizedName;
+}
+
+function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
+  if (protectedEntries.length === 0) return { routes: [], domesticCounts: new Map() };
+
+  const domesticCounts = new Map();
+  const routes = (Array.isArray(blockedCountries) ? blockedCountries : [])
     .filter((country) => Number(country?.blocked || 0) > 0)
     .sort((a, b) => Number(b?.blocked || 0) - Number(a?.blocked || 0))
     .slice(0, 6)
@@ -165,6 +187,10 @@ function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
       const sourceCoordinates = getGeoCoordinates(sourceGeo);
       const target = protectedEntries[index % protectedEntries.length];
       if (!sourceGeo || !sourceCoordinates || !target?.coordinates) return null;
+      if (isDomesticSourceForTarget({ sourceCode: country?.code, sourceName: country?.name, target })) {
+        domesticCounts.set(target.name, (domesticCounts.get(target.name) || 0) + Number(country?.blocked || 0));
+        return null;
+      }
 
       return {
         id: `${country.code || country.name || index}-${target.name}-${index}`,
@@ -175,17 +201,24 @@ function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
       };
     })
     .filter(Boolean);
+
+  return { routes, domesticCounts };
 }
 
 function buildExactPointRoutes(attackPoints, protectedEntries) {
-  if (protectedEntries.length === 0) return [];
+  if (protectedEntries.length === 0) return { routes: [], domesticCounts: new Map() };
 
-  return (Array.isArray(attackPoints) ? attackPoints : [])
+  const domesticCounts = new Map();
+  const routes = (Array.isArray(attackPoints) ? attackPoints : [])
     .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
     .slice(0, 40)
     .map((point, index) => {
       const target = protectedEntries[index % protectedEntries.length];
       if (!target?.coordinates) return null;
+      if (isDomesticSourceForTarget({ sourceCode: point?.countryCode, sourceName: point?.country, target })) {
+        domesticCounts.set(target.name, (domesticCounts.get(target.name) || 0) + Number(point?.blocked || 1));
+        return null;
+      }
 
       return {
         id: point.id || `${point.ip || point.country || index}-${index}`,
@@ -196,6 +229,8 @@ function buildExactPointRoutes(attackPoints, protectedEntries) {
       };
     })
     .filter(Boolean);
+
+  return { routes, domesticCounts };
 }
 
 export function BlockedTrafficMap({ countries = [], protectedCountries = [], attackPoints = [] }) {
@@ -229,10 +264,14 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                 <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
                   {({ geographies }) => {
                     const protectedEntries = buildProtectedCountryEntries(protectedCountries, geographies);
-                    const exactPointRoutes = buildExactPointRoutes(attackPoints, protectedEntries);
-                    const blockedRoutes = exactPointRoutes.length > 0
-                      ? exactPointRoutes
-                      : buildBlockedRoutes(countries, geographies, protectedEntries);
+                    const exactPointResult = buildExactPointRoutes(attackPoints, protectedEntries);
+                    const fallbackResult = buildBlockedRoutes(countries, geographies, protectedEntries);
+                    const blockedRoutes = exactPointResult.routes.length > 0
+                      ? exactPointResult.routes
+                      : fallbackResult.routes;
+                    const domesticCounts = exactPointResult.routes.length > 0
+                      ? exactPointResult.domesticCounts
+                      : fallbackResult.domesticCounts;
                     const maxBlocked = Math.max(
                       ...countries.map((country) => Number(country?.blocked || 0)),
                       1
@@ -333,6 +372,12 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                         {protectedEntries.map((node) => (
                           <Marker key={`protected-${node.name}`} coordinates={node.coordinates}>
                             <g>
+                              {Number(domesticCounts.get(node.name) || 0) > 0 ? (
+                                <>
+                                  <circle r="14" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse" />
+                                  <circle r="20" fill="rgba(239, 68, 68, 0.10)" className="blocked-route-pulse-slow" />
+                                </>
+                              ) : null}
                               <circle r="5" fill="rgba(37, 99, 235, 0.96)" stroke="rgba(191, 219, 254, 0.95)" strokeWidth="1.2" />
                               <circle r="10" fill="rgba(59, 130, 246, 0.18)" className="blocked-route-pulse-slow" />
                             </g>
