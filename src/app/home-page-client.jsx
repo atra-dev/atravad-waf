@@ -208,13 +208,17 @@ function MotionSection({ className, children }) {
   );
 }
 
-export default function HomePageClient() {
+export default function HomePageClient({ threatMapData = null }) {
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ['start start', 'end start'],
   });
   const wallYPrimary = useTransform(scrollYProgress, [0, 1], [0, -70]);
+  const attackPoints = Array.isArray(threatMapData?.attackPoints) ? threatMapData.attackPoints : [];
+  const protectedCountries = Array.isArray(threatMapData?.protectedCountries)
+    ? threatMapData.protectedCountries
+    : [];
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#07090f] text-[#f1ece2]">
@@ -285,7 +289,7 @@ export default function HomePageClient() {
             <MotionSection className="relative xl:pt-0">
               <div className="relative">
                 <motion.div id="threat-map" style={{ y: wallYPrimary }} className="relative z-10 scroll-mt-28">
-                  <BlockedTrafficMap />
+                  <BlockedTrafficMap attackPoints={attackPoints} protectedCountries={protectedCountries} />
                 </motion.div>
               </div>
             </MotionSection>
