@@ -319,6 +319,8 @@ export async function POST(request) {
         geoDomain: geo?.success ? geo.domain || null : null,
         geoUsageType: geo?.success ? geo.usageType || null : null,
         geoIsPrivate: geo?.success ? Boolean(geo.isPrivate) : null,
+        geoLatitude: geo?.success && Number.isFinite(Number(geo.latitude)) ? Number(geo.latitude) : null,
+        geoLongitude: geo?.success && Number.isFinite(Number(geo.longitude)) ? Number(geo.longitude) : null,
         ipReputationScore: Number.isFinite(Number(reputation?.score)) ? Number(reputation.score) : null,
         ipReputationLevel: reputation?.level || null,
         ipReputationSources: Array.isArray(reputation?.sources) ? reputation.sources : [],

@@ -1,7 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import { geoEqualEarth } from 'd3-geo';
+import { geoCentroid, geoEqualEarth } from 'd3-geo';
 
 const emptySubscribe = () => () => {};
 
@@ -27,53 +27,15 @@ try {
   Marker = null;
 }
 
-const MAP_WIDTH = 800;
-const MAP_HEIGHT = 600;
 const MAP_SCALE = 164;
 const MAP_CENTER = [0, 17];
+const MAP_WIDTH = 800;
+const MAP_HEIGHT = 600;
 const MAP_TRANSLATE = [MAP_WIDTH / 2, MAP_HEIGHT / 2 - 20];
 const mapProjection = geoEqualEarth()
   .scale(MAP_SCALE)
   .center(MAP_CENTER)
   .translate(MAP_TRANSLATE);
-
-const blockedCountryCodes = new Set([
-  'CN',
-  'CHN',
-  'US',
-  'USA',
-  'RU',
-  'RUS',
-  'KP',
-  'PRK',
-  'IR',
-  'IRN',
-  'BR',
-  'BRA',
-  'DE',
-  'DEU',
-  'IN',
-  'IND',
-  'VN',
-  'VNM',
-  'UA',
-  'UKR',
-]);
-
-const blockedCountryNames = new Set([
-  'china',
-  'united states of america',
-  'united states',
-  'russia',
-  'russian federation',
-  'north korea',
-  'iran',
-  'brazil',
-  'germany',
-  'india',
-  'vietnam',
-  'ukraine',
-]);
 
 function normalizeCountryName(value) {
   return String(value || '')
@@ -114,56 +76,40 @@ function getCountryIdentifiers(geo) {
   return { codes, names };
 }
 
-function isBlockedCountry(geo) {
+function getCountryDataForGeo(geo, countries) {
   const { codes, names } = getCountryIdentifiers(geo);
 
-  if (codes.some((code) => blockedCountryCodes.has(code))) {
-    return true;
-  }
-
-  return names.some((name) => blockedCountryNames.has(name));
+  return (
+    countries.find((country) => codes.includes(String(country?.code || '').toUpperCase())) ||
+    countries.find((country) => names.includes(normalizeCountryName(country?.name))) ||
+    null
+  );
 }
 
-const blockedRoutes = [
-  {
-    label: 'China',
-    start: { lat: 35.8617, lng: 104.1954 },
-    end: { lat: 14.5995, lng: 120.9842 },
-  },
-  {
-    label: 'United States',
-    start: { lat: 37.0902, lng: -95.7129 },
-    end: { lat: 14.5995, lng: 120.9842 },
-  },
-  {
-    label: 'Russia',
-    start: { lat: 61.524, lng: 105.3188 },
-    end: { lat: 14.5995, lng: 120.9842 },
-  },
-  {
-    label: 'Iran',
-    start: { lat: 32.4279, lng: 53.688 },
-    end: { lat: 14.5995, lng: 120.9842 },
-  },
-  {
-    label: 'Brazil',
-    start: { lat: -14.235, lng: -51.9253 },
-    end: { lat: 14.5995, lng: 120.9842 },
-  },
-  {
-    label: 'Germany',
-    start: { lat: 51.1657, lng: 10.4515 },
-    end: { lat: 14.5995, lng: 120.9842 },
-  },
-];
+function getGeoForCountry(country, geographies) {
+  if (!country) return null;
 
-const protectedNodes = [
-  { label: 'Protected edge', coordinates: [120.9842, 14.5995] },
-];
+  return (
+    geographies.find((geo) => {
+      const { codes, names } = getCountryIdentifiers(geo);
+      return (
+        codes.includes(String(country?.code || '').toUpperCase()) ||
+        names.includes(normalizeCountryName(country?.name))
+      );
+    }) || null
+  );
+}
 
-function buildRoutePath(route) {
-  const startPoint = mapProjection([route.start.lng, route.start.lat]);
-  const endPoint = mapProjection([route.end.lng, route.end.lat]);
+function getGeoCoordinates(geo) {
+  if (!geo) return null;
+  const [lng, lat] = geoCentroid(geo);
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
+  return [lng, lat];
+}
+
+function buildRoutePath(startCoordinates, endCoordinates) {
+  const startPoint = mapProjection(startCoordinates);
+  const endPoint = mapProjection(endCoordinates);
 
   if (!startPoint || !endPoint) {
     return null;
@@ -180,7 +126,79 @@ function buildRoutePath(route) {
   return `M ${sx} ${sy} Q ${controlX} ${controlY} ${ex} ${ey}`;
 }
 
-export function BlockedTrafficMap() {
+function buildProtectedCountryEntries(protectedCountries, geographies) {
+  const normalized = Array.from(
+    new Set(
+      (Array.isArray(protectedCountries) ? protectedCountries : [])
+        .map((country) => String(country || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  return normalized
+    .map((name) => {
+      const geo = geographies.find((entry) => {
+        const { names } = getCountryIdentifiers(entry);
+        return names.includes(normalizeCountryName(name));
+      });
+      const coordinates = getGeoCoordinates(geo);
+      if (!geo || !coordinates) return null;
+      return {
+        name,
+        geo,
+        coordinates,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
+  if (protectedEntries.length === 0) return [];
+
+  return (Array.isArray(blockedCountries) ? blockedCountries : [])
+    .filter((country) => Number(country?.blocked || 0) > 0)
+    .sort((a, b) => Number(b?.blocked || 0) - Number(a?.blocked || 0))
+    .slice(0, 6)
+    .map((country, index) => {
+      const sourceGeo = getGeoForCountry(country, geographies);
+      const sourceCoordinates = getGeoCoordinates(sourceGeo);
+      const target = protectedEntries[index % protectedEntries.length];
+      if (!sourceGeo || !sourceCoordinates || !target?.coordinates) return null;
+
+      return {
+        id: `${country.code || country.name || index}-${target.name}-${index}`,
+        label: country.name || country.code || `Source ${index + 1}`,
+        blocked: Number(country.blocked || 0),
+        startCoordinates: sourceCoordinates,
+        endCoordinates: target.coordinates,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildExactPointRoutes(attackPoints, protectedEntries) {
+  if (protectedEntries.length === 0) return [];
+
+  return (Array.isArray(attackPoints) ? attackPoints : [])
+    .filter((point) => Number.isFinite(Number(point?.latitude)) && Number.isFinite(Number(point?.longitude)))
+    .slice(0, 40)
+    .map((point, index) => {
+      const target = protectedEntries[index % protectedEntries.length];
+      if (!target?.coordinates) return null;
+
+      return {
+        id: point.id || `${point.ip || point.country || index}-${index}`,
+        label: point.country || point.ip || `Source ${index + 1}`,
+        blocked: Number(point.blocked || 1),
+        startCoordinates: [Number(point.longitude), Number(point.latitude)],
+        endCoordinates: target.coordinates,
+      };
+    })
+    .filter(Boolean);
+}
+
+export function BlockedTrafficMap({ countries = [], protectedCountries = [], attackPoints = [] }) {
   const isClient = useIsClient();
 
   if (!isClient) {
@@ -209,134 +227,132 @@ export function BlockedTrafficMap() {
                 projection={mapProjection}
               >
                 <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
-                  {({ geographies }) =>
-                    geographies.map((geo) => {
-                      const isBlocked = isBlockedCountry(geo);
+                  {({ geographies }) => {
+                    const protectedEntries = buildProtectedCountryEntries(protectedCountries, geographies);
+                    const exactPointRoutes = buildExactPointRoutes(attackPoints, protectedEntries);
+                    const blockedRoutes = exactPointRoutes.length > 0
+                      ? exactPointRoutes
+                      : buildBlockedRoutes(countries, geographies, protectedEntries);
+                    const maxBlocked = Math.max(
+                      ...countries.map((country) => Number(country?.blocked || 0)),
+                      1
+                    );
 
-                      return (
-                        <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          fill={isBlocked ? 'rgba(185, 28, 28, 0.9)' : 'rgba(236, 213, 177, 0.12)'}
-                          stroke={isBlocked ? 'rgba(254, 202, 202, 0.65)' : 'rgba(255,255,255,0.18)'}
-                          strokeWidth={0.45}
-                          style={{
-                            default: { outline: 'none' },
-                            hover: {
-                              outline: 'none',
-                              fill: isBlocked ? 'rgba(220, 38, 38, 1)' : 'rgba(212, 166, 79, 0.32)',
-                            },
-                            pressed: { outline: 'none' },
-                          }}
-                        />
-                      );
-                    })
-                  }
+                    return (
+                      <>
+                        {geographies.map((geo) => {
+                          const countryData = getCountryDataForGeo(geo, countries);
+                          const blockedCount = Number(countryData?.blocked || 0);
+                          const isProtected = protectedEntries.some((entry) => entry.geo?.rsmKey === geo.rsmKey);
+                          const intensity = blockedCount > 0
+                            ? Math.min(0.35 + (blockedCount / maxBlocked) * 0.65, 1)
+                            : 0;
+
+                          let fill = 'rgba(236, 213, 177, 0.12)';
+                          let stroke = 'rgba(255,255,255,0.18)';
+
+                          if (blockedCount > 0) {
+                            fill = `rgba(220, 38, 38, ${intensity})`;
+                            stroke = 'rgba(254, 202, 202, 0.7)';
+                          } else if (isProtected) {
+                            fill = 'rgba(59, 130, 246, 0.42)';
+                            stroke = 'rgba(147, 197, 253, 0.8)';
+                          }
+
+                          return (
+                            <Geography
+                              key={geo.rsmKey}
+                              geography={geo}
+                              fill={fill}
+                              stroke={stroke}
+                              strokeWidth={0.45}
+                              style={{
+                                default: { outline: 'none' },
+                                hover: {
+                                  outline: 'none',
+                                  fill: blockedCount > 0 ? 'rgba(239, 68, 68, 1)' : isProtected ? 'rgba(96, 165, 250, 0.62)' : 'rgba(212, 166, 79, 0.32)',
+                                },
+                                pressed: { outline: 'none' },
+                              }}
+                            />
+                          );
+                        })}
+
+                        {blockedRoutes.map((route, index) => {
+                          const routePath = buildRoutePath(route.startCoordinates, route.endCoordinates);
+                          if (!routePath) return null;
+
+                          return (
+                            <g key={route.id}>
+                              <path
+                                d={routePath}
+                                fill="none"
+                                stroke="rgba(239, 68, 68, 0.18)"
+                                strokeWidth="1.2"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d={routePath}
+                                className="blocked-route-line"
+                                fill="none"
+                                stroke="rgba(239, 68, 68, 0.82)"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                              />
+                              <circle r="4.5" fill="rgba(248, 113, 113, 0.98)" filter="url(#attackPulseGlow)">
+                                <animateMotion
+                                  dur={`${3.2 + index * 0.35}s`}
+                                  repeatCount="indefinite"
+                                  rotate="auto"
+                                  begin={`${index * 0.28}s`}
+                                  path={routePath}
+                                />
+                              </circle>
+                              <circle r="2.6" fill="rgba(254, 242, 242, 0.95)">
+                                <animateMotion
+                                  dur={`${3.2 + index * 0.35}s`}
+                                  repeatCount="indefinite"
+                                  rotate="auto"
+                                  begin={`${index * 0.28}s`}
+                                  path={routePath}
+                                />
+                              </circle>
+                            </g>
+                          );
+                        })}
+
+                        {blockedRoutes.map((route) => (
+                          <Marker key={`${route.id}-source`} coordinates={route.startCoordinates}>
+                            <g>
+                              <circle r="4.5" fill="rgba(127, 29, 29, 0.95)" stroke="rgba(254, 202, 202, 0.9)" strokeWidth="1.2" />
+                              <circle r="9" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse" />
+                            </g>
+                          </Marker>
+                        ))}
+
+                        {protectedEntries.map((node) => (
+                          <Marker key={`protected-${node.name}`} coordinates={node.coordinates}>
+                            <g>
+                              <circle r="5" fill="rgba(37, 99, 235, 0.96)" stroke="rgba(191, 219, 254, 0.95)" strokeWidth="1.2" />
+                              <circle r="10" fill="rgba(59, 130, 246, 0.18)" className="blocked-route-pulse-slow" />
+                            </g>
+                          </Marker>
+                        ))}
+
+                        <defs>
+                          <filter id="attackPulseGlow">
+                            <feGaussianBlur stdDeviation="2.6" result="coloredBlur" />
+                            <feMerge>
+                              <feMergeNode in="coloredBlur" />
+                              <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                          </filter>
+                        </defs>
+                      </>
+                    );
+                  }}
                 </Geographies>
-
-                {blockedRoutes.map((route) => (
-                  <Marker key={`${route.label}-start`} coordinates={[route.start.lng, route.start.lat]}>
-                    <g>
-                      <circle r="4.5" fill="rgba(127, 29, 29, 0.95)" stroke="rgba(254, 202, 202, 0.9)" strokeWidth="1.2" />
-                      <circle r="9" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse" />
-                    </g>
-                  </Marker>
-                ))}
-
-                {protectedNodes.map((node) => (
-                  <Marker key={node.label} coordinates={node.coordinates}>
-                    <g>
-                      <circle r="5" fill="rgba(185, 28, 28, 0.96)" stroke="rgba(254, 202, 202, 0.95)" strokeWidth="1.2" />
-                      <circle r="10" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse-slow" />
-                    </g>
-                  </Marker>
-                ))}
               </ComposableMap>
-
-              <svg
-                viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-                className="pointer-events-none absolute inset-0 z-20 h-full w-full"
-                aria-hidden="true"
-              >
-                <defs>
-                  <filter id="attackPulseGlow">
-                    <feGaussianBlur stdDeviation="2.6" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-
-                {blockedRoutes.map((route, index) => {
-                  const routePath = buildRoutePath(route);
-
-                  if (!routePath) {
-                    return null;
-                  }
-
-                  return (
-                    <g key={`${route.label}-route`}>
-                      <path
-                        d={routePath}
-                        fill="none"
-                        stroke="rgba(239, 68, 68, 0.18)"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d={routePath}
-                        className="blocked-route-line"
-                        fill="none"
-                        stroke="rgba(239, 68, 68, 0.82)"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                      <circle r="4.5" fill="rgba(248, 113, 113, 0.98)" filter="url(#attackPulseGlow)">
-                        <animateMotion
-                          dur={`${3.2 + index * 0.35}s`}
-                          repeatCount="indefinite"
-                          rotate="auto"
-                          begin={`${index * 0.28}s`}
-                          path={routePath}
-                        />
-                      </circle>
-                      <circle r="2.6" fill="rgba(254, 242, 242, 0.95)">
-                        <animateMotion
-                          dur={`${3.2 + index * 0.35}s`}
-                          repeatCount="indefinite"
-                          rotate="auto"
-                          begin={`${index * 0.28}s`}
-                          path={routePath}
-                        />
-                      </circle>
-                      <circle r="5.5" fill="rgba(239, 68, 68, 0.22)" className="blocked-impact-pulse">
-                        <animate
-                          attributeName="opacity"
-                          values="0.1;0.6;0.1"
-                          dur={`${2.2 + index * 0.22}s`}
-                          repeatCount="indefinite"
-                          begin={`${index * 0.28}s`}
-                        />
-                        <animate
-                          attributeName="r"
-                          values="4;10;4"
-                          dur={`${2.2 + index * 0.22}s`}
-                          repeatCount="indefinite"
-                          begin={`${index * 0.28}s`}
-                        />
-                        <animateMotion
-                          dur={`${3.2 + index * 0.35}s`}
-                          repeatCount="indefinite"
-                          rotate="auto"
-                          begin={`${index * 0.28}s`}
-                          path={routePath}
-                        />
-                      </circle>
-                    </g>
-                  );
-                })}
-              </svg>
             </div>
           </div>
         ) : (

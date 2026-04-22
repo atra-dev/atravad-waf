@@ -125,6 +125,8 @@ export async function geolocateIp(ip) {
       hostname: null,
       domain: null,
       usageType: null,
+      latitude: null,
+      longitude: null,
     };
   }
 
@@ -145,12 +147,14 @@ export async function geolocateIp(ip) {
       domain: null,
       usageType: 'Private Network',
       isPrivate: true,
+      latitude: null,
+      longitude: null,
     };
   }
 
   try {
     const response = await fetch(
-      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode,as,asname,isp,org,reverse,mobile,proxy,hosting`,
+      `http://ip-api.com/json/${normalizedIp}?fields=status,message,country,countryCode,continent,continentCode,as,asname,isp,org,reverse,mobile,proxy,hosting,lat,lon`,
       {
         headers: {
           'Accept': 'application/json',
@@ -180,6 +184,8 @@ export async function geolocateIp(ip) {
         hostname: null,
         domain: null,
         usageType: null,
+        latitude: null,
+        longitude: null,
       };
     }
 
@@ -201,6 +207,8 @@ export async function geolocateIp(ip) {
       hostname: ipWhois?.hostname || reverseHostname,
       domain: ipWhois?.domain || fallbackDomain,
       usageType: deriveUsageType(data),
+      latitude: Number.isFinite(Number(data.lat)) ? Number(data.lat) : null,
+      longitude: Number.isFinite(Number(data.lon)) ? Number(data.lon) : null,
     };
   } catch (error) {
     console.error(`Error geolocating IP ${normalizedIp}:`, error.message);
@@ -219,6 +227,8 @@ export async function geolocateIp(ip) {
       hostname: null,
       domain: null,
       usageType: null,
+      latitude: null,
+      longitude: null,
     };
   }
 }
@@ -241,6 +251,8 @@ export async function geolocateIpCached(ip) {
       hostname: null,
       domain: null,
       usageType: null,
+      latitude: null,
+      longitude: null,
     };
   }
 
@@ -283,6 +295,8 @@ export async function geolocateOrigin(originUrl) {
       hostname: null,
       domain: null,
       usageType: null,
+      latitude: null,
+      longitude: null,
     };
   }
 

@@ -384,6 +384,7 @@ export default function DashboardPage() {
     hasTenant: false,
   });
   const [analytics, setAnalytics] = useState(null);
+  const [mapLogs, setMapLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -393,12 +394,13 @@ export default function DashboardPage() {
     }
 
     try {
-      const [tenantRes, appsRes, policiesRes, userRes, analyticsRes] = await Promise.all([
+      const [tenantRes, appsRes, policiesRes, userRes, analyticsRes, logsRes] = await Promise.all([
         fetch('/api/tenants/current'),
         fetch('/api/apps'),
         fetch('/api/policies'),
         fetch('/api/users/me'),
         fetch(`/api/logs/analytics?hours=${ANALYTICS_DISPLAY_HOURS}&attacksOnly=true`),
+        fetch(`/api/logs?pageSize=150&hours=${ANALYTICS_DISPLAY_HOURS}`),
       ]);
 
       const tenant = await tenantRes.json();
@@ -406,6 +408,7 @@ export default function DashboardPage() {
       const policies = await policiesRes.json();
       const user = await userRes.json();
       const analyticsData = analyticsRes.ok ? await analyticsRes.json() : null;
+      const logsData = logsRes.ok ? await logsRes.json() : null;
 
       const appsArray = Array.isArray(apps) ? apps : [];
       const policiesArray = Array.isArray(policies) ? policies : [];
@@ -430,6 +433,7 @@ export default function DashboardPage() {
         hasTenant,
       });
       setAnalytics(analyticsData);
+      setMapLogs(Array.isArray(logsData?.logs) ? logsData.logs : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setData({
@@ -443,6 +447,7 @@ export default function DashboardPage() {
         hasTenant: false,
       });
       setAnalytics(null);
+      setMapLogs([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -502,6 +507,13 @@ export default function DashboardPage() {
       ...item,
       id: item.code || item.name,
     }));
+  const protectedCountries = Array.from(
+    new Set(
+      (data.apps || [])
+        .map((app) => String(app?.originCountry || '').trim())
+        .filter(Boolean)
+    )
+  );
   const siteRiskCards = (data.apps || [])
     .slice()
     .sort((a, b) => {
@@ -510,6 +522,22 @@ export default function DashboardPage() {
       return Number(b?.statsTotal || 0) - Number(a?.statsTotal || 0);
     })
     .slice(0, 6);
+  const blockedMapPoints = mapLogs
+    .filter((log) => {
+      const decision = String(log?.decision || '').trim().toLowerCase();
+      return decision === 'waf_blocked' || decision === 'origin_denied';
+    })
+    .map((log, index) => ({
+      id: log.id || `${log.ipAddress || log.clientIp || 'log'}-${index}`,
+      ip: log.ipAddress || log.clientIp || '',
+      country: log.geoCountry || '',
+      countryCode: log.geoCountryCode || '',
+      latitude: Number(log.geoLatitude),
+      longitude: Number(log.geoLongitude),
+      blocked: 1,
+    }))
+    .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+    .slice(0, 40);
   const attackPeak = timeSeries.reduce(
     (peak, item) => (item.totalBlocked > peak.totalBlocked ? item : peak),
     { totalBlocked: 0, shortLabel: '-' }
@@ -659,12 +687,16 @@ export default function DashboardPage() {
                   <div className="rounded-full bg-rose-500/12 px-3 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">
                     Live visual
                   </div>
-                </div>
-                <div className="mt-4 rounded-[24px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(12,18,33,0.98))]">
-                  <BlockedTrafficMap />
+                  </div>
+                  <div className="mt-4 rounded-[24px] border border-[var(--border-soft)] bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(12,18,33,0.98))]">
+                  <BlockedTrafficMap
+                    countries={analytics?.countries || []}
+                    protectedCountries={protectedCountries}
+                    attackPoints={blockedMapPoints}
+                  />
+                  </div>
                 </div>
               </div>
-            </div>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
               <DashboardMetricCard title="Organization" value={data.tenantName} subtitle="Managed tenant under protection" icon={TenantIcon} tone="blue" />
