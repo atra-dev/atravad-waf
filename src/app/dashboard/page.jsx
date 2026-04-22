@@ -525,7 +525,7 @@ export default function DashboardPage() {
             </div>
             <h1 className="mt-4 text-4xl font-bold tracking-tight theme-text-primary">Security Dashboard</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 theme-text-secondary">
-              A stronger dashboard should feel like command center software: threat pressure, global reach, posture, and response actions in one view.
+              Unified visibility into protected applications, attack activity, and security posture.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -575,7 +575,7 @@ export default function DashboardPage() {
                         {data.tenantName}
                       </h2>
                       <p className="mt-3 max-w-xl text-sm leading-6 theme-text-secondary">
-                        Your dashboard should immediately answer four questions: what is under protection, what is being attacked, where the pressure is coming from, and what needs operator attention next.
+                        Live overview of traffic pressure, attack patterns, and protected assets.
                       </p>
                     </div>
 
@@ -653,7 +653,7 @@ export default function DashboardPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">Threat Visual</p>
                     <h3 className="mt-2 text-2xl font-bold theme-text-primary">Blocked Traffic Map</h3>
                     <p className="mt-2 text-sm leading-6 theme-text-secondary">
-                      A reblaze-style dashboard works because it has motion and threat geography. This creates that focal visual on the main screen.
+                      Global view of hostile traffic sources and protected edge activity.
                     </p>
                   </div>
                   <div className="rounded-full bg-rose-500/12 px-3 py-1 text-xs font-semibold text-rose-700 dark:text-rose-300">
@@ -734,7 +734,7 @@ export default function DashboardPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">Traffic Pressure</p>
                     <h3 className="mt-2 text-2xl font-bold theme-text-primary">Attack Volume Trend</h3>
                     <p className="mt-2 text-sm theme-text-secondary">
-                      This is the chart the dashboard was missing. It gives immediate motion and shows when hostile traffic spikes.
+                      Time-based view of blocked traffic across the active analytics window.
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -795,7 +795,7 @@ export default function DashboardPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">Risk Mix</p>
                     <h3 className="mt-2 text-2xl font-bold theme-text-primary">Severity Distribution</h3>
                     <p className="mt-2 text-sm theme-text-secondary">
-                      This should sit on the dashboard because operators need to know whether they are dealing with critical incidents or routine noise.
+                      Breakdown of event severity across the current analytics window.
                     </p>
                   </div>
                   {topSeverity ? (
@@ -868,7 +868,7 @@ export default function DashboardPage() {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">Protected Applications</p>
                   <h3 className="mt-2 text-2xl font-bold theme-text-primary">Per-Site Traffic Comparison</h3>
                   <p className="mt-2 max-w-2xl text-sm theme-text-secondary">
-                    Each protected site should have its own risk card so operators can immediately see which application is drawing the most blocked traffic.
+                    Compare protected applications by traffic volume, blocked activity, and risk level.
                   </p>
                 </div>
                 <div className="theme-soft-surface rounded-full px-4 py-2 text-sm font-medium theme-text-secondary">
@@ -899,7 +899,7 @@ export default function DashboardPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">Attack Focus</p>
                     <h3 className="mt-2 text-2xl font-bold theme-text-primary">Top Attack Types</h3>
                     <p className="mt-2 text-sm theme-text-secondary">
-                      These bars turn the dashboard into something actionable by showing where tuning and hardening should focus first.
+                      Highest-volume attack categories observed in the current window.
                     </p>
                   </div>
                 </div>
@@ -964,21 +964,21 @@ export default function DashboardPage() {
               <div className="theme-surface rounded-[32px] p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">What Great Dashboards Have</p>
-                    <h3 className="mt-2 text-2xl font-bold theme-text-primary">Recommended Visual Blocks</h3>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] theme-text-muted">Coverage</p>
+                    <h3 className="mt-2 text-2xl font-bold theme-text-primary">Security Overview</h3>
                     <p className="mt-2 text-sm theme-text-secondary">
-                      If you want this to feel closer to a polished commercial WAF dashboard, these are the visuals worth keeping and expanding.
+                      Summary of protected assets, active defenses, and traffic visibility.
                     </p>
                   </div>
                 </div>
                 <div className="mt-5 space-y-3">
                   {[
-                    'Global attack map with animated source paths and protected edge markers.',
-                    'Attack volume trend showing spikes across the last analytics window.',
-                    'Severity and attack-type distribution for fast triage and tuning.',
-                    'Top attacking IPs, countries, and noisiest protected applications.',
-                    'A posture rail showing policy health, onboarding gaps, and service status.',
-                    'Quick response actions so the dashboard is operational, not only informational.',
+                    `${data.appCount.toLocaleString()} protected site${data.appCount === 1 ? '' : 's'} in service.`,
+                    `${data.policyCount.toLocaleString()} active policy set${data.policyCount === 1 ? '' : 's'} enforcing traffic.`,
+                    `${data.blockedIpCount.toLocaleString()} blocked IP entr${data.blockedIpCount === 1 ? 'y' : 'ies'} configured.`,
+                    `${data.blockedCountryCount.toLocaleString()} blocked countr${data.blockedCountryCount === 1 ? 'y' : 'ies'} configured.`,
+                    `${totalRequests.toLocaleString()} requests observed in ${formatAnalyticsDisplayWindow().toLowerCase()}.`,
+                    `${totalAttacks.toLocaleString()} blocked or denied events recorded in the same period.`,
                   ].map((item) => (
                     <div key={item} className="theme-inset-surface rounded-2xl px-4 py-4 text-sm leading-6 theme-text-secondary">
                       {item}
