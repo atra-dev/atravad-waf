@@ -3,6 +3,7 @@ import { normalizeDomainInput } from './domain-utils.js';
 import { normalizeIpAddress } from './ip-utils.js';
 import { classifyAttack, getDecisionKey } from './log-analytics.js';
 import { deriveRuleId } from './log-rule-utils.js';
+import { invalidateServerCache } from './server-cache.js';
 import { getTenantRetentionSettings } from './tenant-subscription.js';
 import {
   getAllowedRawLogSampleRate,
@@ -241,5 +242,6 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
   batch.set(rollupRef, buildRollupUpdate(entry, analyticsRetentionDays), { merge: true });
 
   await batch.commit();
+  invalidateServerCache(`analytics:${rawLog.tenantName}:`);
   return { id: logRef?.id || null, rawStored: persistRawLog, ...entry };
 }

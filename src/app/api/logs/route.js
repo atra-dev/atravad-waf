@@ -6,6 +6,7 @@ import { geolocateIpCached } from '@/lib/geolocation';
 import { getIpReputationIntelCached } from '@/lib/ip-reputation';
 import { normalizeDomainInput } from '@/lib/domain-utils';
 import { isValidIp, normalizeIpAddress } from '@/lib/ip-utils';
+import { getDecisionKey } from '@/lib/log-analytics';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { persistSecurityLog } from '@/lib/log-storage';
 import { getTenantSummary } from '@/lib/tenant-subscription';
@@ -129,16 +130,7 @@ function matchesTextSearch(log, search) {
 }
 
 function deriveDecision(log) {
-  const decision = String(log?.decision || '').trim().toLowerCase();
-  if (decision === 'blocked') return 'waf_blocked';
-  if (decision === 'denied') return 'origin_denied';
-  if (decision === 'waf_blocked' || decision === 'origin_denied' || decision === 'allowed') {
-    return decision;
-  }
-  if (Boolean(log?.blocked)) return 'waf_blocked';
-  const statusCode = Number(log?.statusCode);
-  if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
-  return 'allowed';
+  return getDecisionKey(log);
 }
 
 function mapLogDocument(doc) {

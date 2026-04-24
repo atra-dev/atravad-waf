@@ -4,14 +4,33 @@ function normalizeText(value) {
 
 export function getDecisionKey(log) {
   const decision = String(log?.decision || '').trim().toLowerCase();
+
   if (
+    decision === 'blocked' ||
     decision === 'waf_blocked' ||
-    decision === 'origin_denied' ||
-    decision === 'allowed'
+    decision === 'websocket_blocked'
   ) {
-    return decision;
+    return 'waf_blocked';
   }
-  if (Boolean(log?.blocked)) return 'waf_blocked';
+
+  if (
+    decision === 'denied' ||
+    decision === 'origin_denied' ||
+    decision === 'websocket_denied' ||
+    decision === 'websocket_origin_response' ||
+    decision === 'websocket_proxy_error'
+  ) {
+    return 'origin_denied';
+  }
+
+  if (decision === 'allowed' || decision === 'websocket_allowed') {
+    return 'allowed';
+  }
+
+  if (Boolean(log?.blocked)) {
+    return Number(log?.statusCode) >= 500 ? 'origin_denied' : 'waf_blocked';
+  }
+
   const statusCode = Number(log?.statusCode);
   if (Number.isFinite(statusCode) && statusCode >= 400) return 'origin_denied';
   return 'allowed';
