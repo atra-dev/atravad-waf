@@ -48,6 +48,52 @@ function normalizeRequestUri(value) {
   return uri || null;
 }
 
+function getNormalizedRequestUri(log) {
+  return String(log?.requestUri || log?.uri || log?.request?.uri || '').trim() || '/';
+}
+
+function getNormalizedRequestPath(log) {
+  try {
+    const parsed = new URL(getNormalizedRequestUri(log), 'https://local.invalid');
+    const pathname = String(parsed.pathname || '/').trim().toLowerCase();
+    return pathname.startsWith('/') ? pathname : `/${pathname}`;
+  } catch {
+    const pathname = String(getNormalizedRequestUri(log).split('?')[0] || '/').trim().toLowerCase();
+    return pathname.startsWith('/') ? pathname : `/${pathname}`;
+  }
+}
+
+function isInternalLogsQueryFalsePositive(log) {
+  const pathname = getNormalizedRequestPath(log);
+  if (pathname !== '/api/logs' && pathname !== '/api/logs/analytics') {
+    return false;
+  }
+
+  const decision = getDecisionKey(log);
+  if (decision === 'allowed') {
+    return false;
+  }
+
+  const method = String(log?.requestMethod || log?.method || log?.request?.method || '').trim().toUpperCase();
+  if (method && method !== 'GET') {
+    return false;
+  }
+
+  const uri = getNormalizedRequestUri(log).toLowerCase();
+  if (!uri.includes('uri=')) {
+    return false;
+  }
+
+  const ruleId = String(log?.ruleId || '').trim();
+  const ruleMessage = String(log?.ruleMessage || log?.message || '').toLowerCase();
+
+  return (
+    ruleId === '100001' ||
+    ruleMessage.includes('scanner detection') ||
+    ruleMessage.includes('reconnaissance path probe detected')
+  );
+}
+
 function buildSearchIps(rawLog) {
   const values = [
     normalizeIpAddress(rawLog?.ipAddress || ''),
@@ -221,6 +267,10 @@ export async function persistSecurityLog(adminDb, rawLog, options = {}) {
     requestUri: normalizeRequestUri(rawLog.uri || rawLog.request?.uri || rawLog.request?.path),
     expiresAt: new Date(new Date(timestamp).getTime() + FIRESTORE_LOG_TTL_MS),
   };
+
+  if (isInternalLogsQueryFalsePositive(entry)) {
+    return { id: null, rawStored: false, suppressed: true, ...entry };
+  }
 
   const batch = adminDb.batch();
   let logRef = null;
