@@ -1,0 +1,16 @@
+[Unit]
+Description=ATRAVA Defense Web GUI (atrava-defense.cisoasaservice.io)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/atravad-waf
+EnvironmentFile=/var/www/atravad-waf/.env.production
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
