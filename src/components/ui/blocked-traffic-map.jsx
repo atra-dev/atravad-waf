@@ -243,6 +243,18 @@ function buildExactPointRoutes(attackPoints, protectedEntries) {
   return { routes, domesticCounts };
 }
 
+function mergeDomesticCounts(...maps) {
+  const merged = new Map();
+
+  for (const sourceMap of maps) {
+    for (const [key, value] of sourceMap.entries()) {
+      merged.set(key, (merged.get(key) || 0) + Number(value || 0));
+    }
+  }
+
+  return merged;
+}
+
 export function BlockedTrafficMap({ countries = [], protectedCountries = [], attackPoints = [] }) {
   const isClient = useIsClient();
 
@@ -276,12 +288,20 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                     const protectedEntries = buildProtectedCountryEntries(protectedCountries, geographies);
                     const exactPointResult = buildExactPointRoutes(attackPoints, protectedEntries);
                     const fallbackResult = buildBlockedRoutes(countries, geographies, protectedEntries);
-                    const blockedRoutes = exactPointResult.routes.length > 0
-                      ? exactPointResult.routes
-                      : fallbackResult.routes;
-                    const domesticCounts = exactPointResult.routes.length > 0
-                      ? exactPointResult.domesticCounts
-                      : fallbackResult.domesticCounts;
+                    const exactCountryKeys = new Set(
+                      exactPointResult.routes.map((route) => normalizeCountryName(route.label))
+                    );
+                    const missingFallbackRoutes = fallbackResult.routes.filter(
+                      (route) => !exactCountryKeys.has(normalizeCountryName(route.label))
+                    );
+                    const blockedRoutes = [
+                      ...exactPointResult.routes,
+                      ...missingFallbackRoutes,
+                    ];
+                    const domesticCounts = mergeDomesticCounts(
+                      exactPointResult.domesticCounts,
+                      fallbackResult.domesticCounts
+                    );
                     const maxBlocked = Math.max(
                       ...countries.map((country) => Number(country?.blocked || 0)),
                       1
