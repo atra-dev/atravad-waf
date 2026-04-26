@@ -96,6 +96,12 @@ export function generateModSecurityConfig(policy, options = {}) {
     config += '\n# Custom rules below will complement CRS\n\n';
   }
 
+  // Internal control-plane endpoints accept analyst-supplied search strings
+  // that often contain payload-like indicators. Exempt them from WAF request
+  // inspection so the console can search for attacks without becoming one.
+  config += generateInternalControlPlaneExceptionRules(ruleIdBase);
+  ruleIdBase += 100;
+
   // Always-on scanner/signature blocking to catch common security tooling
   // even when optional bot-detection features are not enabled on a policy.
   config += generateKnownScannerBlockRules(ruleIdBase);
@@ -277,6 +283,15 @@ export function generateModSecurityConfig(policy, options = {}) {
   config += '\n';
 
   return config;
+}
+
+function generateInternalControlPlaneExceptionRules(ruleIdBase) {
+  let rules = '# Internal Control-Plane Exception Rules\n';
+
+  rules += `SecRule REQUEST_METHOD "@streq GET" "id:${ruleIdBase},phase:1,nolog,pass,t:none,chain"\n`;
+  rules += `SecRule REQUEST_URI "@rx ^/api/logs(?:/analytics|/count-by-log)?(?:$|\\?)" "ctl:ruleEngine=Off"\n\n`;
+
+  return rules;
 }
 
 /**

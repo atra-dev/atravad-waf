@@ -958,23 +958,18 @@ export default function LogsPage() {
       }
     };
 
-    const fetchExactCount = async () => {
-      if (!selectedMethod || !selectedUri) {
-        setSelectedLogExactCount(0);
-        return;
-      }
-      try {
-        const params = new URLSearchParams();
-        params.append('countOnly', 'true');
-        params.append('hours', String(ANALYTICS_DISPLAY_HOURS));
-        params.append('site', selectedSite);
-        params.append('decision', String(selectedLog.decision || '').toLowerCase());
-        params.append('method', selectedMethod);
-        params.append('uri', selectedUri);
-        const response = await fetch(`/api/logs?${params.toString()}`, { cache: 'no-store' });
-        const data = await response.json();
-        if (Number.isFinite(data?.totalStoredCount)) {
-          setSelectedLogExactCount(Number(data.totalStoredCount));
+      const fetchExactCount = async () => {
+        if (!selectedLog?.id || !selectedMethod || !selectedUri) {
+          setSelectedLogExactCount(0);
+          return;
+        }
+        try {
+          const params = new URLSearchParams();
+          params.append('id', String(selectedLog.id));
+          const response = await fetch(`/api/logs/count-by-log?${params.toString()}`, { cache: 'no-store' });
+          const data = await response.json();
+          if (Number.isFinite(data?.totalStoredCount)) {
+            setSelectedLogExactCount(Number(data.totalStoredCount));
         } else {
           setSelectedLogExactCount(0);
         }
