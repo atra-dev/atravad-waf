@@ -136,6 +136,13 @@ function buildRoutePath(startCoordinates, endCoordinates) {
   return `M ${sx} ${sy} Q ${controlX} ${controlY} ${ex} ${ey}`;
 }
 
+function getProjectedDistance(a, b) {
+  const pointA = mapProjection(a);
+  const pointB = mapProjection(b);
+  if (!pointA || !pointB) return Number.POSITIVE_INFINITY;
+  return Math.hypot(pointA[0] - pointB[0], pointA[1] - pointB[1]);
+}
+
 function buildProtectedCountryEntries(protectedCountries, geographies) {
   const normalized = Array.from(
     new Set(
@@ -255,6 +262,49 @@ function mergeDomesticCounts(...maps) {
   return merged;
 }
 
+function buildBlockedCountryMarkers(blockedCountries, geographies, protectedEntries) {
+  const placedCoordinates = [];
+
+  return (Array.isArray(blockedCountries) ? blockedCountries : [])
+    .filter((country) => Number(country?.blocked || 0) > 0)
+    .sort((a, b) => Number(b?.blocked || 0) - Number(a?.blocked || 0))
+    .slice(0, 8)
+    .map((country, index) => {
+      const sourceGeo = getGeoForCountry(country, geographies);
+      const coordinates = getGeoCoordinates(sourceGeo);
+      if (!sourceGeo || !coordinates) return null;
+
+      const isNearProtected = protectedEntries.some(
+        (entry) => getProjectedDistance(coordinates, entry.coordinates) < 18
+      );
+      const isNearExisting = placedCoordinates.some(
+        (entry) => getProjectedDistance(coordinates, entry.coordinates) < 16
+      );
+
+      let offsetX = 0;
+      let offsetY = -12;
+
+      if (isNearProtected || isNearExisting) {
+        offsetX = index % 2 === 0 ? 12 : -12;
+        offsetY = index % 3 === 0 ? -18 : 14;
+      }
+
+      const marker = {
+        id: `${country.code || country.name || index}-country-marker`,
+        coordinates,
+        code: String(country?.code || '').trim().toUpperCase(),
+        name: country?.name || country?.code || `Country ${index + 1}`,
+        blocked: Number(country?.blocked || 0),
+        offsetX,
+        offsetY,
+      };
+
+      placedCoordinates.push(marker);
+      return marker;
+    })
+    .filter(Boolean);
+}
+
 export function BlockedTrafficMap({ countries = [], protectedCountries = [], attackPoints = [] }) {
   const isClient = useIsClient();
 
@@ -301,6 +351,11 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                     const domesticCounts = mergeDomesticCounts(
                       exactPointResult.domesticCounts,
                       fallbackResult.domesticCounts
+                    );
+                    const blockedCountryMarkers = buildBlockedCountryMarkers(
+                      countries,
+                      geographies,
+                      protectedEntries
                     );
                     const maxBlocked = Math.max(
                       ...countries.map((country) => Number(country?.blocked || 0)),
@@ -395,6 +450,35 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                             <g>
                               <circle r="4.5" fill="rgba(127, 29, 29, 0.95)" stroke="rgba(254, 202, 202, 0.9)" strokeWidth="1.2" />
                               <circle r="9" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse" />
+                            </g>
+                          </Marker>
+                        ))}
+
+                        {blockedCountryMarkers.map((marker) => (
+                          <Marker key={marker.id} coordinates={marker.coordinates}>
+                            <g transform={`translate(${marker.offsetX}, ${marker.offsetY})`}>
+                              <circle r="5.5" fill="rgba(153, 27, 27, 0.98)" stroke="rgba(254, 202, 202, 0.95)" strokeWidth="1.4" />
+                              <circle r="11" fill="rgba(239, 68, 68, 0.14)" className="blocked-route-pulse" />
+                              <rect
+                                x="8"
+                                y="-10"
+                                width="24"
+                                height="14"
+                                rx="7"
+                                fill="rgba(15, 23, 42, 0.92)"
+                                stroke="rgba(254, 202, 202, 0.45)"
+                                strokeWidth="0.8"
+                              />
+                              <text
+                                x="20"
+                                y="0"
+                                textAnchor="middle"
+                                fontSize="7"
+                                fontWeight="700"
+                                fill="rgba(255,255,255,0.96)"
+                              >
+                                {marker.code || marker.name.slice(0, 2).toUpperCase()}
+                              </text>
                             </g>
                           </Marker>
                         ))}
