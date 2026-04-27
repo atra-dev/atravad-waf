@@ -482,6 +482,21 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
 
                     return (
                       <>
+                        <defs>
+                          <pattern id="mapDotNeutral" width="8" height="8" patternUnits="userSpaceOnUse">
+                            <circle cx="2.1" cy="2.1" r="0.9" fill="rgba(203, 213, 225, 0.34)" />
+                            <circle cx="6.1" cy="5.7" r="0.75" fill="rgba(148, 163, 184, 0.2)" />
+                          </pattern>
+                          <pattern id="mapDotBlocked" width="8" height="8" patternUnits="userSpaceOnUse">
+                            <circle cx="2.1" cy="2.1" r="0.95" fill="rgba(252, 165, 165, 0.72)" />
+                            <circle cx="6.1" cy="5.7" r="0.7" fill="rgba(248, 113, 113, 0.34)" />
+                          </pattern>
+                          <pattern id="mapDotProtected" width="8" height="8" patternUnits="userSpaceOnUse">
+                            <circle cx="2.1" cy="2.1" r="0.95" fill="rgba(147, 197, 253, 0.74)" />
+                            <circle cx="6.1" cy="5.7" r="0.7" fill="rgba(96, 165, 250, 0.32)" />
+                          </pattern>
+                        </defs>
+
                         {geographies.map((geo) => {
                           const countryData = getCountryDataForGeo(geo, countries);
                           const blockedCount = Number(countryData?.blocked || 0);
@@ -490,33 +505,50 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                             ? Math.min(0.35 + (blockedCount / maxBlocked) * 0.65, 1)
                             : 0;
 
-                          let fill = 'rgba(236, 213, 177, 0.12)';
+                          let fill = 'rgba(236, 213, 177, 0.08)';
                           let stroke = 'rgba(255,255,255,0.18)';
+                          let dotPattern = 'url(#mapDotNeutral)';
+                          let hoverFill = 'rgba(212, 166, 79, 0.2)';
 
                           if (blockedCount > 0) {
-                            fill = `rgba(220, 38, 38, ${intensity})`;
+                            fill = `rgba(220, 38, 38, ${Math.max(0.16, intensity * 0.72)})`;
                             stroke = 'rgba(254, 202, 202, 0.7)';
+                            dotPattern = 'url(#mapDotBlocked)';
+                            hoverFill = 'rgba(239, 68, 68, 0.88)';
                           } else if (isProtected) {
-                            fill = 'rgba(59, 130, 246, 0.42)';
+                            fill = 'rgba(59, 130, 246, 0.26)';
                             stroke = 'rgba(147, 197, 253, 0.8)';
+                            dotPattern = 'url(#mapDotProtected)';
+                            hoverFill = 'rgba(96, 165, 250, 0.46)';
                           }
 
                           return (
-                            <Geography
-                              key={geo.rsmKey}
-                              geography={geo}
-                              fill={fill}
-                              stroke={stroke}
-                              strokeWidth={0.45}
-                              style={{
-                                default: { outline: 'none' },
-                                hover: {
-                                  outline: 'none',
-                                  fill: blockedCount > 0 ? 'rgba(239, 68, 68, 1)' : isProtected ? 'rgba(96, 165, 250, 0.62)' : 'rgba(212, 166, 79, 0.32)',
-                                },
-                                pressed: { outline: 'none' },
-                              }}
-                            />
+                            <g key={geo.rsmKey}>
+                              <Geography
+                                geography={geo}
+                                fill={fill}
+                                stroke={stroke}
+                                strokeWidth={0.45}
+                                style={{
+                                  default: { outline: 'none' },
+                                  hover: {
+                                    outline: 'none',
+                                    fill: hoverFill,
+                                  },
+                                  pressed: { outline: 'none' },
+                                }}
+                              />
+                              <Geography
+                                geography={geo}
+                                fill={dotPattern}
+                                stroke="transparent"
+                                style={{
+                                  default: { outline: 'none', pointerEvents: 'none' },
+                                  hover: { outline: 'none', pointerEvents: 'none' },
+                                  pressed: { outline: 'none', pointerEvents: 'none' },
+                                }}
+                              />
+                            </g>
                           );
                         })}
 
@@ -618,7 +650,6 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                             </g>
                           );
                         })}
-
                         <defs>
                           <filter id="attackPulseGlow">
                             <feGaussianBlur stdDeviation="2.6" result="coloredBlur" />
