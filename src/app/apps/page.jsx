@@ -205,7 +205,7 @@ const mutedPanelClassName =
   'theme-inset-surface rounded-xl p-4';
 
 const modalShellClassName =
-  'theme-modal relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] transition-all';
+  'theme-modal theme-text-primary relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[28px] transition-all';
 
 const modalHeaderClassName =
   'flex shrink-0 items-center justify-between border-b border-[var(--border-soft)] px-6 py-4';
@@ -224,6 +224,12 @@ const modalSectionLabelClassName =
 
 const modalHelpTextClassName =
   'mt-1 text-xs theme-text-muted';
+
+const modalTitleClassName =
+  'text-2xl font-bold theme-text-primary';
+
+const modalBodyTextClassName =
+  'theme-text-secondary';
 
 export default function AppsPage() {
   const [apps, setApps] = useState([]);
@@ -1199,7 +1205,7 @@ export default function AppsPage() {
               <div className="p-6 overflow-y-auto flex-1 min-h-0">
                 {wizardStep === 1 && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-slate-950 dark:text-slate-100">What&apos;s your domain name?</h2>
+                    <h2 className={modalTitleClassName}>What&apos;s your domain name?</h2>
                     <input
                       type="text"
                       placeholder="Enter your domain"
@@ -1213,8 +1219,8 @@ export default function AppsPage() {
 
                 {wizardStep === 2 && (
                   <div className="space-y-6">
-                    <h2 className="text-2xl font-bold text-slate-950 dark:text-slate-100">Where is your origin server?</h2>
-                    <p className="text-slate-600 dark:text-slate-400">
+                    <h2 className={modalTitleClassName}>Where is your origin server?</h2>
+                    <p className={modalBodyTextClassName}>
                       Enter the URL of your actual web server. Traffic will be forwarded here after WAF inspection.
                     </p>
                     <input
@@ -1232,7 +1238,7 @@ export default function AppsPage() {
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <label className="mb-2 block text-sm font-medium theme-text-secondary">
                           Upstream Host Header
                         </label>
                         <input
@@ -1242,12 +1248,12 @@ export default function AppsPage() {
                           value={formData.originUpstreamHost}
                           onChange={(e) => setFormData({ ...formData, originUpstreamHost: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className={modalHelpTextClassName}>
                           Leave empty to forward the visitor&apos;s original host header. Set this when the origin expects a different host.
                         </p>
                       </div>
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <label className="mb-2 block text-sm font-medium theme-text-secondary">
                           Origin TLS Server Name
                         </label>
                         <input
@@ -1257,14 +1263,14 @@ export default function AppsPage() {
                           value={formData.originTlsServername}
                           onChange={(e) => setFormData({ ...formData, originTlsServername: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className={modalHelpTextClassName}>
                           Use this when your origin URL is an IP or provider hostname, but the HTTPS certificate expects a different name. Example: connect to `https://1.2.3.4` using `app.example.com` for TLS.
                         </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <label className="mb-2 block text-sm font-medium theme-text-secondary">
                           Origin Auth Header Name
                         </label>
                         <input
@@ -1274,12 +1280,12 @@ export default function AppsPage() {
                           value={formData.originAuthHeaderName}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderName: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className={modalHelpTextClassName}>
                           The header name ATRAVA Defense will send to your origin, such as `X-ATRAVAD-Origin-Auth`.
                         </p>
                       </div>
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <label className="mb-2 block text-sm font-medium theme-text-secondary">
                           Origin Auth Header Value
                         </label>
                         <input
@@ -1289,7 +1295,7 @@ export default function AppsPage() {
                           value={formData.originAuthHeaderValue}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderValue: e.target.value })}
                         />
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className={modalHelpTextClassName}>
                           The shared secret value your origin verifies. Use this to block direct bypass traffic that does not come through ATRAVA Defense.
                         </p>
                       </div>
@@ -1340,7 +1346,7 @@ export default function AppsPage() {
                       />
                     </label>
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      <label className="mb-2 block text-sm font-medium theme-text-secondary">
                         Security Policy (Optional)
                       </label>
                         <select
