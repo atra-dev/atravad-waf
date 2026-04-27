@@ -392,8 +392,13 @@ aside nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes blockedRouteDash {
+  0%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+
   to {
-    stroke-dashoffset: -24;
+    stroke-dashoffset: -21;
   }
 }
 
@@ -569,6 +574,12 @@ aside nav::-webkit-scrollbar-thumb:hover {
   opacity: 1;
 }
 
+.blocked-route-dash {
+  filter: drop-shadow(0 0 3px rgba(248, 113, 113, 0.24));
+  opacity: 0.92;
+  animation: blockedRouteDash 1.15s linear infinite;
+}
+
 .blocked-route-pulse,
 .blocked-route-pulse-slow {
   transform-origin: center;
@@ -674,6 +685,7 @@ aside nav::-webkit-scrollbar-thumb:hover {
   .homepage-surface-card,
   .homepage-tilt-card,
   .homepage-plan-card,
+  .blocked-route-dash,
   .blocked-route-pulse,
   .blocked-route-pulse-slow,
   .homepage-logo-marquee,

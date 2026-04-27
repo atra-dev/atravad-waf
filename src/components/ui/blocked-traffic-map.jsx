@@ -37,6 +37,45 @@ const mapProjection = geoEqualEarth()
   .center(MAP_CENTER)
   .translate(MAP_TRANSLATE);
 
+const COUNTRY_COORDINATE_OVERRIDES = {
+  FR: [2.2137, 46.2276],
+  ES: [-3.7492, 40.4637],
+  PT: [-8.2245, 39.3999],
+  GB: [-3.436, 55.3781],
+  UK: [-3.436, 55.3781],
+  IE: [-8.2439, 53.4129],
+  DE: [10.4515, 51.1657],
+  NL: [5.2913, 52.1326],
+  BE: [4.4699, 50.5039],
+  LU: [6.1296, 49.8153],
+  CH: [8.2275, 46.8182],
+  AT: [14.5501, 47.5162],
+  IT: [12.5674, 41.8719],
+  PL: [19.1451, 51.9194],
+  SE: [18.6435, 60.1282],
+  NO: [8.4689, 60.472],
+  FI: [25.7482, 61.9241],
+  DK: [9.5018, 56.2639],
+  GR: [21.8243, 39.0742],
+  TR: [35.2433, 38.9637],
+  UA: [31.1656, 48.3794],
+  RO: [24.9668, 45.9432],
+  PH: [121.774, 12.8797],
+  SG: [103.8198, 1.3521],
+  IN: [78.9629, 20.5937],
+  KR: [127.7669, 35.9078],
+  AU: [133.7751, -25.2744],
+  NZ: [174.886, -40.9006],
+  MX: [-102.5528, 23.6345],
+  AR: [-63.6167, -38.4161],
+  CL: [-71.543, -35.6751],
+  JP: [138.2529, 36.2048],
+  US: [-98.5795, 39.8283],
+  CA: [-106.3468, 56.1304],
+  BR: [-51.9253, -14.235],
+  CN: [104.1954, 35.8617],
+};
+
 function normalizeCountryName(value) {
   const normalized = String(value || '')
     .toLowerCase()
@@ -112,6 +151,17 @@ function getGeoForCountry(country, geographies) {
 
 function getGeoCoordinates(geo) {
   if (!geo) return null;
+  const { codes, names } = getCountryIdentifiers(geo);
+  const overrideCode = codes.find((code) => COUNTRY_COORDINATE_OVERRIDES[code]);
+  if (overrideCode) {
+    return COUNTRY_COORDINATE_OVERRIDES[overrideCode];
+  }
+
+  const overrideName = names.find((name) => COUNTRY_COORDINATE_OVERRIDES[name]);
+  if (overrideName) {
+    return COUNTRY_COORDINATE_OVERRIDES[overrideName];
+  }
+
   const [lng, lat] = geoCentroid(geo);
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
   return [lng, lat];
@@ -333,6 +383,15 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
 
                           return (
                             <g key={route.id}>
+                              <path
+                                d={routePath}
+                                className="blocked-route-dash"
+                                fill="none"
+                                stroke="rgba(248, 113, 113, 0.62)"
+                                strokeWidth="1.4"
+                                strokeLinecap="round"
+                                strokeDasharray="3.5 7"
+                              />
                               <circle r="4.5" fill="rgba(248, 113, 113, 0.98)" filter="url(#attackPulseGlow)">
                                 <animateMotion
                                   dur={`${3.2 + index * 0.35}s`}
