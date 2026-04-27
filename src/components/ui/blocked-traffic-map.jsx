@@ -333,21 +333,6 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
 
                           return (
                             <g key={route.id}>
-                              <path
-                                d={routePath}
-                                fill="none"
-                                stroke="rgba(239, 68, 68, 0.18)"
-                                strokeWidth="1.2"
-                                strokeLinecap="round"
-                              />
-                              <path
-                                d={routePath}
-                                className="blocked-route-line"
-                                fill="none"
-                                stroke="rgba(239, 68, 68, 0.82)"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                              />
                               <circle r="4.5" fill="rgba(248, 113, 113, 0.98)" filter="url(#attackPulseGlow)">
                                 <animateMotion
                                   dur={`${3.2 + index * 0.35}s`}

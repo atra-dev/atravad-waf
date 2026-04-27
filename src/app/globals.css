@@ -569,11 +569,6 @@ aside nav::-webkit-scrollbar-thumb:hover {
   opacity: 1;
 }
 
-.blocked-route-line {
-  stroke-linecap: round;
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.38));
-}
-
 .blocked-route-pulse,
 .blocked-route-pulse-slow {
   transform-origin: center;
@@ -679,7 +674,6 @@ aside nav::-webkit-scrollbar-thumb:hover {
   .homepage-surface-card,
   .homepage-tilt-card,
   .homepage-plan-card,
-  .blocked-route-line,
   .blocked-route-pulse,
   .blocked-route-pulse-slow,
   .homepage-logo-marquee,
