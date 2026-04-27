@@ -12,19 +12,15 @@ function useIsClient() {
 let ComposableMap;
 let Geographies;
 let Geography;
-let Marker;
-
 try {
   const maps = require('react-simple-maps');
   ComposableMap = maps.ComposableMap;
   Geographies = maps.Geographies;
   Geography = maps.Geography;
-  Marker = maps.Marker;
 } catch (error) {
   ComposableMap = null;
   Geographies = null;
   Geography = null;
-  Marker = null;
 }
 
 const MAP_SCALE = 164;
@@ -108,6 +104,9 @@ const COUNTRY_COORDINATE_OVERRIDES = {
   SG: [103.8198, 1.3521],
   SGP: [103.8198, 1.3521],
   singapore: [103.8198, 1.3521],
+  HK: [114.1694, 22.3193],
+  HKG: [114.1694, 22.3193],
+  'hong kong': [114.1694, 22.3193],
   IN: [78.9629, 20.5937],
   IND: [78.9629, 20.5937],
   india: [78.9629, 20.5937],
@@ -144,6 +143,27 @@ const COUNTRY_COORDINATE_OVERRIDES = {
   CN: [104.1954, 35.8617],
   CHN: [104.1954, 35.8617],
   china: [104.1954, 35.8617],
+};
+
+const COUNTRY_PIXEL_OFFSETS = {
+  HK: [7, -2],
+  HKG: [7, -2],
+  'hong kong': [7, -2],
+  SG: [5, 2],
+  SGP: [5, 2],
+  singapore: [5, 2],
+  LU: [3, -1],
+  LUX: [3, -1],
+  luxembourg: [3, -1],
+  BE: [2, -1],
+  BEL: [2, -1],
+  belgium: [2, -1],
+  NL: [2, -2],
+  NLD: [2, -2],
+  netherlands: [2, -2],
+  CH: [2, 0],
+  CHE: [2, 0],
+  switzerland: [2, 0],
 };
 
 function normalizeCountryName(value) {
@@ -195,6 +215,20 @@ function getCountryIdentifiers(geo) {
   return { codes, names };
 }
 
+function getCountryOverrideValue(identifiers, overrides) {
+  const codeMatch = identifiers.codes.find((code) => overrides[code]);
+  if (codeMatch) {
+    return overrides[codeMatch];
+  }
+
+  const nameMatch = identifiers.names.find((name) => overrides[name]);
+  if (nameMatch) {
+    return overrides[nameMatch];
+  }
+
+  return null;
+}
+
 function getCountryDataForGeo(geo, countries) {
   const { codes, names } = getCountryIdentifiers(geo);
 
@@ -221,15 +255,10 @@ function getGeoForCountry(country, geographies) {
 
 function getGeoCoordinates(geo) {
   if (!geo) return null;
-  const { codes, names } = getCountryIdentifiers(geo);
-  const overrideCode = codes.find((code) => COUNTRY_COORDINATE_OVERRIDES[code]);
-  if (overrideCode) {
-    return COUNTRY_COORDINATE_OVERRIDES[overrideCode];
-  }
-
-  const overrideName = names.find((name) => COUNTRY_COORDINATE_OVERRIDES[name]);
-  if (overrideName) {
-    return COUNTRY_COORDINATE_OVERRIDES[overrideName];
+  const identifiers = getCountryIdentifiers(geo);
+  const coordinateOverride = getCountryOverrideValue(identifiers, COUNTRY_COORDINATE_OVERRIDES);
+  if (coordinateOverride) {
+    return coordinateOverride;
   }
 
   const [lng, lat] = geoCentroid(geo);
@@ -237,9 +266,46 @@ function getGeoCoordinates(geo) {
   return [lng, lat];
 }
 
-function buildRoutePath(startCoordinates, endCoordinates) {
-  const startPoint = mapProjection(startCoordinates);
-  const endPoint = mapProjection(endCoordinates);
+function getGeoPixelOffset(geo) {
+  if (!geo) return [0, 0];
+  const identifiers = getCountryIdentifiers(geo);
+  return getCountryOverrideValue(identifiers, COUNTRY_PIXEL_OFFSETS) || [0, 0];
+}
+
+function getCountryPixelOffset(country) {
+  const codes = [
+    String(country?.code || '').trim().toUpperCase(),
+    String(country?.countryCode || '').trim().toUpperCase(),
+  ].filter(Boolean);
+  const names = [
+    normalizeCountryName(country?.name),
+    normalizeCountryName(country?.country),
+  ].filter(Boolean);
+
+  for (const code of codes) {
+    if (COUNTRY_PIXEL_OFFSETS[code]) {
+      return COUNTRY_PIXEL_OFFSETS[code];
+    }
+  }
+
+  for (const name of names) {
+    if (COUNTRY_PIXEL_OFFSETS[name]) {
+      return COUNTRY_PIXEL_OFFSETS[name];
+    }
+  }
+
+  return [0, 0];
+}
+
+function getProjectedPoint(coordinates, offset = [0, 0]) {
+  const point = mapProjection(coordinates);
+  if (!point) return null;
+  return [point[0] + (offset[0] || 0), point[1] + (offset[1] || 0)];
+}
+
+function buildRoutePath(startCoordinates, endCoordinates, startOffset = [0, 0], endOffset = [0, 0]) {
+  const startPoint = getProjectedPoint(startCoordinates, startOffset);
+  const endPoint = getProjectedPoint(endCoordinates, endOffset);
 
   if (!startPoint || !endPoint) {
     return null;
@@ -281,6 +347,7 @@ function buildProtectedCountryEntries(protectedCountries, geographies) {
         codes: identifiers.codes,
         names: identifiers.names,
         coordinates,
+        pixelOffset: getGeoPixelOffset(geo),
       };
     })
     .filter(Boolean)
@@ -315,6 +382,7 @@ function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
     .map((country, index) => {
       const sourceGeo = getGeoForCountry(country, geographies);
       const sourceCoordinates = getGeoCoordinates(sourceGeo);
+      const sourceOffset = getGeoPixelOffset(sourceGeo);
       const target = protectedEntries[index % protectedEntries.length];
       if (!sourceGeo || !sourceCoordinates || !target?.coordinates) return null;
       if (isDomesticSourceForTarget({ sourceCode: country?.code, sourceName: country?.name, target })) {
@@ -327,7 +395,9 @@ function buildBlockedRoutes(blockedCountries, geographies, protectedEntries) {
         label: country.name || country.code || `Source ${index + 1}`,
         blocked: Number(country.blocked || 0),
         startCoordinates: sourceCoordinates,
+        startOffset: sourceOffset,
         endCoordinates: target.coordinates,
+        endOffset: target.pixelOffset || [0, 0],
       };
     })
     .filter(Boolean);
@@ -344,6 +414,7 @@ function buildExactPointRoutes(attackPoints, protectedEntries) {
     .slice(0, 40)
     .map((point, index) => {
       const target = protectedEntries[index % protectedEntries.length];
+      const sourceOffset = getCountryPixelOffset(point);
       if (!target?.coordinates) return null;
       if (isDomesticSourceForTarget({ sourceCode: point?.countryCode, sourceName: point?.country, target })) {
         domesticCounts.set(target.name, (domesticCounts.get(target.name) || 0) + Number(point?.blocked || 1));
@@ -355,7 +426,9 @@ function buildExactPointRoutes(attackPoints, protectedEntries) {
         label: point.country || point.ip || `Source ${index + 1}`,
         blocked: Number(point.blocked || 1),
         startCoordinates: [Number(point.longitude), Number(point.latitude)],
+        startOffset: sourceOffset,
         endCoordinates: target.coordinates,
+        endOffset: target.pixelOffset || [0, 0],
       };
     })
     .filter(Boolean);
@@ -380,7 +453,7 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
   return (
     <div className="relative overflow-hidden">
       <div className="relative">
-        {ComposableMap && Marker ? (
+        {ComposableMap ? (
           <div className="overflow-hidden">
             <div className="relative -mt-10 scale-[1.03]">
               <div className="pointer-events-none absolute inset-x-10 top-4 h-32 rounded-full bg-[radial-gradient(circle,rgba(124,22,33,0.18),transparent_68%)] blur-3xl" />
@@ -448,7 +521,12 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                         })}
 
                         {blockedRoutes.map((route, index) => {
-                          const routePath = buildRoutePath(route.startCoordinates, route.endCoordinates);
+                          const routePath = buildRoutePath(
+                            route.startCoordinates,
+                            route.endCoordinates,
+                            route.startOffset,
+                            route.endOffset
+                          );
                           if (!routePath) return null;
 
                           return (
@@ -484,18 +562,24 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                           );
                         })}
 
-                        {blockedRoutes.map((route) => (
-                          <Marker key={`${route.id}-source`} coordinates={route.startCoordinates}>
-                            <g>
+                        {blockedRoutes.map((route) => {
+                          const sourcePoint = getProjectedPoint(route.startCoordinates, route.startOffset);
+                          if (!sourcePoint) return null;
+
+                          return (
+                            <g key={`${route.id}-source`} transform={`translate(${sourcePoint[0]} ${sourcePoint[1]})`}>
                               <circle r="4.5" fill="rgba(127, 29, 29, 0.95)" stroke="rgba(254, 202, 202, 0.9)" strokeWidth="1.2" />
                               <circle r="9" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse" />
                             </g>
-                          </Marker>
-                        ))}
+                          );
+                        })}
 
-                        {protectedEntries.map((node) => (
-                          <Marker key={`protected-${node.name}`} coordinates={node.coordinates}>
-                            <g>
+                        {protectedEntries.map((node) => {
+                          const targetPoint = getProjectedPoint(node.coordinates, node.pixelOffset);
+                          if (!targetPoint) return null;
+
+                          return (
+                            <g key={`protected-${node.name}`} transform={`translate(${targetPoint[0]} ${targetPoint[1]})`}>
                               {Number(domesticCounts.get(node.name) || 0) > 0 ? (
                                 <>
                                   <circle r="14" fill="rgba(239, 68, 68, 0.16)" className="blocked-route-pulse" />
@@ -505,8 +589,8 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                               <circle r="5" fill="rgba(37, 99, 235, 0.96)" stroke="rgba(191, 219, 254, 0.95)" strokeWidth="1.2" />
                               <circle r="10" fill="rgba(59, 130, 246, 0.18)" className="blocked-route-pulse-slow" />
                             </g>
-                          </Marker>
-                        ))}
+                          );
+                        })}
 
                         <defs>
                           <filter id="attackPulseGlow">
