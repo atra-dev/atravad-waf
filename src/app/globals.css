@@ -392,13 +392,36 @@ aside nav::-webkit-scrollbar-thumb:hover {
 }
 
 @keyframes blockedRouteDash {
-  0%,
-  100% {
+  0% {
     stroke-dashoffset: 0;
+    opacity: 0;
   }
 
-  to {
-    stroke-dashoffset: -21;
+  12% {
+    opacity: 0.95;
+  }
+
+  82% {
+    opacity: 0.72;
+  }
+
+  100% {
+    stroke-dashoffset: -34;
+    opacity: 0;
+  }
+}
+
+@keyframes blockedRouteTrail {
+  0% {
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 0.18;
+  }
+
+  100% {
+    opacity: 0;
   }
 }
 
@@ -574,10 +597,15 @@ aside nav::-webkit-scrollbar-thumb:hover {
   opacity: 1;
 }
 
+.blocked-route-trail {
+  opacity: 0;
+  animation: blockedRouteTrail 2.6s ease-out infinite;
+}
+
 .blocked-route-dash {
-  filter: drop-shadow(0 0 3px rgba(248, 113, 113, 0.24));
-  opacity: 0.92;
-  animation: blockedRouteDash 1.15s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(248, 113, 113, 0.28));
+  opacity: 0;
+  animation: blockedRouteDash 2.35s linear infinite;
 }
 
 .blocked-route-pulse,
@@ -685,6 +713,7 @@ aside nav::-webkit-scrollbar-thumb:hover {
   .homepage-surface-card,
   .homepage-tilt-card,
   .homepage-plan-card,
+  .blocked-route-trail,
   .blocked-route-dash,
   .blocked-route-pulse,
   .blocked-route-pulse-slow,

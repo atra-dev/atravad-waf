@@ -533,30 +533,57 @@ export function BlockedTrafficMap({ countries = [], protectedCountries = [], att
                             <g key={route.id}>
                               <path
                                 d={routePath}
+                                className="blocked-route-trail"
+                                fill="none"
+                                stroke="rgba(248, 113, 113, 0.12)"
+                                strokeWidth="0.9"
+                                strokeLinecap="round"
+                                strokeDasharray="2 11"
+                              />
+                              <path
+                                d={routePath}
                                 className="blocked-route-dash"
                                 fill="none"
-                                stroke="rgba(248, 113, 113, 0.62)"
-                                strokeWidth="1.4"
+                                stroke="rgba(248, 113, 113, 0.78)"
+                                strokeWidth="1.25"
                                 strokeLinecap="round"
-                                strokeDasharray="3.5 7"
+                                strokeDasharray="2.8 13"
                               />
-                              <circle r="4.5" fill="rgba(248, 113, 113, 0.98)" filter="url(#attackPulseGlow)">
+                              <circle r="7.5" fill="rgba(248, 113, 113, 0.24)" filter="url(#attackPulseGlow)">
                                 <animateMotion
-                                  dur={`${3.2 + index * 0.35}s`}
+                                  dur={`${2.45 + index * 0.18}s`}
                                   repeatCount="indefinite"
-                                  rotate="auto"
-                                  begin={`${index * 0.28}s`}
+                                  begin={`${index * 0.52}s`}
                                   path={routePath}
                                 />
+                                <animate attributeName="opacity" values="0;0.85;0.08;0" dur={`${2.45 + index * 0.18}s`} repeatCount="indefinite" begin={`${index * 0.52}s`} />
                               </circle>
-                              <circle r="2.6" fill="rgba(254, 242, 242, 0.95)">
+                              <circle r="3.1" fill="rgba(248, 113, 113, 0.98)">
                                 <animateMotion
-                                  dur={`${3.2 + index * 0.35}s`}
+                                  dur={`${2.45 + index * 0.18}s`}
                                   repeatCount="indefinite"
-                                  rotate="auto"
-                                  begin={`${index * 0.28}s`}
+                                  begin={`${index * 0.52}s`}
                                   path={routePath}
                                 />
+                                <animate attributeName="opacity" values="0;1;1;0" dur={`${2.45 + index * 0.18}s`} repeatCount="indefinite" begin={`${index * 0.52}s`} />
+                              </circle>
+                              <circle r="1.45" fill="rgba(255, 255, 255, 0.96)">
+                                <animateMotion
+                                  dur={`${2.45 + index * 0.18}s`}
+                                  repeatCount="indefinite"
+                                  begin={`${index * 0.52}s`}
+                                  path={routePath}
+                                />
+                                <animate attributeName="opacity" values="0;1;1;0" dur={`${2.45 + index * 0.18}s`} repeatCount="indefinite" begin={`${index * 0.52}s`} />
+                              </circle>
+                              <circle r="1.7" fill="rgba(254, 202, 202, 0.62)">
+                                <animateMotion
+                                  dur={`${2.92 + index * 0.22}s`}
+                                  repeatCount="indefinite"
+                                  begin={`${index * 0.52 + 0.18}s`}
+                                  path={routePath}
+                                />
+                                <animate attributeName="opacity" values="0;0.42;0.08;0" dur={`${2.92 + index * 0.22}s`} repeatCount="indefinite" begin={`${index * 0.52 + 0.18}s`} />
                               </circle>
                             </g>
                           );
