@@ -66,6 +66,18 @@ Example target:
 - Ubuntu 22.04+
 - Node.js 20 LTS
 - Nginx
+- optional lightweight GUI: Xfce
+
+If you want a lightweight GUI on the Ubuntu server for occasional local administration, install a complete lightweight desktop session first:
+
+```bash
+sudo apt update
+sudo apt install -y xubuntu-core lightdm dbus-x11 xterm
+```
+
+If prompted, choose `lightdm` as the default display manager.
+
+`xubuntu-core` is preferred here over installing only `xfce4` on a minimal server because it brings in the session components that reduce `Failed to start session` login errors.
 
 Install runtime packages:
 
@@ -82,11 +94,20 @@ Exact Ubuntu install sequence:
 ```bash
 sudo apt update
 sudo apt install -y curl gnupg2 ca-certificates lsb-release ubuntu-keyring
+sudo apt install -y xubuntu-core lightdm dbus-x11 xterm
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs nginx certbot python3-certbot-nginx
+sudo apt install -y git nodejs nginx certbot python3-certbot-nginx
 node -v
 npm -v
 nginx -v
+```
+
+If the login screen appears but shows `Failed to start session`, run:
+
+```bash
+sudo apt update
+sudo apt install --reinstall -y xubuntu-core xfce4-session lightdm dbus-x11
+sudo systemctl restart lightdm
 ```
 
 ## 2. Copy the Project
@@ -98,9 +119,10 @@ sudo mkdir -p /var/www/atravad-waf
 sudo chown -R $USER:$USER /var/www/atravad-waf
 ```
 
-Copy the repository there, then install dependencies:
+Clone the repository from GitHub, then install dependencies:
 
 ```bash
+git clone https://github.com/atra-dev/atravad-waf.git /var/www/atravad-waf
 cd /var/www/atravad-waf
 npm install
 ```
@@ -110,6 +132,7 @@ Exact Ubuntu commands:
 ```bash
 sudo mkdir -p /var/www/atravad-waf
 sudo chown -R $USER:$USER /var/www/atravad-waf
+git clone https://github.com/atra-dev/atravad-waf.git /var/www/atravad-waf
 cd /var/www/atravad-waf
 npm install
 ```
