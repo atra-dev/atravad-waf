@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import { getPlanOptions, PLAN_CATALOG, PLAN_IDS } from '@/lib/plans';
+import { formatPhilippineDate, formatPhilippineDateTime } from '@/lib/timezone';
 import { TRAFFIC_LOGGING_MODES } from '@/lib/traffic-logging';
 
 const PLAN_OPTIONS = getPlanOptions();
@@ -846,7 +847,7 @@ export default function SuperAdminPage() {
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-white">{log.message || 'Log Entry'}</p>
                           <p className="mt-2 text-xs text-slate-300">
-                            {log.tenant?.name || 'Unknown tenant'} • {new Date(log.timestamp).toLocaleString()}
+                            {log.tenant?.name || 'Unknown tenant'} • {formatPhilippineDateTime(log.timestamp)}
                           </p>
                         </div>
                         <SeverityBadge severity={log.severity} />
@@ -901,7 +902,7 @@ export default function SuperAdminPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Investigation until</p>
                 <p className="mt-2 text-lg font-semibold text-slate-950">
                   {trafficLogging?.investigation?.enabledUntil
-                    ? new Date(trafficLogging.investigation.enabledUntil).toLocaleString()
+                    ? formatPhilippineDateTime(trafficLogging.investigation.enabledUntil)
                     : 'Inactive'}
                 </p>
               </div>
@@ -1152,7 +1153,7 @@ export default function SuperAdminPage() {
                               </div>
                             </div>
                             <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
-                              Created {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '-'}
+                              Created {tenant.createdAt ? formatPhilippineDate(tenant.createdAt) : '-'}
                             </p>
                           </div>
 
@@ -1436,7 +1437,7 @@ export default function SuperAdminPage() {
                                 </span>
                               </td>
                               <td className={`px-6 py-4 align-top ${DARK_TABLE_CELL_CLASS}`}>
-                                {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                                {user.createdAt ? formatPhilippineDate(user.createdAt) : '-'}
                               </td>
                               <td className="px-6 py-4 align-top">
                                 {user.role === 'super_admin' ? (
@@ -1530,7 +1531,7 @@ export default function SuperAdminPage() {
                       </div>
                       <p className="mt-3 text-base font-semibold text-slate-950">{log.message || 'Log Entry'}</p>
                       <p className="mt-2 text-sm text-slate-500">
-                        Tenant: {log.tenant?.name || 'Unknown'} • {new Date(log.timestamp).toLocaleString()}
+                        Tenant: {log.tenant?.name || 'Unknown'} • {formatPhilippineDateTime(log.timestamp)}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-right">

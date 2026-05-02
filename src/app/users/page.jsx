@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
+import { formatPhilippineDate } from '@/lib/timezone';
 
 const userInputClassName =
   'theme-input w-full rounded-xl px-3 py-2 transition';
@@ -217,7 +218,7 @@ export default function TenantUsersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-secondary">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                        {user.createdAt ? formatPhilippineDate(user.createdAt) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span

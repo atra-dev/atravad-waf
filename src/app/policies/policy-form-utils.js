@@ -1,3 +1,5 @@
+import { formatPhilippineDateTime } from '@/lib/timezone';
+
 export function splitBulkEntries(input) {
   return String(input || '')
     .split(/[\r\n,;\t ]+/g)
@@ -31,25 +33,10 @@ export function validateRuleId(value) {
 }
 
 export function formatTimestamp(value) {
-  if (!value) return 'Unknown';
-
-  const date =
-    typeof value === 'string' || typeof value === 'number'
-      ? new Date(value)
-      : typeof value?.toDate === 'function'
-        ? value.toDate()
-        : new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return 'Unknown';
-  }
-
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
+  return formatPhilippineDateTime(value, {
     month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
     minute: '2-digit',
+    second: undefined,
   });
 }
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
+import { formatPhilippineDateStamp, formatPhilippineDateTime } from '@/lib/timezone';
 import ConfirmationModal from '../ConfirmationModal';
 import FeedbackModal from '../FeedbackModal';
 
@@ -174,7 +175,7 @@ export default function PolicyVersionsPage() {
         'change_summary',
       ];
       const rows = searchedAuditLogs.map((log) => [
-        log.createdAt || '',
+        log.createdAt ? formatPhilippineDateTime(log.createdAt) : '',
         log.actor?.email || '',
         log.eventType || '',
         log.policyName || '',
@@ -188,7 +189,7 @@ export default function PolicyVersionsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${policyName}-operational-audit-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `${policyName}-operational-audit-${formatPhilippineDateStamp()}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -296,7 +297,7 @@ export default function PolicyVersionsPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-medium theme-text-primary">Version {version.version}</p>
-                      <p className="text-sm theme-text-muted">{new Date(version.createdAt).toLocaleString()}</p>
+                      <p className="text-sm theme-text-muted">{formatPhilippineDateTime(version.createdAt)}</p>
                     </div>
                     {version.version !== versions[0]?.version ? (
                       <button
@@ -380,7 +381,7 @@ export default function PolicyVersionsPage() {
 
                 <div>
                   <p className="text-xs theme-text-muted">
-                    Created: {new Date(selectedVersion.createdAt).toLocaleString()}
+                    Created: {formatPhilippineDateTime(selectedVersion.createdAt)}
                   </p>
                 </div>
               </div>
@@ -462,7 +463,7 @@ export default function PolicyVersionsPage() {
                         {log.eventType === 'operational_list_update' ? 'Operational list update' : 'Audit event'}
                       </p>
                       <p className="text-sm theme-text-muted">
-                        {log.actor?.email || 'Unknown user'} • {log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Unknown time'}
+                        {log.actor?.email || 'Unknown user'} • {log.createdAt ? formatPhilippineDateTime(log.createdAt) : 'Unknown time'}
                       </p>
                     </div>
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">

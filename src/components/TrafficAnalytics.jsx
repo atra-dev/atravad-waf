@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { normalizeIpAddress } from '@/lib/ip-utils';
 import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
+import { formatPhilippineDateTime, formatPhilippineTime } from '@/lib/timezone';
 
 function MeasuredChartContainer({ heightClassName = 'h-72', children }) {
   const containerRef = useRef(null);
@@ -226,7 +227,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.35)" />
                 <XAxis
                   dataKey="time"
-                  tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                  tickFormatter={(value) => formatPhilippineTime(value, { second: undefined })}
                   tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
                 />
                 <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
@@ -239,7 +240,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
                     boxShadow: '0 18px 40px rgba(15, 23, 42, 0.18)',
                   }}
                   labelStyle={{ color: 'var(--text-secondary)' }}
-                  labelFormatter={(value) => new Date(value).toLocaleString()}
+                  labelFormatter={(value) => formatPhilippineDateTime(value)}
                 />
                 <Legend wrapperStyle={{ color: 'var(--text-secondary)', fontSize: '12px' }} />
                 <Line

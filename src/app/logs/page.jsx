@@ -12,6 +12,7 @@ import { normalizeDomainInput } from '@/lib/domain-utils';
 import { isValidIp, normalizeIpAddress } from '@/lib/ip-utils';
 import { deriveRuleId } from '@/lib/log-rule-utils';
 import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
+import { PH_TIME_ZONE_LABEL, formatPhilippineDateStamp, formatPhilippineDateTime } from '@/lib/timezone';
 import ConfirmationModal from '@/app/policies/ConfirmationModal';
 import FeedbackModal from '@/app/policies/FeedbackModal';
 
@@ -114,21 +115,8 @@ export default function LogsPage() {
   const formatLogTimestamp = useCallback((timestamp) => {
     if (!timestamp) return '-';
 
-    const parsedDate = new Date(timestamp);
-    if (Number.isNaN(parsedDate.getTime())) {
-      return String(timestamp);
-    }
-
-    return parsedDate.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-      timeZone: 'UTC',
-    });
+    const formatted = formatPhilippineDateTime(timestamp);
+    return formatted === 'Unknown' ? String(timestamp) : formatted;
   }, []);
 
   const updateFilters = useCallback((updater) => {
@@ -546,7 +534,7 @@ export default function LogsPage() {
       const csvContent = [
         ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Flag', 'ASN', 'ASN Name'].join(','),
         ...logs.map(log => [
-          new Date(log.timestamp).toISOString(),
+          formatLogTimestamp(log.timestamp),
           log.severity || '',
           log.level || '',
           log.nodeId || '',
@@ -564,7 +552,7 @@ export default function LogsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `waf-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `waf-logs-${formatPhilippineDateStamp()}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1391,7 +1379,7 @@ export default function LogsPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Security Event</p>
                     <h2 className="mt-1 text-2xl font-semibold tracking-tight theme-text-primary sm:text-[2rem]">Log Details</h2>
                     <p className="mt-1 text-sm theme-text-secondary">
-                      {formatLogTimestamp(selectedLog.timestamp)} UTC - {getLogSource(selectedLog)}
+                      {formatLogTimestamp(selectedLog.timestamp)} {PH_TIME_ZONE_LABEL} - {getLogSource(selectedLog)}
                     </p>
                     <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] theme-text-muted">
                       {formatAnalyticsDisplayWindow()}
