@@ -168,6 +168,13 @@ Secure the env file:
 chmod 600 /var/www/atravad-waf/.env.production
 ```
 
+If you will run the Web GUI service as `www-data`, make sure the env file is also owned by `www-data` before starting `systemd`:
+
+```bash
+sudo chown www-data:www-data /var/www/atravad-waf/.env.production
+sudo chmod 600 /var/www/atravad-waf/.env.production
+```
+
 Exact Ubuntu commands:
 
 ```bash
@@ -254,6 +261,9 @@ WantedBy=multi-user.target
 EOF
 
 sudo chown -R www-data:www-data /var/www/atravad-waf
+sudo chown www-data:www-data /var/www/atravad-waf/.env.production
+sudo chmod 600 /var/www/atravad-waf/.env.production
+sudo chmod 755 /var/www /var/www/atravad-waf
 sudo systemctl daemon-reload
 sudo systemctl enable atravad-webgui
 sudo systemctl start atravad-webgui
@@ -261,11 +271,36 @@ sudo systemctl status atravad-webgui
 sudo journalctl -u atravad-webgui -f
 ```
 
+Important note:
+
+- `/var/www` can remain owned by `root:root` as long as it is traversable, usually `755`.
+- `/var/www/atravad-waf` and `/var/www/atravad-waf/.env.production` must be readable by the `www-data` service account.
+- `next start` may try to read `.env.production` directly even when `EnvironmentFile=` is already set in `systemd`.
+
+If the service log shows `EACCES` for `/var/www/atravad-waf/.env.production`, run:
+
+```bash
+sudo chown www-data:www-data /var/www/atravad-waf/.env.production
+sudo chmod 600 /var/www/atravad-waf/.env.production
+sudo chmod 755 /var/www /var/www/atravad-waf
+sudo systemctl restart atravad-webgui
+sudo journalctl -u atravad-webgui -n 50 --no-pager
+```
+
 ## 6. Configure Nginx
 
 Use the file in `deploy/nginx/atravad-webgui.conf`.
 
-Install it:
+Important sequence:
+
+1. Start with an **HTTP-only** Nginx config on port `80`.
+2. Confirm Nginx reloads successfully.
+3. Run Certbot to create the certificate.
+4. Only after the certificate exists, enable the HTTPS config on `443`.
+
+Do **not** enable an Nginx config that references `/etc/letsencrypt/live/.../fullchain.pem` before Certbot has created that certificate.
+
+Install the initial HTTP-only config:
 
 ```bash
 sudo cp deploy/nginx/atravad-webgui.conf /etc/nginx/sites-available/atravad-webgui
@@ -274,16 +309,14 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-This config:
+This initial config:
 
-- listens on `80` and `443`
-- redirects `80` to `443`
-- terminates HTTPS at Nginx
+- listens on `80`
 - proxies requests to `127.0.0.1:3000`
 - supports WebSocket upgrades
 - forwards real client IP headers
 
-Exact Ubuntu commands:
+Exact Ubuntu HTTP-only commands:
 
 ```bash
 sudo tee /etc/nginx/sites-available/atravad-webgui > /dev/null <<'EOF'
@@ -309,6 +342,14 @@ sudo ln -sf /etc/nginx/sites-available/atravad-webgui /etc/nginx/sites-enabled/a
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+If `nginx -t` fails with a missing certificate file such as:
+
+```text
+/etc/letsencrypt/live/your-domain/fullchain.pem
+```
+
+that means an HTTPS config was enabled too early. Revert to the HTTP-only config above, then reload Nginx again.
 
 ## 7. Add SSL
 
@@ -337,6 +378,47 @@ sudo certbot --nginx -d atrava-defense.cisoasaservice.io
 
 Choose the HTTPS redirect option when prompted.
 
+After Certbot succeeds, your Nginx config can safely use:
+
+- `listen 443 ssl`
+- `ssl_certificate /etc/letsencrypt/live/atrava-defense.cisoasaservice.io/fullchain.pem`
+- `ssl_certificate_key /etc/letsencrypt/live/atrava-defense.cisoasaservice.io/privkey.pem`
+
+If you prefer to manage the HTTPS block manually after Certbot creates the files, use:
+
+```bash
+sudo tee /etc/nginx/sites-available/atravad-webgui > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name atrava-defense.cisoasaservice.io;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name atrava-defense.cisoasaservice.io;
+
+    ssl_certificate /etc/letsencrypt/live/atrava-defense.cisoasaservice.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/atrava-defense.cisoasaservice.io/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
 ## 8. Point the WAF Edge to the Web GUI for Log Ingestion
 
 If your WAF edge sends logs to this GUI server, confirm the edge uses:
@@ -352,7 +434,51 @@ https://your-gui-domain.example.com/api/logs
 
 Headers/body must include the configured log API key and tenant information expected by `src/app/api/logs/route.js`.
 
-## 9. Verify the Split Deployment
+## 9. Lock Down the Customer Origin Server
+
+To properly protect a customer origin behind the WAF, the origin server should accept web traffic only from the WAF edge IP:
+
+- `180.232.117.141`
+
+That restriction belongs on the **customer origin server**, not on the Web GUI server.
+
+Recommended controls:
+
+- provider firewall or security group
+- OS firewall such as `ufw`
+- optional Nginx `allow` / `deny` rules on the origin
+
+Example `ufw` rules on the origin server:
+
+```bash
+sudo ufw allow from 180.232.117.141 to any port 80 proto tcp
+sudo ufw allow from 180.232.117.141 to any port 443 proto tcp
+sudo ufw deny 80/tcp
+sudo ufw deny 443/tcp
+sudo ufw status numbered
+```
+
+If you enable `ufw`, make sure SSH remains allowed from your admin IPs first.
+
+If the origin also runs Nginx, you can enforce the same restriction there:
+
+```nginx
+location / {
+    allow 180.232.117.141;
+    deny all;
+    proxy_pass http://127.0.0.1:YOUR_APP_PORT;
+}
+```
+
+If the origin serves static files or PHP instead of proxying to an app port, the same allow/deny pattern can still be used inside the relevant `server` or `location` block.
+
+Best practice is to enforce origin restrictions at more than one layer:
+
+- provider firewall
+- host firewall
+- Nginx allowlist
+
+## 10. Verify the Split Deployment
 
 Check these separately:
 
@@ -385,7 +511,7 @@ sudo ufw status
 ```
 5. WAF edge can send logs to the GUI `/api/logs` endpoint if remote ingestion is used.
 
-## 10. Operational Notes
+## 11. Operational Notes
 
 - Nginx is only fronting the **Web GUI** server in this guide.
 - The **WAF edge** remains a separate deployment and that is acceptable.
