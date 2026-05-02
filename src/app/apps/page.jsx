@@ -1233,7 +1233,7 @@ export default function AppsPage() {
                     />
                     {isVercelOriginUrl(formData.originUrl) && (
                       <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100">
-                        Vercel origins are still publicly reachable unless the origin app rejects direct requests. ATRAVA Defense will auto-fill the upstream host, TLS server name, and `X-ATRAVAD-Origin-Auth` header name, but you must set a secret value and validate it in the Vercel app middleware.
+                        This client origin is on Vercel. ATRAVA Defense will auto-fill the upstream host, TLS server name, and recommended origin auth header name. If you want to prevent direct bypass traffic, configure the client origin to reject requests that do not include the shared header value.
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1275,13 +1275,13 @@ export default function AppsPage() {
                         </label>
                         <input
                           type="text"
-                          placeholder="Recommended: X-ATRAVAD-Origin-Auth"
+                          placeholder="Recommended for Vercel: X-ATRAVAD-Origin-Auth"
                           className={inputClassName}
                           value={formData.originAuthHeaderName}
                           onChange={(e) => setFormData({ ...formData, originAuthHeaderName: e.target.value })}
                         />
-                        <p className={modalHelpTextClassName}>
-                          The header name ATRAVA Defense will send to your origin, such as `X-ATRAVAD-Origin-Auth`.
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          Optional header name ATRAVA Defense will send to your origin. This is especially useful when the client origin is publicly reachable, such as on Vercel.
                         </p>
                       </div>
                       <div>
@@ -1684,7 +1684,7 @@ export default function AppsPage() {
                   />
                   {isVercelOriginUrl(editFormData.originUrl) && (
                     <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100">
-                      This origin is on Vercel. Keep the upstream host and TLS server name aligned to the `vercel.app` hostname, and enforce the shared secret in the origin app middleware so direct requests return `403`.
+                      This client origin is on Vercel. Keep the upstream host and TLS server name aligned to the `vercel.app` hostname. If you want to block direct traffic that bypasses ATRAVA Defense, enforce the shared origin header in the client origin app.
                     </div>
                   )}
                 </div>
@@ -1720,12 +1720,12 @@ export default function AppsPage() {
                     <label className={modalSectionLabelClassName}>Origin Auth Header Name</label>
                     <input
                       type="text"
-                      placeholder="Recommended: X-ATRAVAD-Origin-Auth"
+                      placeholder="Recommended for Vercel: X-ATRAVAD-Origin-Auth"
                       value={editFormData.originAuthHeaderName}
                       onChange={(e) => setEditFormData({ ...editFormData, originAuthHeaderName: e.target.value })}
                       className={inputClassName}
                     />
-                    <p className={modalHelpTextClassName}>Header name ATRAVA Defense sends to the origin, for example `X-ATRAVAD-Origin-Auth`.</p>
+                    <p className={modalHelpTextClassName}>Optional header name ATRAVA Defense sends to the origin. This is especially useful when the client origin is publicly reachable, such as on Vercel.</p>
                   </div>
 
                   <div>

@@ -211,8 +211,8 @@ export function middleware(request) {
   const expectedOriginSecret = process.env.ORIGIN_AUTH_SECRET || "";
   const actualOriginSecret = request.headers.get(ORIGIN_AUTH_HEADER) || "";
 
-  // When the app is accessed via its public Vercel deployment hostname,
-  // require the shared secret that only the WAF should send upstream.
+  // Legacy safeguard for dashboard deployments hosted on a public vercel.app
+  // hostname. This does not affect the Nginx-hosted deployment.
   if (host.endsWith(".vercel.app")) {
     if (!expectedOriginSecret) {
       return createOriginBlockedResponse();
