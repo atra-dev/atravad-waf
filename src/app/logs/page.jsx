@@ -1283,6 +1283,7 @@ export default function LogsPage() {
                                     alt={`${countryName} flag`}
                                     width={20}
                                     height={16}
+                                    unoptimized
                                     className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
                                     loading="lazy"
                                   />

@@ -264,6 +264,7 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
                               alt={`${country.code} flag`}
                               width={20}
                               height={16}
+                              unoptimized
                               className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
                               loading="lazy"
                             />
