@@ -29,6 +29,14 @@ const PlusIcon = ({ className }) => (
   </svg>
 );
 
+function escapeCsv(value) {
+  const stringValue = String(value ?? '');
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+}
+
 export default function LogsPage() {
   // Verify authentication
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -532,23 +540,24 @@ export default function LogsPage() {
     setExporting(true);
     try {
       const csvContent = [
-        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'Country Flag', 'ASN', 'ASN Name'].join(','),
+        ['Timestamp', 'Severity', 'Level', 'Source', 'Rule ID', 'Message', 'IP Address', 'Country', 'ASN', 'ASN Name'],
         ...logs.map(log => [
           formatLogTimestamp(log.timestamp),
           log.severity || '',
           log.level || '',
           log.nodeId || '',
           log.ruleId || '',
-          `"${(log.message || '').replace(/"/g, '""')}"`,
+          log.message || '',
           log.ipAddress || '',
           log.geoCountry || 'Unknown',
-          getCountryFlagEmoji(log.geoCountryCode) || '',
           log.geoAsn || '',
-          `"${String(log.geoAsnName || '').replace(/"/g, '""')}"`,
-        ].join(','))
-      ].join('\n');
+          String(log.geoAsnName || ''),
+        ]),
+      ]
+        .map((row) => row.map(escapeCsv).join(','))
+        .join('\n');
 
-      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const blob = new Blob(['\uFEFF', csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
