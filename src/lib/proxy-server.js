@@ -78,8 +78,8 @@ function sanitizeHeaderMap(headers = {}) {
 }
 
 function renderCustomNotFoundHtml(host, path) {
-  const safeHost = host || "unknown-host";
-  const safePath = path || "/";
+  const safeHost = escapeHtml(host || "unknown-host");
+  const safePath = escapeHtml(path || "/");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -1850,15 +1850,13 @@ export class ProxyWAFServer {
               topReason,
             )
           ) {
-            console.info(
-              `Allowing protected static asset request for ${host}:`,
-              {
-                url: req.url,
-                method: req.method,
-                matchedRules: accessInspection.matchedRules,
-                engine: accessInspection.engine,
-              },
-            );
+            console.info("Allowing protected static asset request", {
+              host,
+              url: req.url,
+              method: req.method,
+              matchedRules: accessInspection.matchedRules,
+              engine: accessInspection.engine,
+            });
           } else {
             sendBlockedResponse(res, req, {
               host,
@@ -1869,7 +1867,8 @@ export class ProxyWAFServer {
               reason: topReason,
               matchedRules: accessInspection.matchedRules,
             });
-            console.warn(`Access control blocked request for ${host}:`, {
+            console.warn("Access control blocked request", {
+              host,
               url: req.url,
               method: req.method,
               matchedRules: accessInspection.matchedRules,
@@ -1880,7 +1879,7 @@ export class ProxyWAFServer {
               req,
               level: "warn",
               severity: "CRITICAL",
-              message: `Request blocked by WAF for ${host}`,
+              message: "Request blocked by WAF",
               blocked: true,
               statusCode: 403,
               ruleId: topRule?.id || null,
@@ -1909,15 +1908,13 @@ export class ProxyWAFServer {
               topReason,
             )
           ) {
-            console.info(
-              `Allowing protected static asset request for ${host}:`,
-              {
-                url: req.url,
-                method: req.method,
-                matchedRules: inspection.matchedRules,
-                engine: inspection.engine,
-              },
-            );
+            console.info("Allowing protected static asset request", {
+              host,
+              url: req.url,
+              method: req.method,
+              matchedRules: inspection.matchedRules,
+              engine: inspection.engine,
+            });
           } else {
             sendBlockedResponse(res, req, {
               host,
@@ -1928,7 +1925,8 @@ export class ProxyWAFServer {
               reason: topReason,
               matchedRules: inspection.matchedRules,
             });
-            console.warn(`Request blocked for ${host}:`, {
+            console.warn("Request blocked", {
+              host,
               url: req.url,
               method: req.method,
               matchedRules: inspection.matchedRules,
@@ -1939,7 +1937,7 @@ export class ProxyWAFServer {
               req,
               level: "warn",
               severity: "CRITICAL",
-              message: `Request blocked by WAF for ${host}`,
+              message: "Request blocked by WAF",
               blocked: true,
               statusCode: 403,
               ruleId: topRule?.id || null,

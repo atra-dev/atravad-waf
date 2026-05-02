@@ -294,9 +294,10 @@ function detectSQLInjection(input) {
  */
 function detectXSS(input) {
   if (typeof input !== 'string') return false;
+  const normalizedInput = input.toLowerCase();
   
   const xssPatterns = [
-    /<script[^>]*>.*?<\/script>/i,
+    /<script\b[^>]*>/i,
     /javascript:/i,
     /on\w+\s*=/i,
     /<iframe[^>]*>/i,
@@ -308,7 +309,10 @@ function detectXSS(input) {
     /livescript:/i,
   ];
 
-  return xssPatterns.some(pattern => pattern.test(input));
+  return (
+    xssPatterns.some(pattern => pattern.test(input)) ||
+    (normalizedInput.includes('<script') && normalizedInput.includes('</script>'))
+  );
 }
 
 export async function POST(request) {

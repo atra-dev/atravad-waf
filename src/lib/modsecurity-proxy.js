@@ -580,7 +580,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /\b(?:union(?:\s+all)?\s+select|select\b.{0,80}\bfrom|insert\b.{0,40}\binto|update\b.{0,40}\bset|delete\b.{0,40}\bfrom|drop\b.{0,40}\btable|sleep\s*\(|benchmark\s*\(|waitfor\s+delay)\b/i,
         /(?:^|[\s"'`(])(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|false|1=1)\b/i,
         /(?:--|#|\/\*|\*\/|;\s*(?:select|union|drop|delete|insert|update|exec))/i,
-        /\b(?:or|and)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:true|false|null|\d+|[a-z_][\w$]*)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:=|like|regexp|rlike)(?:\/\*.*?\*\/|\s|['"`=()])+?(?:true|false|null|\d+|[a-z_][\w$]*)/i,
+        /\b(?:or|and)\b(?:\s|['"`=()]){1,16}(?:true|false|null|\d+|[a-z_][\w$]{0,31})(?:\s|['"`=()]){0,16}(?:=|like|regexp|rlike)(?:\s|['"`=()]){0,16}(?:true|false|null|\d+|[a-z_][\w$]{0,31})/i,
         /\b(?:pg_sleep|sleep|benchmark|waitfor\s+delay|dbms_pipe\.receive_message)\s*\(/i,
         /\b(?:information_schema|@@version|version\s*\(|load_file\s*\(|into\s+outfile)\b/i,
       ],

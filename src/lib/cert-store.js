@@ -84,7 +84,10 @@ export class CertStore {
           fs.rmSync(domainDir, { recursive: true });
         }
       } catch (err) {
-        console.warn('CertStore: failed to remove domain dir', domainDir, err.message);
+        console.warn('CertStore: failed to remove stored certificate directory', {
+          domain: key,
+          error: err.message,
+        });
       }
     }
   }
@@ -141,12 +144,17 @@ export class CertStore {
             } catch (_) {}
             this.store.set(domainKey, { key, cert, fullchain, expiresAt });
           } catch (entryErr) {
-            console.warn('CertStore: skipping unreadable cert entry', domainKey, entryErr.message);
+            console.warn('CertStore: skipping unreadable cert entry', {
+              domain: domainKey,
+              error: entryErr.message,
+            });
           }
         }
       }
     } catch (err) {
-      console.warn('CertStore: failed to load from disk', this.certsDir, err.message);
+      console.warn('CertStore: failed to load stored certificates from disk', {
+        error: err.message,
+      });
     }
   }
 

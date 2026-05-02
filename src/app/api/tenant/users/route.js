@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { getCurrentUser, getTenantName } from '@/lib/api-helpers';
 import { getUserRole, ROLES } from '@/lib/rbac';
@@ -6,7 +7,7 @@ import { normalizeEmail } from '@/lib/user-utils';
 import { adjustTenantUsage, getTenantLimitStatus, invalidateTenantSubscriptionCache } from '@/lib/tenant-subscription';
 
 function generateTemporaryPassword() {
-  return `Tmp!${Math.random().toString(36).slice(2, 10)}9Z`;
+  return `Tmp!${randomBytes(6).toString('base64url')}9Z`;
 }
 
 function getInviteRedirectUrl(request) {

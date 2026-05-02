@@ -11,6 +11,21 @@ function escapeRegexPattern(value) {
   return String(value ?? '').replace(/\r?\n/g, '');
 }
 
+function escapeRegexLiteral(value) {
+  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function escapeRuleComment(value) {
+  return String(value ?? '').replace(/\r?\n/g, ' ').replace(/#/g, '');
+}
+
+function buildWildcardRegex(value) {
+  return String(value ?? '')
+    .split('*')
+    .map((segment) => escapeRegexLiteral(segment))
+    .join('.*');
+}
+
 /**
  * ModSecurity Engine Integration
  * 
@@ -1092,7 +1107,6 @@ function generateRateLimitingRules(ruleIdBase, rateLimitingConfig) {
 function generateIPAccessControlRules(ruleIdBase, ipAccessControl) {
   const { whitelist = [], blacklist = [], action = 'block' } = ipAccessControl;
   let rules = '# IP Access Control Rules\n';
-  const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const normalizeIpList = (items = []) =>
     items
       .map((item) => String(item || '').trim())
@@ -1101,7 +1115,7 @@ function generateIPAccessControlRules(ruleIdBase, ipAccessControl) {
   // IP Whitelist (allow only specified IPs)
   const normalizedWhitelist = normalizeIpList(whitelist);
   if (normalizedWhitelist.length > 0) {
-    const ipList = normalizedWhitelist.map(escapeRegex).join('|');
+    const ipList = normalizedWhitelist.map(escapeRegexLiteral).join('|');
     rules += `SecRule REMOTE_ADDR "!@rx ^(?:${ipList})$" \\
     "id:${ruleIdBase},phase:1,block,msg:'IP Access Control: IP Address Not Whitelisted',\\
     logdata:'IP: %{REMOTE_ADDR}',\\
@@ -1115,7 +1129,7 @@ function generateIPAccessControlRules(ruleIdBase, ipAccessControl) {
   // IP Blacklist (block specified IPs)
   const normalizedBlacklist = normalizeIpList(blacklist);
   if (normalizedBlacklist.length > 0) {
-    const ipList = normalizedBlacklist.map(escapeRegex).join('|');
+    const ipList = normalizedBlacklist.map(escapeRegexLiteral).join('|');
     rules += `SecRule REMOTE_ADDR "@rx ^(?:${ipList})$" \\
     "id:${ruleIdBase + 1},phase:1,block,msg:'IP Access Control: IP Address Blacklisted',\\
     logdata:'IP: %{REMOTE_ADDR}',\\
@@ -1168,7 +1182,10 @@ function generateGeoBlockingRules(ruleIdBase, geoBlocking) {
   rules += `SecRule TX:GEO_COUNTRY "@rx ^$" "id:${ruleIdBase + 2},phase:1,pass,nolog,t:none,setvar:'tx.geo_country=%{request_headers.x-geo-country}'"\n\n`;
 
   if (blockedCountries.length > 0) {
-    const countryCodes = blockedCountries.join('|').toUpperCase();
+    const countryCodes = blockedCountries
+      .map((code) => escapeRegexLiteral(String(code || '').trim().toUpperCase()))
+      .filter(Boolean)
+      .join('|');
     rules += `SecRule TX:GEO_COUNTRY "@rx ^(?:${countryCodes})$" \\
     "id:${ruleIdBase + 3},phase:1,block,msg:'Geographic Blocking: Request from Blocked Country',\\
     logdata:'Country: %{tx.geo_country}, IP: %{REMOTE_ADDR}',\\
@@ -1179,7 +1196,10 @@ function generateGeoBlockingRules(ruleIdBase, geoBlocking) {
   }
 
   if (allowedCountries.length > 0) {
-    const countryCodes = allowedCountries.join('|').toUpperCase();
+    const countryCodes = allowedCountries
+      .map((code) => escapeRegexLiteral(String(code || '').trim().toUpperCase()))
+      .filter(Boolean)
+      .join('|');
     rules += `SecRule TX:GEO_COUNTRY "!@rx ^(?:${countryCodes})$" \\
     "id:${ruleIdBase + 4},phase:1,block,msg:'Geographic Blocking: Request from Non-Allowed Country',\\
     logdata:'Country: %{tx.geo_country}, IP: %{REMOTE_ADDR}',\\
@@ -1210,7 +1230,8 @@ function generateAdvancedRateLimitingRules(ruleIdBase, advancedRateLimiting) {
     rules += '# Per-Endpoint Rate Limiting\n';
     Object.entries(perEndpoint).forEach(([endpoint, config], index) => {
       const { requestsPerMinute = 60, requestsPerHour = 1000 } = config;
-      const endpointPattern = endpoint.replace(/\//g, '\\/').replace(/\*/g, '.*');
+      const endpointPattern = buildWildcardRegex(endpoint);
+      const safeEndpoint = escapeActionValue(endpoint);
       
       rules += `SecRule REQUEST_URI "@rx ${endpointPattern}" \\
     "id:${ruleIdBase + index * 10},phase:1,nolog,pass,t:none,\\
@@ -1219,7 +1240,7 @@ function generateAdvancedRateLimitingRules(ruleIdBase, advancedRateLimiting) {
 
       rules += `SecRule REQUEST_URI "@rx ${endpointPattern}" \\
     "id:${ruleIdBase + index * 10 + 1},phase:1,block,msg:'Advanced Rate Limiting: Endpoint Rate Limit Exceeded',\\
-    logdata:'Endpoint: ${endpoint}, IP: %{REMOTE_ADDR}, Count: %{ip.endpoint_rate_${index}}',\\
+    logdata:'Endpoint: ${safeEndpoint}, IP: %{REMOTE_ADDR}, Count: %{ip.endpoint_rate_${index}}',\\
     severity:'WARNING',\\
     tag:'rate-limit',\\
     tag:'endpoint-rate-limit',\\
@@ -1367,7 +1388,10 @@ function generateAdvancedFileUploadRules(ruleIdBase, advancedFileUpload) {
       'image/jpeg', 'image/png', 'image/gif', 'application/pdf',
       'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
-    const mimePattern = allowedMimeTypes.join('|').replace(/\//g, '\\/');
+    const mimePattern = allowedMimeTypes
+      .map((mimeType) => escapeRegexLiteral(String(mimeType || '').trim()))
+      .filter(Boolean)
+      .join('|');
 
     rules += `SecRule REQUEST_HEADERS:Content-Type "!@rx ^(?:multipart/form-data|application/x-www-form-urlencoded)" \\
     "id:${ruleIdBase + 1},phase:2,pass,t:none"\n\n`;
@@ -1386,7 +1410,10 @@ function generateAdvancedFileUploadRules(ruleIdBase, advancedFileUpload) {
 
   // Extension validation
   if (allowedExtensions.length > 0) {
-    const extPattern = allowedExtensions.map(ext => ext.replace(/\./g, '\\.')).join('|');
+    const extPattern = allowedExtensions
+      .map((ext) => escapeRegexLiteral(String(ext || '').trim()).replace(/^\\\./, ''))
+      .filter(Boolean)
+      .join('|');
     rules += `SecRule FILES_NAMES "!@rx \\.(?:${extPattern})$" \\
     "id:${ruleIdBase + 3},phase:2,block,msg:'Advanced File Upload: File Extension Not Allowed',\\
     logdata:'File: %{MATCHED_VAR}',\\
@@ -1398,7 +1425,10 @@ function generateAdvancedFileUploadRules(ruleIdBase, advancedFileUpload) {
   }
 
   if (blockedExtensions.length > 0) {
-    const extPattern = blockedExtensions.map(ext => ext.replace(/\./g, '\\.')).join('|');
+    const extPattern = blockedExtensions
+      .map((ext) => escapeRegexLiteral(String(ext || '').trim()).replace(/^\\\./, ''))
+      .filter(Boolean)
+      .join('|');
     rules += `SecRule FILES_NAMES "@rx \\.(?:${extPattern})$" \\
     "id:${ruleIdBase + 4},phase:2,block,msg:'Advanced File Upload: Blocked File Extension',\\
     logdata:'File: %{MATCHED_VAR}',\\
@@ -1442,9 +1472,15 @@ function generateAPIProtectionRules(ruleIdBase, apiProtection) {
   // API Key validation
   if (apiKeyValidation) {
     const validApiKeys = apiProtection.validApiKeys || [];
+    const safeApiKeyHeader =
+      String(apiKeyHeader || 'X-API-Key').replace(/[^A-Za-z0-9-]/g, '') ||
+      'X-API-Key';
     if (validApiKeys.length > 0) {
-      const keyPattern = validApiKeys.join('|').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      rules += `SecRule REQUEST_HEADERS:${apiKeyHeader} "!@rx ^(?:${keyPattern})$" \\
+      const keyPattern = validApiKeys
+        .map((key) => escapeRegexLiteral(String(key || '')))
+        .filter(Boolean)
+        .join('|');
+      rules += `SecRule REQUEST_HEADERS:${safeApiKeyHeader} "!@rx ^(?:${keyPattern})$" \\
     "id:${ruleIdBase},phase:1,block,msg:'API Protection: Invalid API Key',\\
     logdata:'API Key: %{MATCHED_VAR}',\\
     severity:'CRITICAL',\\
@@ -1453,7 +1489,7 @@ function generateAPIProtectionRules(ruleIdBase, apiProtection) {
     t:none,\\
     setvar:'tx.anomaly_score=+%{tx.critical_anomaly_score}'"\n\n`;
     } else {
-      rules += `SecRule REQUEST_HEADERS:${apiKeyHeader} "@rx ^$" \\
+      rules += `SecRule REQUEST_HEADERS:${safeApiKeyHeader} "@rx ^$" \\
     "id:${ruleIdBase},phase:1,block,msg:'API Protection: Missing API Key',\\
     severity:'CRITICAL',\\
     tag:'api-protection',\\
@@ -1510,7 +1546,10 @@ function generateAPIProtectionRules(ruleIdBase, apiProtection) {
   // API versioning
   if (apiVersioning) {
     const allowedVersions = apiProtection.allowedVersions || ['v1', 'v2'];
-    const versionPattern = allowedVersions.join('|');
+    const versionPattern = allowedVersions
+      .map((version) => escapeRegexLiteral(String(version || '').trim()))
+      .filter(Boolean)
+      .join('|');
     rules += `SecRule REQUEST_URI|REQUEST_HEADERS:API-Version "@rx (?:v\\d+|version=\\d+)" \\
     "id:${ruleIdBase + 6},phase:1,pass,capture,t:none,\\
     setvar:'tx.api_version=%{TX.0}'"\n\n`;
@@ -1536,16 +1575,17 @@ function generateExceptionRules(ruleIdBase, exceptions) {
 
   exceptions.forEach((exception, index) => {
     const { path, ruleIds = [], reason = 'Exception rule' } = exception;
-    const pathPattern = path.replace(/\//g, '\\/').replace(/\*/g, '.*');
+    const pathPattern = buildWildcardRegex(path);
+    const safeReason = escapeRuleComment(reason);
 
     if (ruleIds.length > 0) {
       const ruleIdList = ruleIds.join(',');
-      rules += `# Exception: ${reason}\n`;
+      rules += `# Exception: ${safeReason}\n`;
       rules += `SecRule REQUEST_URI "@rx ^${pathPattern}" \\
     "id:${ruleIdBase + index},phase:1,nolog,pass,t:none,\\
     ctl:ruleRemoveById=${ruleIdList}"\n\n`;
     } else {
-      rules += `# Exception skipped for ${reason}: explicit rule IDs are required for production safety\n\n`;
+      rules += `# Exception skipped for ${safeReason}: explicit rule IDs are required for production safety\n\n`;
     }
   });
 

@@ -17,10 +17,18 @@ export function normalizeDomainInput(value) {
   }
 
   // Strip port if user entered host:port without a protocol.
-  host = host.replace(/:\d+$/, '');
+  const lastColonIndex = host.lastIndexOf(':');
+  if (lastColonIndex > -1 && host.indexOf(':') === lastColonIndex) {
+    const maybePort = host.slice(lastColonIndex + 1);
+    if (maybePort && Number.isInteger(Number(maybePort))) {
+      host = host.slice(0, lastColonIndex);
+    }
+  }
 
   // Keep FQDN semantics but normalize accidental trailing dots.
-  host = host.replace(/\.+$/, '');
+  while (host.endsWith('.')) {
+    host = host.slice(0, -1);
+  }
 
   return host;
 }
