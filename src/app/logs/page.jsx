@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
@@ -481,7 +482,7 @@ export default function LogsPage() {
       tone: 'blue',
       action: null,
     });
-  }, [policyActionBusy]);
+  }, []);
 
   const handleConfirmPolicyAction = useCallback(async () => {
     if (policyActionBusy || typeof policyActionState.action !== 'function') return;
@@ -1277,9 +1278,11 @@ export default function LogsPage() {
                             return (
                               <div className="flex items-center gap-2">
                                 {flagUrl ? (
-                                  <img
+                                  <Image
                                     src={flagUrl}
                                     alt={`${countryName} flag`}
+                                    width={20}
+                                    height={16}
                                     className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
                                     loading="lazy"
                                   />

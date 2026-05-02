@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useMemo } from 'react';
 import { isPrivateIp } from '@/lib/ip-utils';
 
@@ -31,9 +32,10 @@ try {
  * Displays world map with traffic by country and geographic insights
  */
 export default function GeographicAnalytics({ logs = [], analytics = null }) {
+  const analyticsCountries = analytics?.countries;
   const countryData = useMemo(() => {
-    if (analytics?.countries) {
-      return analytics.countries;
+    if (analyticsCountries) {
+      return analyticsCountries;
     }
     const countryMap = new Map();
 
@@ -72,9 +74,8 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
 
       countryMap.set(code, existing);
     });
-
     return Array.from(countryMap.values()).sort((a, b) => b.count - a.count);
-  }, [logs]);
+  }, [analyticsCountries, logs]);
 
   const maxCountryCount = useMemo(
     () => Math.max(...countryData.map((c) => c.count), 1),
@@ -258,10 +259,12 @@ export default function GeographicAnalytics({ logs = [], analytics = null }) {
                           {country.code === 'XX' ? (
                             <span className="text-lg leading-none" aria-label="Local traffic">🏠</span>
                           ) : (
-                            <img
+                            <Image
                               src={getFlagImageUrl(country.code)}
                               alt={`${country.code} flag`}
-                            className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
+                              width={20}
+                              height={16}
+                              className="h-4 w-5 rounded-sm border border-[var(--border-soft)] object-cover"
                               loading="lazy"
                             />
                           )}

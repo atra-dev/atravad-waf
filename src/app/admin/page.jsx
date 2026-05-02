@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
@@ -230,39 +230,7 @@ export default function SuperAdminPage() {
     setToast({ message, tone });
   };
 
-  useEffect(() => {
-    checkAccessAndFetchData();
-  }, []);
-
-  const checkAccessAndFetchData = async () => {
-    try {
-      // First check if user is super admin
-      const userRes = await fetch('/api/users/me');
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        setUserRole(userData.role);
-        
-        if (userData.role !== 'super_admin') {
-          setUnauthorized(true);
-          setLoading(false);
-          return;
-        }
-      } else {
-        setUnauthorized(true);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch data if authorized
-      await fetchData(false);
-    } catch (error) {
-      console.error('Error checking access:', error);
-      setError('Failed to verify access');
-      setLoading(false);
-    }
-  };
-
-  const fetchData = async (isRefresh = false) => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     if (!isRefresh) {
       setError(null);
     }
@@ -340,7 +308,39 @@ export default function SuperAdminPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  const checkAccessAndFetchData = useCallback(async () => {
+    try {
+      // First check if user is super admin
+      const userRes = await fetch('/api/users/me');
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        setUserRole(userData.role);
+        
+        if (userData.role !== 'super_admin') {
+          setUnauthorized(true);
+          setLoading(false);
+          return;
+        }
+      } else {
+        setUnauthorized(true);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch data if authorized
+      await fetchData(false);
+    } catch (error) {
+      console.error('Error checking access:', error);
+      setError('Failed to verify access');
+      setLoading(false);
+    }
+  }, [fetchData]);
+
+  useEffect(() => {
+    checkAccessAndFetchData();
+  }, [checkAccessAndFetchData]);
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();

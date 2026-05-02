@@ -25,14 +25,12 @@ export function AnimatedCounter({
     if (isInView) {
       motionValue.set(0);
       springValue.jump(0);
-      setDisplayValue(0);
       motionValue.set(value);
       return;
     }
 
     motionValue.set(0);
     springValue.jump(0);
-    setDisplayValue(0);
   }, [isInView, motionValue, springValue, value]);
 
   useEffect(() => {

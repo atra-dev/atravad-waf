@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
@@ -67,11 +67,7 @@ export default function PolicyVersionsPage() {
     tone: 'blue',
   });
 
-  useEffect(() => {
-    fetchVersions().finally(() => setLoading(false));
-  }, [policyName]);
-
-  const fetchVersions = async () => {
+  const fetchVersions = useCallback(async () => {
     try {
       const response = await fetch(`/api/policies?name=${encodeURIComponent(policyName)}`);
       const data = await response.json();
@@ -92,9 +88,9 @@ export default function PolicyVersionsPage() {
       console.error('Error fetching versions:', error);
       setVersions([]);
     }
-  };
+  }, [policyName]);
 
-  const fetchAuditLogs = async () => {
+  const fetchAuditLogs = useCallback(async () => {
     try {
       setAuditLoading(true);
       const query = new URLSearchParams({
@@ -129,7 +125,11 @@ export default function PolicyVersionsPage() {
     } finally {
       setAuditLoading(false);
     }
-  };
+  }, [AUDIT_PAGE_SIZE, auditActorFilter, auditChangeFilter, auditCurrentCursor, auditDateFilter, auditPage, policyName]);
+
+  useEffect(() => {
+    fetchVersions().finally(() => setLoading(false));
+  }, [fetchVersions]);
 
   const searchedAuditLogs = useMemo(() => {
     const normalizedSearch = auditSearch.trim().toLowerCase();
@@ -160,7 +160,7 @@ export default function PolicyVersionsPage() {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [auditPage, auditCurrentCursor, auditActorFilter, auditChangeFilter, auditDateFilter, policyName]);
+  }, [fetchAuditLogs]);
 
   const exportAuditLogs = async () => {
     try {

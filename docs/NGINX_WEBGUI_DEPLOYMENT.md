@@ -102,14 +102,6 @@ npm -v
 nginx -v
 ```
 
-If the login screen appears but shows `Failed to start session`, run:
-
-```bash
-sudo apt update
-sudo apt install --reinstall -y xubuntu-core xfce4-session lightdm dbus-x11
-sudo systemctl restart lightdm
-```
-
 ## 2. Copy the Project
 
 Example path:
