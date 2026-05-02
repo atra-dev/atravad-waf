@@ -420,7 +420,7 @@ function ApplicationAssignmentInput({
   const [showManager, setShowManager] = useState(false);
   const [query, setQuery] = useState('');
 
-  const selectedIds = Array.isArray(value) ? value : [];
+  const selectedIds = useMemo(() => (Array.isArray(value) ? value : []), [value]);
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const filteredApps = useMemo(() => {

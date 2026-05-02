@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AppLoadingState from '@/components/AppLoadingState';
@@ -56,38 +56,29 @@ export function PoliciesPageContent({
     tone: 'blue',
   });
 
-  useEffect(() => {
-    checkTenantAndFetchData();
+  const fetchPolicies = useCallback(async () => {
+    try {
+      const response = await fetch('/api/policies');
+      const data = await response.json();
+      setPolicies(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+      setPolicies([]);
+    }
   }, []);
 
-  useEffect(() => {
-    if (loading || editorInitialized || !editorOnly) return;
-
-    if (initialCreate) {
-      setEditingPolicyName('');
-      setFormData(getDefaultPolicyFormData());
-      setActiveTab('basic');
-      setShowForm(true);
-      setEditorInitialized(true);
-      return;
+  const fetchApps = useCallback(async () => {
+    try {
+      const response = await fetch('/api/apps');
+      const data = await response.json();
+      setApps(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching apps:', error);
+      setApps([]);
     }
+  }, []);
 
-    if (!initialEditName || policies.length === 0) return;
-
-    const matchingVersions = policies.filter((policy) => policy.name === initialEditName);
-    if (matchingVersions.length === 0) {
-      setEditorInitialized(true);
-      return;
-    }
-
-    const latestVersion = matchingVersions.reduce((latest, current) =>
-      Number(current.version || 0) > Number(latest.version || 0) ? current : latest
-    );
-    openEditPolicyForm(latestVersion);
-    setEditorInitialized(true);
-  }, [editorInitialized, editorOnly, initialCreate, initialEditName, loading, policies]);
-
-  const checkTenantAndFetchData = async () => {
+  const checkTenantAndFetchData = useCallback(async () => {
     try {
       const [tenantRes, userRes] = await Promise.all([
         fetch('/api/tenants/current'),
@@ -112,7 +103,11 @@ export function PoliciesPageContent({
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchApps, fetchPolicies]);
+
+  useEffect(() => {
+    checkTenantAndFetchData();
+  }, [checkTenantAndFetchData]);
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();
@@ -153,28 +148,6 @@ export function PoliciesPageContent({
     }
   };
 
-  const fetchPolicies = async () => {
-    try {
-      const response = await fetch('/api/policies');
-      const data = await response.json();
-      setPolicies(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching policies:', error);
-      setPolicies([]);
-    }
-  };
-
-  const fetchApps = async () => {
-    try {
-      const response = await fetch('/api/apps');
-      const data = await response.json();
-      setApps(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching apps:', error);
-      setApps([]);
-    }
-  };
-
   const closePolicyForm = () => {
     if (editorOnly) {
       router.push('/policies');
@@ -187,7 +160,7 @@ export function PoliciesPageContent({
     setFormData(getDefaultPolicyFormData());
   };
 
-  const openEditPolicyForm = (policyVersion) => {
+  const openEditPolicyForm = useCallback((policyVersion) => {
     if (!policyVersion) return;
 
     const defaults = getDefaultPolicyFormData();
@@ -305,7 +278,34 @@ export function PoliciesPageContent({
 
     setActiveTab('basic');
     setShowForm(true);
-  };
+  }, [apps, policies]);
+
+  useEffect(() => {
+    if (loading || editorInitialized || !editorOnly) return;
+
+    if (initialCreate) {
+      setEditingPolicyName('');
+      setFormData(getDefaultPolicyFormData());
+      setActiveTab('basic');
+      setShowForm(true);
+      setEditorInitialized(true);
+      return;
+    }
+
+    if (!initialEditName || policies.length === 0) return;
+
+    const matchingVersions = policies.filter((policy) => policy.name === initialEditName);
+    if (matchingVersions.length === 0) {
+      setEditorInitialized(true);
+      return;
+    }
+
+    const latestVersion = matchingVersions.reduce((latest, current) =>
+      Number(current.version || 0) > Number(latest.version || 0) ? current : latest
+    );
+    openEditPolicyForm(latestVersion);
+    setEditorInitialized(true);
+  }, [editorInitialized, editorOnly, initialCreate, initialEditName, loading, openEditPolicyForm, policies]);
 
   const openConfirmation = ({ title, description, confirmLabel, tone = 'blue', action }) => {
     setConfirmationState({

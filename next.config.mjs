@@ -72,6 +72,14 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'flagcdn.com',
+      },
+    ],
+  },
   reactCompiler: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,

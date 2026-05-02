@@ -66,11 +66,15 @@ function getDecisionKey(log) {
  */
 export default function TrafficAnalytics({ logs = [], analytics = null }) {
   const [copyState, setCopyState] = useState('idle');
+  const analyticsTimeSeries = analytics?.timeSeries;
+  const analyticsMethods = analytics?.methods;
+  const analyticsStatuses = analytics?.statuses;
+  const analyticsTopBlockedIps = analytics?.topBlockedIps;
 
   // Process logs for time-series data
   const timeSeriesData = useMemo(() => {
-    if (analytics?.timeSeries) {
-      return analytics.timeSeries;
+    if (analyticsTimeSeries) {
+      return analyticsTimeSeries;
     }
     const hourlyMap = new Map();
     
@@ -114,12 +118,12 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
     return Array.from(hourlyMap.values())
       .sort((a, b) => new Date(a.time) - new Date(b.time))
       .slice(-ANALYTICS_DISPLAY_HOURS);
-  }, [logs]);
+  }, [analyticsTimeSeries, logs]);
 
   // Request methods distribution
   const methodDistribution = useMemo(() => {
-    if (analytics?.methods) {
-      return analytics.methods;
+    if (analyticsMethods) {
+      return analyticsMethods;
     }
     const methodMap = new Map();
     
@@ -131,12 +135,12 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
     });
     
     return Array.from(methodMap.values()).sort((a, b) => b.count - a.count);
-  }, [logs]);
+  }, [analyticsMethods, logs]);
 
   // Status code distribution
   const statusCodeDistribution = useMemo(() => {
-    if (analytics?.statuses) {
-      return analytics.statuses;
+    if (analyticsStatuses) {
+      return analyticsStatuses;
     }
     const statusMap = new Map();
     
@@ -154,12 +158,12 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
         ...item,
         label: `${item.status}xx`,
       }));
-  }, [logs]);
+  }, [analyticsStatuses, logs]);
 
   // Top blocked IPs
   const topBlockedIPs = useMemo(() => {
-    if (analytics?.topBlockedIps) {
-      return analytics.topBlockedIps;
+    if (analyticsTopBlockedIps) {
+      return analyticsTopBlockedIps;
     }
     const ipMap = new Map();
     
@@ -182,7 +186,7 @@ export default function TrafficAnalytics({ logs = [], analytics = null }) {
     return Array.from(ipMap.values())
       .sort((a, b) => b.totalBlocked - a.totalBlocked)
       .slice(0, 10);
-  }, [logs]);
+  }, [analyticsTopBlockedIps, logs]);
 
   const handleCopyBlockedIps = async () => {
     if (topBlockedIPs.length === 0 || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
