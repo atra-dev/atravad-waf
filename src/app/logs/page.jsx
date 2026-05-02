@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -110,6 +110,26 @@ export default function LogsPage() {
   const analyticsTabCount = Number.isFinite(Number(analyticsRequestCount)) && Number(analyticsRequestCount) > 0
     ? Number(analyticsRequestCount)
     : logsTabCount;
+
+  const formatLogTimestamp = useCallback((timestamp) => {
+    if (!timestamp) return '-';
+
+    const parsedDate = new Date(timestamp);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return String(timestamp);
+    }
+
+    return parsedDate.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'UTC',
+    });
+  }, []);
 
   const updateFilters = useCallback((updater) => {
     setFilters((prev) => {
@@ -1236,7 +1256,7 @@ export default function LogsPage() {
                         onClick={() => setSelectedLog(log)}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm theme-text-primary">
-                          {new Date(log.timestamp).toLocaleString()}
+                          {formatLogTimestamp(log.timestamp)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getSeverityColor(log.severity)}`}>
@@ -1371,7 +1391,7 @@ export default function LogsPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">Security Event</p>
                     <h2 className="mt-1 text-2xl font-semibold tracking-tight theme-text-primary sm:text-[2rem]">Log Details</h2>
                     <p className="mt-1 text-sm theme-text-secondary">
-                      {new Date(selectedLog.timestamp).toLocaleString()} • {getLogSource(selectedLog)}
+                      {formatLogTimestamp(selectedLog.timestamp)} UTC - {getLogSource(selectedLog)}
                     </p>
                     <p className="mt-2 text-xs font-medium uppercase tracking-[0.14em] theme-text-muted">
                       {formatAnalyticsDisplayWindow()}

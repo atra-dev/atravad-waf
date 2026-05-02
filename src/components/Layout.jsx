@@ -109,7 +109,7 @@ export default function Layout({ children }) {
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [logoutBusy, setLogoutBusy] = useState(false);
-  const [theme, setTheme] = useState(() => getResolvedTheme());
+  const [theme, setTheme] = useState('light');
 
   useEffect(() => {
     setupAuthInterceptor();
