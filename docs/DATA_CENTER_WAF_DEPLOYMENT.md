@@ -13,7 +13,7 @@ Step-by-step instructions to run the WAF proxy server (WAF EDGE) on-premises so 
 | **Server** | Ubuntu server (recommended: **Ubuntu 22.04 LTS** or newer). Minimum 2 CPU, 2 GB RAM; scale up for traffic. |
 | **Network** | A **public IP** assigned to this host (or to a load balancer in front of it) so customers can point DNS to it. |
 | **Outbound internet** | Server must reach **Firebase** (Firestore): `firestore.googleapis.com` (and optionally `*.googleapis.com`). |
-| **Ports** | **80** (HTTP) and **443** (HTTPS) availableâ€”either on this host or on a reverse proxy in front of it. |
+| **Ports** | **80** (HTTP) and **443** (HTTPS) available on this host for direct WAF exposure. |
 | **Firebase** | Same Firebase project as your Dashboard. You will use a **service account** with Firestore read access. |
 | **Node.js** | Version **18+** (LTS recommended). |
 
@@ -41,7 +41,7 @@ Recommended approach:
 - Deploy the same codebase to the secondary server.
 - Create a separate `.env.waf` on that server.
 - Run its own `systemd` service on that server.
-- Expose the same public service ports (`80`/`443`, or `8080` behind local Nginx).
+- Expose the same public service ports (`80`/`443`) on the secondary host.
 - Verify the server can reach Firebase independently.
 
 The WAF proxy does not require a special "secondary" mode. The second edge can run the same application code and read from the same Firebase project as long as network access, credentials, and DNS are configured correctly.
@@ -71,9 +71,9 @@ sudo ufw enable
 sudo ufw status
 ```
 
-If a **load balancer** or **firewall** in front of this server terminates SSL and forwards to this host, open only the ports that the LB uses (e.g. 8080, 8443) and skip binding the Node process to 80/443 on this box (see Step 5).
+If a **load balancer** or **firewall** in front of this server forwards traffic to this host, keep `80/443` open on the path that reaches the WAF process.
 
-**Note:** For Letâ€™s Encrypt with Nginx on the same host (Step 6), the WAF will listen on **8080** and Nginx on **80/443** so both can run together.
+**Recommended edge model for this guide:** the ATRAVA Defense WAF process binds directly to **80** and **443** on the edge server. No Nginx is required on the WAF edge host.
 
 ---
 
@@ -159,24 +159,32 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----E
 # ATRAVAD_TENANT_NAME=Acme
 # ATRAVAD_TENANT_NAME=Acme,Corp,Other
 
-# Ports: use 8080 when Nginx on this host handles 80/443 (Let's Encrypt); use 80 if WAF is the only listener.
-ATRAVAD_HTTP_PORT=8080
-# ATRAVAD_HTTPS_PORT=443
+# Direct-bind edge model: the WAF listens on the public service ports itself.
+ATRAVAD_HTTP_PORT=80
+ATRAVAD_HTTPS_PORT=443
+
+# Built-in Let's Encrypt / cert persistence
+LETSENCRYPT_EMAIL=you@example.com
+CERT_STORE_PERSIST_TO_DISK=1
+LETSENCRYPT_STAGING=0
+LETSENCRYPT_ACCOUNT_KEY_PERSIST=1
 ```
 
-When using **Nginx + Letâ€™s Encrypt** on the same host (Step 6), set `ATRAVAD_HTTP_PORT=8080` so Nginx can bind to 80 and 443 and proxy to the WAF on 8080. If the WAF runs alone (no Nginx on this host), use `ATRAVAD_HTTP_PORT=80`.
+Use underscore-separated env variable names exactly as shown above. Do not use names with spaces such as `ATRAVAD HTTP PORT`; they will not be read by the shell or the WAF loader.
+
+For the direct-bind edge model in this guide, use `ATRAVAD_HTTP_PORT=80` and `ATRAVAD_HTTPS_PORT=443`.
 
 If you are deploying the **secondary Makati server** as a separate host, keep its env file separate from the primary server even if the values are mostly identical.
 
 ### 4.4 Secure the env file
 
 ```bash
-sudo chown root:www-data /opt/atravad-waf/.env.waf
-sudo chmod 640 /opt/atravad-waf/.env.waf
+sudo chown root:root /opt/atravad-waf/.env.waf
+sudo chmod 600 /opt/atravad-waf/.env.waf
 sudo mkdir -p /opt/atravad-waf/certs
-sudo chown -R www-data:www-data /opt/atravad-waf/certs
-sudo find /opt/atravad-waf/certs -type d -exec chmod 750 {} \;
-sudo find /opt/atravad-waf/certs -type f -exec chmod 640 {} \;
+sudo chown -R root:root /opt/atravad-waf/certs
+sudo find /opt/atravad-waf/certs -type d -exec chmod 700 {} \;
+sudo find /opt/atravad-waf/certs -type f -exec chmod 600 {} \;
 ```
 
 ---
@@ -185,12 +193,11 @@ sudo find /opt/atravad-waf/certs -type f -exec chmod 640 {} \;
 
 ### 5.1 Test run (foreground)
 
-Load the env and start the server:
+Start the server directly as root for a foreground test:
 
 ```bash
 cd /opt/atravad-waf
-set -a && source .env.waf && set +a
-node proxy-server-standalone.js
+sudo bash -lc 'cd /opt/atravad-waf && node proxy-server-standalone.js'
 ```
 
 You should see something like:
@@ -198,13 +205,14 @@ You should see something like:
 ```
 ATRAVA Defense Standalone Server
 ====================================
-Tenant: (all)
+Tenant: (all tenants)
 HTTP Port: 80
 HTTPS Port: 443
 
 Loaded application: example.com
 Loaded 1 application(s)
 ATRAVA Defense HTTP server listening on port 80
+ATRAVA Defense HTTPS server listening on port 443 (SNI + Let's Encrypt)
 ATRAVA Defense server started
 ```
 
@@ -219,7 +227,7 @@ Create a systemd unit so the WAF runs as a service:
 sudo nano /etc/systemd/system/atravad-waf.service
 ```
 
-Contents (adjust paths and user):
+Contents (adjust paths if needed):
 
 ```ini
 [Unit]
@@ -228,7 +236,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=www-data
+User=root
 WorkingDirectory=/opt/atravad-waf
 EnvironmentFile=/opt/atravad-waf/.env.waf
 ExecStart=/usr/bin/node proxy-server-standalone.js
@@ -262,160 +270,80 @@ If you need PM2 for a specific operational reason, it can still run this service
 
 ---
 
-## Step 6: SSL/TLS with Letâ€™s Encrypt (auto-provisioning)
+## Step 6: SSL/TLS with Built-In Letâ€™s Encrypt (auto-provisioning)
 
-Customers connect on **port 443**. Use **Nginx** as a reverse proxy and **Letâ€™s Encrypt (Certbot)** for automatic certificate issuance and renewal.
+Customers connect on **port 443** directly to the WAF edge. ATRAVA Defense can provision and serve certificates itself using the built-in ACME / HTTP-01 flow.
 
 ### 6.1 Prerequisites
 
 - A **hostname** for this WAF (e.g. `waf-dc.yourcompany.com`) whose **DNS A record** already points to this serverâ€™s public IP.
-- Port **80** and **443** open and Nginx installed.
+- Port **80** and **443** open to the internet so Letâ€™s Encrypt can validate `/.well-known/acme-challenge/...`.
+- `LETSENCRYPT_EMAIL` set in `.env.waf`.
+- `CERT_STORE_PERSIST_TO_DISK=1` recommended so certificates survive restarts.
 
-### 6.2 Install Nginx and Certbot
+### 6.2 How certificate provisioning works
 
-**Ubuntu:**
+When a protected hostname is configured and resolves to this WAF edge:
 
-```bash
-sudo apt-get update
-sudo apt-get install -y nginx certbot python3-certbot-nginx
-```
+1. The WAF serves the ACME HTTP-01 challenge on port `80`.
+2. Letâ€™s Encrypt validates the hostname.
+3. The WAF stores the certificate in its local `certs/` directory.
+4. The HTTPS listener serves the certificate using SNI on port `443`.
 
-If you are not on Ubuntu, install the equivalent `nginx`, `certbot`, and `python3-certbot-nginx` packages for your distro.
+### 6.3 Verify certificate loading
 
-### 6.3 Initial Nginx config (HTTP only, for ACME challenge)
-
-Create a minimal HTTP server block so Certbot can complete the ACME challenge:
-
-```bash
-sudo nano /etc/nginx/sites-available/atravad-waf
-```
-
-```nginx
-server {
-    listen 80;
-    listen [::]:80;
-    server_name waf-dc.yourcompany.com;
-    server_tokens off;
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_hide_header Server;
-        proxy_hide_header X-Powered-By;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-Use port **8080** so the WAF (listening on 8080) and Nginx (on 80) can run on the same host. Ensure `.env.waf` has `ATRAVAD_HTTP_PORT=8080` (Step 4).
-
-Enable and test:
+Watch the service logs:
 
 ```bash
-sudo ln -sf /etc/nginx/sites-available/atravad-waf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+sudo journalctl -u atravad-waf -f
 ```
 
-Ensure the **ATRAVA Defense Node process** is already running on port **8080** (Step 5). Nginx listens on 80 for the ACME challenge and proxies traffic to 8080.
+Expected messages include lines such as:
 
-Banner hardening note:
+```text
+Loaded managed SSL certificate for atrava-defense.cisoasaservice.io
+ATRAVA Defense HTTPS server listening on port 443 (SNI + Let's Encrypt)
+```
 
-- `proxy_hide_header Server;` strips the upstream Node/WAF `Server` header from the proxied response path if you front the WAF with Nginx.
-- `server_tokens off;` prevents Nginx from disclosing its full version string.
-- If you require a single public `Server: ATRAVA Defense` banner, use the `headers_more` module and explicitly replace the `Server` header at the Nginx layer.
+### 6.4 Validate from an external machine
 
-### 6.4 Obtain Letâ€™s Encrypt certificate (auto-provisioning)
-
-Run Certbot with the Nginx plugin so it obtains the cert and updates Nginx for you:
+Use the real hostname and force the request to the WAF edge IP:
 
 ```bash
-sudo certbot --nginx -d waf-dc.yourcompany.com
+curl -I --resolve waf-dc.yourcompany.com:443:YOUR_WAF_IP https://waf-dc.yourcompany.com
+openssl s_client -connect YOUR_WAF_IP:443 -servername waf-dc.yourcompany.com
 ```
 
-- Use your email when prompted (for expiry and security notices).
-- Agree to the terms of service.
-- Choose whether to redirect HTTP to HTTPS (recommended: **Redirect**).
+Expected result:
 
-Certbot will:
+- valid certificate for the requested hostname
+- ATRAVA Defense response headers
+- successful HTTPS handshake
 
-1. Obtain the certificate from Letâ€™s Encrypt.
-2. Write certs to `/etc/letsencrypt/live/waf-dc.yourcompany.com/`.
-3. Update your Nginx config to use these certs and enable HTTPS.
+### 6.5 Renewal behavior
 
-### 6.5 Verify the Nginx config after Certbot
+The WAF renews certificates through the same built-in ACME flow. Keep:
 
-Certbot adds `ssl_certificate` and `ssl_certificate_key` to your server block. You should see something like:
+- port `80` reachable from the internet
+- the hostname pointed at the correct WAF edge IP
+- the `certs/` directory writable by the service
 
-```nginx
-server {
-    server_name waf-dc.yourcompany.com;
+### 6.6 Optional alternative: front the edge with Nginx or a load balancer
 
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_hide_header Server;
-        proxy_hide_header X-Powered-By;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    listen 443 ssl;
-    ssl_certificate /etc/letsencrypt/live/waf-dc.yourcompany.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/waf-dc.yourcompany.com/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-}
-
-server {
-    listen 80;
-    server_name waf-dc.yourcompany.com;
-    return 301 https://$host$request_uri;
-}
-```
-
-Test and reload:
-
-```bash
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-### 6.6 Auto-renewal (keep SSL provisioned)
-
-Letâ€™s Encrypt certs expire after 90 days. Certbot installs a renewal timer/cron; ensure it runs and reloads Nginx after renewal.
-
-**Test renewal (dry run):**
-
-```bash
-sudo certbot renew --dry-run
-```
-
-**Ubuntu:** Certbot usually adds a systemd timer. If you use cron instead, add:
-
-```bash
-sudo crontab -e
-# Add:
-0 3 * * * certbot renew --quiet --deploy-hook "systemctl reload nginx"
-```
-
-After renewal, Certbot runs the deploy hook (e.g. `systemctl reload nginx`) so Nginx picks up the new certs without downtime.
+If you later decide to terminate TLS outside the WAF, you can still put Nginx or a load balancer in front of the edge and move the WAF to `8080`. That is an alternate deployment model, not the default for this guide.
 
 ### 6.7 Summary
 
 | Step | Action |
 |------|--------|
 | 6.1 | DNS for WAF hostname â†’ this serverâ€™s public IP. |
-| 6.2 | Install Nginx and Certbot (with Nginx plugin). |
-| 6.3 | Nginx HTTP server block proxying to Node on 80. |
-| 6.4 | Run `certbot --nginx -d waf-dc.yourcompany.com` for first-time SSL provisioning. |
-| 6.5 | Confirm Nginx uses Letâ€™s Encrypt paths; reload Nginx. |
-| 6.6 | Ensure `certbot renew` runs (timer/cron) and reloads Nginx (auto-renewal). |
+| 6.2 | Configure `LETSENCRYPT_EMAIL` and cert persistence in `.env.waf`. |
+| 6.3 | Start the WAF directly on `80/443` and watch logs for managed certificate loading. |
+| 6.4 | Validate the certificate externally with `curl --resolve` or `openssl s_client`. |
+| 6.5 | Keep port `80` reachable for ACME renewals. |
+| 6.6 | Use Nginx/LB in front only if you intentionally choose that alternate architecture. |
 
-The Node WAF process listens on **8080**; Nginx listens on **80** and **443**, terminates SSL with Letâ€™s Encrypt certs, and forwards to the WAF on 8080.
+The Node WAF process listens directly on **80** and **443** in the recommended data-center edge model used by this guide.
 
 ---
 
@@ -576,7 +504,7 @@ Confirm the proxy can read Firestore: in Firebase Console â†’ Firestore, ch
 | 3 | Deploy repo/code; `npm install --omit=dev`. |
 | 4 | Create `.env.waf` with Firebase Admin vars and optional `ATRAVAD_*` ports/tenant. |
 | 5 | Run with `node proxy-server-standalone.js` (test), then install as a `systemd` service. |
-| 6 | Install Nginx + Certbot; run `certbot --nginx -d waf-dc.yourcompany.com` for Letâ€™s Encrypt auto-provisioning; enable renewal. |
+| 6 | Use built-in Letâ€™s Encrypt on the WAF edge; validate certificate loading and external TLS. |
 | 7 | Set Dashboard `WAF_REGIONS` to your DC IP/cname; customers point DNS to that. |
 | 8 | Verify with curl and a test application; monitor logs and Firestore access. |
 
@@ -607,8 +535,8 @@ If the native module fails to build, the server will still run with the built-in
 | â€œFirebase Admin environment variables not setâ€ | `.env.waf` path, `EnvironmentFile` in systemd, and file permissions (service user can read it); correct `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`. |
 | â€œApplication not found for domainâ€ | Firestore has an application whose `domain` matches the request `Host`; proxy has loaded apps (see logs). |
 | No applications loaded | Firebase credentials and network (outbound to `firestore.googleapis.com`); Firestore rules allow the service account to read `applications`. |
-| `CertStore: failed to load from disk ... EACCES` | Ensure `/opt/atravad-waf/certs` and files are owned/readable by the service user (example above uses `www-data`). |
-| Cannot bind to port 80/443 | Run with sudo, or use a higher port and reverse proxy; check firewall. |
+| `CertStore: failed to load from disk ... EACCES` | Ensure `/opt/atravad-waf/certs` and files are owned/readable by the service user (direct-bind example above uses `root`). |
+| Cannot bind to port 80/443 | In the direct-bind model, run the `systemd` service as `root` or use another privileged-port strategy. |
 | 502 Bad Gateway to origin | Origin URL in Dashboard is correct and reachable from the WAF server; check health checks in logs. |
 
 If the second Makati edge works on one IP but not the other, also check:

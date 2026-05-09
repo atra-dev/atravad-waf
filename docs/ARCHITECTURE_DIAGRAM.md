@@ -181,7 +181,7 @@ Deployment location only changes **where** the proxy runs and **which** IP you p
 4. In the **Dashboard** `.env.local`, set `WAF_REGIONS` to that IP (and optional CNAME).
 5. Customers point **DNS** to that IP (or CNAME). Traffic flow is as in the diagrams above.
 
-**Full step-by-step:** See [Data Center WAF Deployment](./DATA_CENTER_WAF_DEPLOYMENT.md) for prerequisites, Firebase setup, env vars, PM2/systemd, SSL (Nginx), and Dashboard `WAF_REGIONS`.
+**Full step-by-step:** See [Data Center WAF Deployment](./DATA_CENTER_WAF_DEPLOYMENT.md) for prerequisites, Firebase setup, env vars, systemd, built-in Let's Encrypt / SNI on the WAF edge, and Dashboard `WAF_REGIONS`.
 
 ---
 
