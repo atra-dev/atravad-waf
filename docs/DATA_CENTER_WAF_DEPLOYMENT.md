@@ -34,7 +34,7 @@ If you are adding a **second standalone WAF EDGE server** in the same Makati dat
 For your current rollout:
 
 - **Primary Makati edge IP:** `180.232.117.141`
-- **Secondary Makati edge IP:** `115.147.169.195`
+- **Secondary Makati edge IP:** `115.147.169.198`
 
 Recommended approach:
 
@@ -371,7 +371,7 @@ WAF_DEFAULT_REGION=datacenter
 Makati dual-edge example for your current deployment:
 
 ```env
-WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","ips":["180.232.117.141","115.147.169.195"],"cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
+WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","ips":["180.232.117.141","115.147.169.198"],"cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
 WAF_DEFAULT_REGION=dcmakati
 ```
 
@@ -391,7 +391,7 @@ Customers point their domainâ€™s **A record** (or **CNAME**) to the IP (or 
 For the Makati dual-edge deployment, give customers:
 
 - either the shared hostname (recommended) if it resolves to both edge IPs
-- or both A records: `180.232.117.141` and `115.147.169.195`
+- or both A records: `180.232.117.141` and `115.147.169.198`
 
 If you use direct A records, instruct customers to publish **one A record per edge IP**.
 
@@ -405,7 +405,7 @@ That hostname can validly publish **two A records**:
 
 ```dns
 waf.cisoasaservice.io.  A  180.232.117.141
-waf.cisoasaservice.io.  A  115.147.169.195
+waf.cisoasaservice.io.  A  115.147.169.198
 ```
 
 This means:
@@ -424,7 +424,7 @@ Example for a customer apex/root domain where CNAME is not allowed:
 
 ```dns
 customer.com.  A  180.232.117.141
-customer.com.  A  115.147.169.195
+customer.com.  A  115.147.169.198
 ```
 
 Operational notes:
@@ -452,7 +452,7 @@ Example Nginx enforcement on the customer origin:
 ```nginx
 location / {
     allow 180.232.117.141;
-    allow 115.147.169.195;
+    allow 115.147.169.198;
     deny all;
 
     if ($http_x_atrava_origin_verify != "REPLACE_WITH_LONG_RANDOM_SECRET") {
@@ -477,7 +477,7 @@ This prevents direct-origin access from succeeding even if the origin IP becomes
   - If no application is configured for that Host, you may get â€œApplication not found for domain: â€¦â€. That is expected; it means the proxy is listening and resolving by Host.
 - Create an **application** in the Dashboard (domain + origin) and point a test hostname to the WAF IP; then request that hostname and confirm the origin responds.
 
-For a **secondary Makati edge**, run the same checks against `115.147.169.195` and verify both servers can:
+For a **secondary Makati edge**, run the same checks against `115.147.169.198` and verify both servers can:
 
 - return healthy responses
 - load the same applications from Firestore
@@ -510,7 +510,7 @@ Confirm the proxy can read Firestore: in Firebase Console â†’ Firestore, ch
 
 For the Makati dual-edge deployment, also confirm:
 
-- the second server at `115.147.169.195` is deployed with the same repo version
+- the second server at `115.147.169.198` is deployed with the same repo version
 - both edge IPs are present in `WAF_REGIONS` under the same logical region
 - customer origin firewalls allow **both** WAF edge IPs
 - DNS uses either a shared hostname or two A records
@@ -542,9 +542,9 @@ If the native module fails to build, the server will still run with the built-in
 If the second Makati edge works on one IP but not the other, also check:
 
 - the `/29` address is correctly assigned to the secondary host
-- upstream routing/NAT for `115.147.169.195` is complete
+- upstream routing/NAT for `115.147.169.198` is complete
 - data center firewall rules permit inbound `80/443` and outbound Firebase traffic from that host
-- customer origin allowlists include both `180.232.117.141` and `115.147.169.195`
+- customer origin allowlists include both `180.232.117.141` and `115.147.169.198`
 
 For more on architecture and traffic flow, see [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md).
 

@@ -154,7 +154,7 @@ FIREBASE_PROJECT_ID=your-project
 FIREBASE_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
 
-WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","ips":["180.232.117.141","115.147.169.195"],"cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
+WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","ips":["180.232.117.141","115.147.169.198"],"cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
 WAF_DEFAULT_REGION=dcmakati
 ```
 
@@ -166,7 +166,7 @@ DNS model for the Makati dual-edge setup:
 
 ```dns
 waf.cisoasaservice.io.  A  180.232.117.141
-waf.cisoasaservice.io.  A  115.147.169.195
+waf.cisoasaservice.io.  A  115.147.169.198
 ```
 
 Customer DNS should then follow one of these patterns:
@@ -177,7 +177,7 @@ www.customer.com.  CNAME  waf.cisoasaservice.io.
 
 ```dns
 customer.com.  A  180.232.117.141
-customer.com.  A  115.147.169.195
+customer.com.  A  115.147.169.198
 ```
 
 Use the `CNAME` pattern for customer subdomains. Use the dual-`A`-record pattern for customer apex/root domains unless their DNS provider supports an ALIAS/ANAME-style flattening record.
@@ -471,7 +471,7 @@ Headers/body must include the configured log API key and tenant information expe
 To properly protect a customer origin behind the WAF, the origin server should accept web traffic only from the WAF edge IPs:
 
 - `180.232.117.141`
-- `115.147.169.195`
+- `115.147.169.198`
 
 That restriction belongs on the **customer origin server**, not on the Web GUI server.
 
@@ -486,8 +486,8 @@ Example `ufw` rules on the origin server:
 ```bash
 sudo ufw allow from 180.232.117.141 to any port 80 proto tcp
 sudo ufw allow from 180.232.117.141 to any port 443 proto tcp
-sudo ufw allow from 115.147.169.195 to any port 80 proto tcp
-sudo ufw allow from 115.147.169.195 to any port 443 proto tcp
+sudo ufw allow from 115.147.169.198 to any port 80 proto tcp
+sudo ufw allow from 115.147.169.198 to any port 443 proto tcp
 sudo ufw deny 80/tcp
 sudo ufw deny 443/tcp
 sudo ufw status numbered
@@ -500,7 +500,7 @@ If the origin also runs Nginx, you can enforce the same restriction there:
 ```nginx
 location / {
     allow 180.232.117.141;
-    allow 115.147.169.195;
+    allow 115.147.169.198;
     deny all;
     proxy_pass http://127.0.0.1:YOUR_APP_PORT;
 }
@@ -559,7 +559,7 @@ Example Nginx enforcement on the customer origin:
 ```nginx
 location / {
     allow 180.232.117.141;
-    allow 115.147.169.195;
+    allow 115.147.169.198;
     deny all;
 
     if ($http_x_atrava_origin_verify != "REPLACE_WITH_LONG_RANDOM_SECRET") {
