@@ -46,6 +46,17 @@ function hasObservedTraffic(app) {
 export async function resolveAppActivation(app) {
   const domain = normalizeDnsValue(app?.domain);
   const firewallIp = typeof app?.firewallIp === 'string' ? app.firewallIp.trim() : '';
+  const firewallIps = Array.isArray(app?.firewallIps)
+    ? app.firewallIps
+      .filter((ip) => typeof ip === 'string')
+      .map((ip) => ip.trim())
+      .filter(Boolean)
+    : [];
+  const expectedFirewallIps = firewallIps.length > 0
+    ? [...new Set(firewallIps)]
+    : firewallIp
+      ? [firewallIp]
+      : [];
   const firewallCname = normalizeDnsValue(app?.firewallCname);
   const storedActivated = app?.activated === true;
 
@@ -56,7 +67,7 @@ export async function resolveAppActivation(app) {
     };
   }
 
-  if (!domain || (!firewallIp && !firewallCname)) {
+  if (!domain || (expectedFirewallIps.length === 0 && !firewallCname)) {
     return {
       activated: storedActivated,
       activationSource: 'stored',
@@ -71,7 +82,7 @@ export async function resolveAppActivation(app) {
 
   const ipv4Records = [...new Set([...resolvedIpv4Records, ...lookedUpIpv4Records])];
   const normalizedCnames = cnameRecords.map(normalizeDnsValue).filter(Boolean);
-  const matchesFirewallIp = firewallIp ? ipv4Records.includes(firewallIp) : false;
+  const matchesFirewallIp = expectedFirewallIps.some((ip) => ipv4Records.includes(ip));
   const matchesFirewallCname = firewallCname
     ? normalizedCnames.includes(firewallCname)
     : false;

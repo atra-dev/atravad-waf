@@ -235,6 +235,19 @@ const getSslStatusMeta = (ssl) => {
   };
 };
 
+const getFirewallIps = (app) => {
+  const ips = Array.isArray(app?.firewallIps)
+    ? app.firewallIps
+      .filter((ip) => typeof ip === "string")
+      .map((ip) => ip.trim())
+      .filter(Boolean)
+    : [];
+  if (ips.length > 0) {
+    return Array.from(new Set(ips));
+  }
+  return app?.firewallIp ? [app.firewallIp] : [];
+};
+
 const validateSslInput = (data) => {
   if (data.sslMode !== SSL_MODE.CUSTOM) {
     return { valid: true, message: "" };
@@ -1041,6 +1054,8 @@ export default function AppsPage() {
                   const hostingIp = getHostingDisplay(app);
                   const hasRealStats = activated && stats !== null;
                   const sslMeta = getSslStatusMeta(app.ssl);
+                  const firewallIpDisplay =
+                    getFirewallIps(app).join(", ") || "Not assigned";
                   const maxTraffic = hasRealStats
                     ? Math.max(stats.blocked, stats.allowed, 1)
                     : 1;
@@ -1091,7 +1106,7 @@ export default function AppsPage() {
                               Firewall IP:
                             </span>
                             <span className="font-mono theme-text-primary">
-                              {app.firewallIp || "Not assigned"}
+                              {firewallIpDisplay}
                             </span>
                             {app.wafRegion && (
                               <span className="ml-1 rounded-md bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-blue-700 uppercase dark:bg-blue-950/60 dark:text-blue-300">
@@ -1263,6 +1278,8 @@ export default function AppsPage() {
                       const hostingIp = getHostingDisplay(app);
                       const hasRealStats = activated && stats !== null;
                       const sslMeta = getSslStatusMeta(app.ssl);
+                      const firewallIpDisplay =
+                        getFirewallIps(app).join(", ") || "Not assigned";
 
                       return (
                         <tr
@@ -1283,7 +1300,7 @@ export default function AppsPage() {
                             {hostingIp}
                           </td>
                           <td className="px-6 py-4 font-mono text-sm text-slate-700 dark:text-slate-300">
-                            {app.firewallIp || "Not assigned"}
+                            {firewallIpDisplay}
                           </td>
                           <td className="px-6 py-4">
                             {app.wafRegionName ? (
@@ -2694,6 +2711,10 @@ export default function AppsPage() {
                     <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
                       {(() => {
                         const setupActivated = isActivated(selectedAppForSetup);
+                        const setupFirewallIps =
+                          getFirewallIps(selectedAppForSetup);
+                        const setupFirewallIpText =
+                          setupFirewallIps.join(", ");
                         return (
                           <>
                             <div className="text-center">
@@ -2775,7 +2796,9 @@ export default function AppsPage() {
                                       >
                                         {setupActivated
                                           ? "Active A Record"
-                                          : "Point A Record To"}
+                                          : setupFirewallIps.length > 1
+                                            ? "Point A Records To"
+                                            : "Point A Record To"}
                                       </span>
                                       {selectedAppForSetup.wafRegionName && (
                                         <span className="rounded px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
@@ -2790,16 +2813,26 @@ export default function AppsPage() {
                                           : "text-teal-700"
                                       }`}
                                     >
-                                      {selectedAppForSetup.firewallIp ||
-                                        "Not configured"}
+                                      {setupFirewallIpText || "Not configured"}
                                     </p>
+                                    {setupFirewallIps.length > 1 && (
+                                      <p className="mt-1 text-xs text-teal-700">
+                                        Add one A record for each edge IP.
+                                      </p>
+                                    )}
                                   </div>
                                   <button
                                     onClick={() => {
                                       navigator.clipboard.writeText(
-                                        selectedAppForSetup.firewallIp || "",
+                                        setupFirewallIps.join("\n") ||
+                                          selectedAppForSetup.firewallIp ||
+                                          "",
                                       );
-                                      alert("IP copied to clipboard!");
+                                      alert(
+                                        setupFirewallIps.length > 1
+                                          ? "IPs copied to clipboard!"
+                                          : "IP copied to clipboard!",
+                                      );
                                     }}
                                     className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
                                       setupActivated
@@ -2876,7 +2909,7 @@ export default function AppsPage() {
                                     <>
                                       Your A record is already resolving to{" "}
                                       <strong>
-                                        {selectedAppForSetup.firewallIp ||
+                                        {setupFirewallIpText ||
                                           "your WAF IP"}
                                       </strong>
                                     </>
@@ -2884,7 +2917,7 @@ export default function AppsPage() {
                                     <>
                                       Update the A record to point to{" "}
                                       <strong>
-                                        {selectedAppForSetup.firewallIp ||
+                                        {setupFirewallIpText ||
                                           "your WAF IP"}
                                       </strong>
                                     </>

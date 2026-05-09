@@ -149,7 +149,7 @@ export async function POST(request) {
     }
 
     // Auto-assign WAF region based on origin server geolocation
-    let wafRegion = getDefaultRegion();
+    let wafRegion = getDefaultRegion(normalizedDomain);
     let originGeoData = null;
 
     // Try to geolocate the first origin to determine best WAF region
@@ -157,7 +157,7 @@ export async function POST(request) {
       try {
         originGeoData = await geolocateOrigin(normalizedOrigins[0].url);
         if (originGeoData.success && originGeoData.continentCode) {
-          wafRegion = getRegionByContinent(originGeoData.continentCode);
+          wafRegion = getRegionByContinent(originGeoData.continentCode, normalizedDomain);
         }
       } catch (geoError) {
         console.warn('Geolocation failed, using default region:', geoError.message);
@@ -177,6 +177,7 @@ export async function POST(request) {
       wafRegion: wafRegion.id,
       wafRegionName: wafRegion.name,
       firewallIp: wafRegion.ip,
+      firewallIps: wafRegion.ips || [wafRegion.ip],
       firewallCname: wafRegion.cname || '',
       // Origin geolocation data (for reference)
       originCountry: originGeoData?.country || null,
@@ -202,6 +203,7 @@ export async function POST(request) {
         wafRegion: wafRegion.id,
         wafRegionName: wafRegion.name,
         firewallIp: wafRegion.ip,
+        firewallIps: wafRegion.ips || [wafRegion.ip],
         firewallCname: wafRegion.cname || '',
         originCountry: originGeoData?.country || null,
         originContinent: originGeoData?.continent || null,

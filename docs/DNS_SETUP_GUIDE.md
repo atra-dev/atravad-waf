@@ -208,9 +208,10 @@ User â†’ DNS â†’ ATRAVA Defense (5.6.7.8) â†’ Origin Server (1.2.
 - **Tip**: Lower TTL before making changes for faster updates
 
 ### 2. Origin Server Access
-- **Keep origin accessible**: Your origin server should still be accessible (for testing)
+- **Keep origin private from the public internet**: Only ATRAVA Defense edge IPs should be able to reach your origin on ports `80` and `443`
 - **Firewall rules**: Ensure ATRAVA Defense edge can reach your origin servers
 - **IP whitelisting**: If your origin has IP restrictions, whitelist the ATRAVA Defense IP(s) provided by your administrator
+- **Secret header verification**: For stronger protection, require a private WAF-to-origin header such as `X-ATRAVA-Origin-Verify` and reject requests missing the expected value
 
 ### 3. SSL Certificates
 - **Let's Encrypt**: Automatically renews every 90 days
@@ -342,6 +343,7 @@ Before going live:
 - [ ] DNS propagation verified
 - [ ] SSL certificate provisioned (or uploaded)
 - [ ] Origin server accessible from ATRAVA Defense edge
+- [ ] Origin server blocked from the public internet
 - [ ] Health checks passing
 - [ ] Test requests working
 - [ ] Attack protection verified

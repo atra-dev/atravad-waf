@@ -12,10 +12,42 @@ const DEFAULT_REGIONS = [
     id: 'default',
     name: 'Default',
     ip: '192.124.249.100',
+    ips: ['192.124.249.100'],
     cname: 'waf.atravad.com',
     continents: ['NA', 'SA', 'EU', 'AF', 'AS', 'OC', 'AN'],
   },
 ];
+
+function normalizeRegion(region) {
+  const ips = Array.isArray(region?.ips)
+    ? region.ips
+      .filter((ip) => typeof ip === 'string')
+      .map((ip) => ip.trim())
+      .filter(Boolean)
+    : [];
+  const primaryIp = typeof region?.ip === 'string' ? region.ip.trim() : '';
+  const normalizedIps = ips.length > 0
+    ? [...new Set(ips)]
+    : primaryIp
+      ? [primaryIp]
+      : [];
+
+  return {
+    ...region,
+    ip: normalizedIps[0] || primaryIp,
+    ips: normalizedIps,
+  };
+}
+
+function hashSelectionKey(value) {
+  const input = typeof value === 'string' ? value : '';
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = ((hash << 5) - hash) + input.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
 
 /**
  * Parse WAF regions from environment variable
@@ -39,13 +71,14 @@ export function getWafRegions() {
     
     // Validate each region has required fields
     for (const region of regions) {
-      if (!region.id || !region.ip || !region.continents) {
+      const normalizedRegion = normalizeRegion(region);
+      if (!normalizedRegion.id || !normalizedRegion.ip || !normalizedRegion.continents) {
         console.warn(`Invalid region configuration: ${JSON.stringify(region)}`);
         return DEFAULT_REGIONS;
       }
     }
     
-    return regions;
+    return regions.map(normalizeRegion);
   } catch (error) {
     console.error('Error parsing WAF_REGIONS:', error.message);
     return DEFAULT_REGIONS;
@@ -56,7 +89,7 @@ export function getWafRegions() {
  * Get the default WAF region
  * @returns {Object} Default region configuration
  */
-export function getDefaultRegion() {
+export function getDefaultRegion(selectionKey) {
   const regions = getWafRegions();
   const defaultRegionId = process.env.WAF_DEFAULT_REGION;
   
@@ -68,7 +101,11 @@ export function getDefaultRegion() {
   }
   
   // Return first region as default
-  return regions[0];
+  if (regions.length === 1 || !selectionKey) {
+    return regions[0];
+  }
+
+  return regions[hashSelectionKey(selectionKey) % regions.length];
 }
 
 /**
@@ -76,19 +113,27 @@ export function getDefaultRegion() {
  * @param {string} continentCode - Two-letter continent code (NA, SA, EU, AF, AS, OC, AN)
  * @returns {Object} Matching region or default region
  */
-export function getRegionByContinent(continentCode) {
+export function getRegionByContinent(continentCode, selectionKey) {
   const regions = getWafRegions();
   
   if (!continentCode) {
-    return getDefaultRegion();
+    return getDefaultRegion(selectionKey);
   }
   
-  // Find region that handles this continent
-  const matchingRegion = regions.find(region => 
+  // Find regions that handle this continent
+  const matchingRegions = regions.filter(region => 
     region.continents && region.continents.includes(continentCode.toUpperCase())
   );
-  
-  return matchingRegion || getDefaultRegion();
+
+  if (matchingRegions.length === 0) {
+    return getDefaultRegion(selectionKey);
+  }
+
+  if (matchingRegions.length === 1 || !selectionKey) {
+    return matchingRegions[0];
+  }
+
+  return matchingRegions[hashSelectionKey(selectionKey) % matchingRegions.length];
 }
 
 /**

@@ -48,6 +48,15 @@ try {
 
 const BODY_BUFFER_TIMEOUT_MS = 10000;
 const ATRAVAD_WAF_NAME = "ATRAVA Defense";
+const UPSTREAM_RESPONSE_HEADERS_TO_STRIP = new Set([
+  "server",
+  "x-powered-by",
+  "x-aspnet-version",
+  "x-aspnetmvc-version",
+  "x-runtime",
+  "x-generator",
+  "via",
+]);
 
 function withWafFingerprintHeaders(headers = {}) {
   return {
@@ -75,6 +84,28 @@ function sanitizeHeaderMap(headers = {}) {
     nextHeaders[safeKey] = sanitizeHeaderValue(value);
   }
   return nextHeaders;
+}
+
+function sanitizeUpstreamResponseHeaders(headers = {}) {
+  const nextHeaders = sanitizeHeaderMap(headers);
+  for (const key of Object.keys(nextHeaders)) {
+    if (UPSTREAM_RESPONSE_HEADERS_TO_STRIP.has(String(key || "").toLowerCase())) {
+      delete nextHeaders[key];
+    }
+  }
+  return nextHeaders;
+}
+
+function serializeRawHttpHeaders(headers = {}) {
+  return Object.entries(headers || {})
+    .flatMap(([key, value]) => {
+      if (Array.isArray(value)) {
+        return value.map((entry) => `${key}: ${entry}\r\n`);
+      }
+      if (value === undefined) return [];
+      return [`${key}: ${value}\r\n`];
+    })
+    .join("");
 }
 
 function renderCustomNotFoundHtml(host, path) {
@@ -359,8 +390,9 @@ function isProtectedHtmlDocumentResponse(req, headers = {}) {
 }
 
 function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
+  const baseHeaders = sanitizeUpstreamResponseHeaders(headers);
   if (!app?.policyId || !isProtectedHtmlDocumentResponse(req, headers)) {
-    return headers;
+    return baseHeaders;
   }
 
   const authScriptSources =
@@ -385,7 +417,7 @@ function applyProtectedDocumentHeaders(req, headers = {}, app = null) {
     headers["Strict-Transport-Security"] || headers["strict-transport-security"],
   );
 
-  const nextHeaders = sanitizeHeaderMap(headers);
+  const nextHeaders = { ...baseHeaders };
   delete nextHeaders.etag;
   delete nextHeaders.ETag;
   delete nextHeaders["last-modified"];
@@ -846,6 +878,10 @@ function sendUpgradeError(socket, statusCode, message) {
     `HTTP/1.1 ${statusCode} ${body}\r\n` +
       "Connection: close\r\n" +
       "Content-Type: text/plain; charset=utf-8\r\n" +
+      `Server: ${ATRAVAD_WAF_NAME}\r\n` +
+      `X-WAF: ${ATRAVAD_WAF_NAME}\r\n` +
+      `X-Firewall: ${ATRAVAD_WAF_NAME}\r\n` +
+      `X-ATRAVA-Defense: ${ATRAVAD_WAF_NAME}\r\n` +
       `Content-Length: ${Buffer.byteLength(body)}\r\n` +
       "\r\n" +
       body,
@@ -2104,15 +2140,10 @@ export class ProxyWAFServer {
 
       proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
         const statusLine = `HTTP/1.1 ${proxyRes.statusCode || 101} ${proxyRes.statusMessage || "Switching Protocols"}\r\n`;
-        const headerLines = Object.entries(proxyRes.headers || {})
-          .flatMap(([key, value]) => {
-            if (Array.isArray(value)) {
-              return value.map((entry) => `${key}: ${entry}\r\n`);
-            }
-            if (value === undefined) return [];
-            return [`${key}: ${value}\r\n`];
-          })
-          .join("");
+        const responseHeaders = withWafFingerprintHeaders(
+          sanitizeUpstreamResponseHeaders(proxyRes.headers),
+        );
+        const headerLines = serializeRawHttpHeaders(responseHeaders);
 
         clientSocket.write(`${statusLine}${headerLines}\r\n`);
         if (proxyHead?.length) {
@@ -2180,15 +2211,10 @@ export class ProxyWAFServer {
           decision: "websocket_origin_response",
         });
         const statusLine = `HTTP/1.1 ${proxyRes.statusCode || 502} ${proxyRes.statusMessage || "Bad Gateway"}\r\n`;
-        const headerLines = Object.entries(proxyRes.headers || {})
-          .flatMap(([key, value]) => {
-            if (Array.isArray(value)) {
-              return value.map((entry) => `${key}: ${entry}\r\n`);
-            }
-            if (value === undefined) return [];
-            return [`${key}: ${value}\r\n`];
-          })
-          .join("");
+        const responseHeaders = withWafFingerprintHeaders(
+          sanitizeUpstreamResponseHeaders(proxyRes.headers),
+        );
+        const headerLines = serializeRawHttpHeaders(responseHeaders);
         clientSocket.write(`${statusLine}${headerLines}\r\n`);
         proxyRes.pipe(clientSocket);
       });

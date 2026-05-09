@@ -154,13 +154,33 @@ FIREBASE_PROJECT_ID=your-project
 FIREBASE_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY\n-----END PRIVATE KEY-----\n"
 
-WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
+WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","ips":["180.232.117.141","115.147.169.195"],"cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
 WAF_DEFAULT_REGION=dcmakati
 ```
 
 Notes:
 
 - `WAF_REGIONS` should point to your already-deployed WAF edge server details.
+
+DNS model for the Makati dual-edge setup:
+
+```dns
+waf.cisoasaservice.io.  A  180.232.117.141
+waf.cisoasaservice.io.  A  115.147.169.195
+```
+
+Customer DNS should then follow one of these patterns:
+
+```dns
+www.customer.com.  CNAME  waf.cisoasaservice.io.
+```
+
+```dns
+customer.com.  A  180.232.117.141
+customer.com.  A  115.147.169.195
+```
+
+Use the `CNAME` pattern for customer subdomains. Use the dual-`A`-record pattern for customer apex/root domains unless their DNS provider supports an ALIAS/ANAME-style flattening record.
 
 Secure the env file:
 
@@ -315,6 +335,7 @@ This initial config:
 - proxies requests to `127.0.0.1:3000`
 - supports WebSocket upgrades
 - forwards real client IP headers
+- hides upstream `Server` and `X-Powered-By` headers so the Web GUI does not leak backend banner details
 
 Exact Ubuntu HTTP-only commands:
 
@@ -327,6 +348,8 @@ server {
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
+        proxy_hide_header Server;
+        proxy_hide_header X-Powered-By;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -350,6 +373,12 @@ If `nginx -t` fails with a missing certificate file such as:
 ```
 
 that means an HTTPS config was enabled too early. Revert to the HTTP-only config above, then reload Nginx again.
+
+Server banner hardening note:
+
+- `proxy_hide_header Server;` removes the upstream `Server` header from the proxied Next.js response.
+- `server_tokens off;` reduces Nginx exposure from `nginx/x.y.z` to `nginx`.
+- If you must expose only `Server: ATRAVA Defense`, install `headers_more` and use `more_clear_headers Server;` plus `more_set_headers "Server: ATRAVA Defense";`.
 
 ## 7. Add SSL
 
@@ -397,6 +426,7 @@ server {
 server {
     listen 443 ssl http2;
     server_name atrava-defense.cisoasaservice.io;
+    server_tokens off;
 
     ssl_certificate /etc/letsencrypt/live/atrava-defense.cisoasaservice.io/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/atrava-defense.cisoasaservice.io/privkey.pem;
@@ -404,6 +434,8 @@ server {
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
+        proxy_hide_header Server;
+        proxy_hide_header X-Powered-By;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -436,9 +468,10 @@ Headers/body must include the configured log API key and tenant information expe
 
 ## 9. Lock Down the Customer Origin Server
 
-To properly protect a customer origin behind the WAF, the origin server should accept web traffic only from the WAF edge IP:
+To properly protect a customer origin behind the WAF, the origin server should accept web traffic only from the WAF edge IPs:
 
 - `180.232.117.141`
+- `115.147.169.195`
 
 That restriction belongs on the **customer origin server**, not on the Web GUI server.
 
@@ -453,6 +486,8 @@ Example `ufw` rules on the origin server:
 ```bash
 sudo ufw allow from 180.232.117.141 to any port 80 proto tcp
 sudo ufw allow from 180.232.117.141 to any port 443 proto tcp
+sudo ufw allow from 115.147.169.195 to any port 80 proto tcp
+sudo ufw allow from 115.147.169.195 to any port 443 proto tcp
 sudo ufw deny 80/tcp
 sudo ufw deny 443/tcp
 sudo ufw status numbered
@@ -465,6 +500,7 @@ If the origin also runs Nginx, you can enforce the same restriction there:
 ```nginx
 location / {
     allow 180.232.117.141;
+    allow 115.147.169.195;
     deny all;
     proxy_pass http://127.0.0.1:YOUR_APP_PORT;
 }
@@ -477,6 +513,7 @@ Best practice is to enforce origin restrictions at more than one layer:
 - provider firewall
 - host firewall
 - Nginx allowlist
+- application-layer secret header between the WAF and origin
 
 ## 10. Verify the Split Deployment
 
@@ -510,6 +547,28 @@ sudo ufw allow 443/tcp
 sudo ufw status
 ```
 5. WAF edge can send logs to the GUI `/api/logs` endpoint if remote ingestion is used.
+
+Recommended origin verification pattern for customer sites:
+
+- Configure an origin auth header on the protected application such as `X-ATRAVA-Origin-Verify`.
+- Set a long random secret value in the ATRAVA Defense application origin settings.
+- On the customer origin, reject any request that does not include the expected secret header.
+
+Example Nginx enforcement on the customer origin:
+
+```nginx
+location / {
+    allow 180.232.117.141;
+    allow 115.147.169.195;
+    deny all;
+
+    if ($http_x_atrava_origin_verify != "REPLACE_WITH_LONG_RANDOM_SECRET") {
+        return 403;
+    }
+
+    proxy_pass http://127.0.0.1:YOUR_APP_PORT;
+}
+```
 
 ## 11. Operational Notes
 

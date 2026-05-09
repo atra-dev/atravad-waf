@@ -10,7 +10,7 @@ Step-by-step instructions to run the WAF proxy server (WAF EDGE) on-premises so 
 
 | Requirement | Details |
 |-------------|---------|
-| **Server** | Linux VM or physical host (e.g. Ubuntu 22.04 LTS, RHEL 8+, Debian 11+). Minimum 2 CPU, 2 GB RAM; scale up for traffic. |
+| **Server** | Ubuntu server (recommended: **Ubuntu 22.04 LTS** or newer). Minimum 2 CPU, 2 GB RAM; scale up for traffic. |
 | **Network** | A **public IP** assigned to this host (or to a load balancer in front of it) so customers can point DNS to it. |
 | **Outbound internet** | Server must reach **Firebase** (Firestore): `firestore.googleapis.com` (and optionally `*.googleapis.com`). |
 | **Ports** | **80** (HTTP) and **443** (HTTPS) availableâ€”either on this host or on a reverse proxy in front of it. |
@@ -23,13 +23,32 @@ Step-by-step instructions to run the WAF proxy server (WAF EDGE) on-premises so 
 
 ### 1.1 OS and access
 
-- Provision a Linux server in your data center (or use an existing one).
+- Provision an Ubuntu server in your data center (or use an existing one).
 - Ensure you have **sudo** or root access.
 - Assign the **public IP** to the server (or to a load balancer that forwards 80/443 to this server).
 
-### 1.2 Install Node.js 18+ (LTS)
+### 1.4 Secondary Makati edge server
 
-**Ubuntu/Debian:**
+If you are adding a **second standalone WAF EDGE server** in the same Makati data center, treat it as a separate production host with its own runtime, service manager, local firewall rules, and health checks.
+
+For your current rollout:
+
+- **Primary Makati edge IP:** `180.232.117.141`
+- **Secondary Makati edge IP:** `115.147.169.195`
+
+Recommended approach:
+
+- Deploy the same codebase to the secondary server.
+- Create a separate `.env.waf` on that server.
+- Run its own `systemd` service on that server.
+- Expose the same public service ports (`80`/`443`, or `8080` behind local Nginx).
+- Verify the server can reach Firebase independently.
+
+The WAF proxy does not require a special "secondary" mode. The second edge can run the same application code and read from the same Firebase project as long as network access, credentials, and DNS are configured correctly.
+
+### 1.2 Install Node.js 18+ (Ubuntu)
+
+Recommended for Ubuntu:
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -38,29 +57,18 @@ node -v   # should show v18.x or v20.x
 npm -v
 ```
 
-**RHEL/CentOS:**
-
-```bash
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-sudo yum install -y nodejs
-node -v
-```
+If you are not on Ubuntu, adapt the package installation for your distro, but the rest of this guide assumes Ubuntu paths and commands.
 
 ### 1.3 Open firewall (if you manage it on this host)
 
 Allow HTTP and HTTPS from the internet:
 
 ```bash
-# Ubuntu/Debian (ufw)
+# Ubuntu (ufw)
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw enable
 sudo ufw status
-
-# RHEL/CentOS (firewalld)
-sudo firewall-cmd --permanent --add-service=http
-sudo firewall-cmd --permanent --add-service=https
-sudo firewall-cmd --reload
 ```
 
 If a **load balancer** or **firewall** in front of this server terminates SSL and forwards to this host, open only the ports that the LB uses (e.g. 8080, 8443) and skip binding the Node process to 80/443 on this box (see Step 5).
@@ -158,6 +166,8 @@ ATRAVAD_HTTP_PORT=8080
 
 When using **Nginx + Letâ€™s Encrypt** on the same host (Step 6), set `ATRAVAD_HTTP_PORT=8080` so Nginx can bind to 80 and 443 and proxy to the WAF on 8080. If the WAF runs alone (no Nginx on this host), use `ATRAVAD_HTTP_PORT=80`.
 
+If you are deploying the **secondary Makati server** as a separate host, keep its env file separate from the primary server even if the values are mostly identical.
+
 ### 4.4 Secure the env file
 
 ```bash
@@ -201,43 +211,7 @@ ATRAVA Defense server started
 - If Firebase is not configured or unreachable, you may see a warning and no applications loaded; fix the env and network.
 - Press **Ctrl+C** to stop.
 
-### 5.2 Run with PM2 (recommended for production)
-
-PM2 keeps the process running and restarts it on failure.
-
-**Install PM2:**
-
-```bash
-sudo npm install -g pm2
-```
-
-**Start the WAF with env file:**
-
-```bash
-cd /opt/atravad-waf
-pm2 start proxy-server-standalone.js --name atravad-waf --node-args="--experimental-vm-modules" --env-file .env.waf
-```
-
-If your project uses ES modules and you need `--experimental-vm-modules`, keep that; otherwise you can drop it if not required.
-
-**Save PM2 process list so it survives reboot:**
-
-```bash
-pm2 save
-pm2 startup
-# Run the command that pm2 startup prints (e.g. sudo env PATH=... pm2 startup systemd -u youruser --hp /home/youruser)
-```
-
-**Useful PM2 commands:**
-
-```bash
-pm2 status
-pm2 logs atravad-waf
-pm2 restart atravad-waf
-pm2 stop atravad-waf
-```
-
-### 5.3 Alternative: systemd service
+### 5.2 Run with systemd (recommended for production)
 
 Create a systemd unit so the WAF runs as a service:
 
@@ -274,6 +248,18 @@ sudo systemctl start atravad-waf
 sudo systemctl status atravad-waf
 ```
 
+Useful commands:
+
+```bash
+sudo journalctl -u atravad-waf -f
+sudo systemctl restart atravad-waf
+sudo systemctl stop atravad-waf
+```
+
+### 5.3 Optional: PM2
+
+If you need PM2 for a specific operational reason, it can still run this service, but `systemd` is the standard deployment method for this data center guide.
+
 ---
 
 ## Step 6: SSL/TLS with Letâ€™s Encrypt (auto-provisioning)
@@ -287,19 +273,14 @@ Customers connect on **port 443**. Use **Nginx** as a reverse proxy and **Letâ�
 
 ### 6.2 Install Nginx and Certbot
 
-**Ubuntu/Debian:**
+**Ubuntu:**
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-**RHEL/CentOS (e.g. Rocky/Alma):**
-
-```bash
-sudo dnf install -y nginx python3-certbot-nginx
-# or: sudo yum install -y nginx python3-certbot-nginx
-```
+If you are not on Ubuntu, install the equivalent `nginx`, `certbot`, and `python3-certbot-nginx` packages for your distro.
 
 ### 6.3 Initial Nginx config (HTTP only, for ACME challenge)
 
@@ -309,17 +290,18 @@ Create a minimal HTTP server block so Certbot can complete the ACME challenge:
 sudo nano /etc/nginx/sites-available/atravad-waf
 ```
 
-(On RHEL/CentOS use `/etc/nginx/conf.d/atravad-waf.conf`.)
-
 ```nginx
 server {
     listen 80;
     listen [::]:80;
     server_name waf-dc.yourcompany.com;
+    server_tokens off;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
+        proxy_hide_header Server;
+        proxy_hide_header X-Powered-By;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -330,15 +312,20 @@ server {
 
 Use port **8080** so the WAF (listening on 8080) and Nginx (on 80) can run on the same host. Ensure `.env.waf` has `ATRAVAD_HTTP_PORT=8080` (Step 4).
 
-Enable and test (Ubuntu/Debian: symlink into `sites-enabled` if you use it):
+Enable and test:
 
 ```bash
-# Ubuntu/Debian
 sudo ln -sf /etc/nginx/sites-available/atravad-waf /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
 Ensure the **ATRAVA Defense Node process** is already running on port **8080** (Step 5). Nginx listens on 80 for the ACME challenge and proxies traffic to 8080.
+
+Banner hardening note:
+
+- `proxy_hide_header Server;` strips the upstream Node/WAF `Server` header from the proxied response path if you front the WAF with Nginx.
+- `server_tokens off;` prevents Nginx from disclosing its full version string.
+- If you require a single public `Server: ATRAVA Defense` banner, use the `headers_more` module and explicitly replace the `Server` header at the Nginx layer.
 
 ### 6.4 Obtain Letâ€™s Encrypt certificate (auto-provisioning)
 
@@ -369,6 +356,8 @@ server {
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
+        proxy_hide_header Server;
+        proxy_hide_header X-Powered-By;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -405,19 +394,12 @@ Letâ€™s Encrypt certs expire after 90 days. Certbot installs a renewal time
 sudo certbot renew --dry-run
 ```
 
-**Ubuntu/Debian:** Certbot usually adds a systemd timer. If you use cron instead, add:
+**Ubuntu:** Certbot usually adds a systemd timer. If you use cron instead, add:
 
 ```bash
 sudo crontab -e
 # Add:
 0 3 * * * certbot renew --quiet --deploy-hook "systemctl reload nginx"
-```
-
-**RHEL/CentOS:** Enable and start the certbot timer:
-
-```bash
-sudo systemctl enable certbot-renew.timer
-sudo systemctl start certbot-renew.timer
 ```
 
 After renewal, Certbot runs the deploy hook (e.g. `systemctl reload nginx`) so Nginx picks up the new certs without downtime.
@@ -451,16 +433,109 @@ So that the Dashboard shows customers the correct â€œpoint DNS hereâ€ v
 1. On the **machine where the Dashboard runs** (or in your Dashboardâ€™s deployment config), open the environment (e.g. `.env.local` or your hosting env).
 2. Set **WAF_REGIONS** to include your data center endpoint, e.g.:
 
+Single-edge example:
+
 ```env
 WAF_REGIONS=[{"id":"datacenter","name":"Data Center","ip":"203.0.113.10","cname":"waf-dc.yourcompany.com","continents":["NA","SA","EU","AF","AS","OC"]}]
 WAF_DEFAULT_REGION=datacenter
 ```
 
+Makati dual-edge example for your current deployment:
+
+```env
+WAF_REGIONS=[{"id":"dcmakati","name":"Data Center Makati","ip":"180.232.117.141","ips":["180.232.117.141","115.147.169.195"],"cname":"waf.cisoasaservice.io","continents":["NA","SA","EU","AF","AS","OC","AN"]}]
+WAF_DEFAULT_REGION=dcmakati
+```
+
 Use your real **public IP** and **cname** (or the same value as IP if you only use an A record). Restart or redeploy the Dashboard so it picks up the new env.
+
+Notes for the Makati dual-edge model:
+
+- `ip` remains the primary display IP for backward compatibility.
+- `ips` lists **all public edge IPs** customers may need to point to.
+- Use the same `id` for both Makati edge servers if they represent one logical WAF region.
+- The Dashboard and app setup flow should display both edge IPs when the repo changes for multi-IP support are present.
 
 ### 7.3 Customer DNS
 
 Customers point their domainâ€™s **A record** (or **CNAME**) to the IP (or hostname) you configured in `WAF_REGIONS`. No change to the WAF proxy code is required for this.
+
+For the Makati dual-edge deployment, give customers:
+
+- either the shared hostname (recommended) if it resolves to both edge IPs
+- or both A records: `180.232.117.141` and `115.147.169.195`
+
+If you use direct A records, instruct customers to publish **one A record per edge IP**.
+
+### 7.4 One CNAME with two A records
+
+Your shared WAF hostname can stay:
+
+- `waf.cisoasaservice.io`
+
+That hostname can validly publish **two A records**:
+
+```dns
+waf.cisoasaservice.io.  A  180.232.117.141
+waf.cisoasaservice.io.  A  115.147.169.195
+```
+
+This means:
+
+- customers using a **subdomain** can point a **CNAME** to `waf.cisoasaservice.io`
+- DNS resolution for that hostname returns both WAF edge IPs
+- both edge servers must be ready to serve the same protected applications
+
+Example for a customer subdomain:
+
+```dns
+www.customer.com.  CNAME  waf.cisoasaservice.io.
+```
+
+Example for a customer apex/root domain where CNAME is not allowed:
+
+```dns
+customer.com.  A  180.232.117.141
+customer.com.  A  115.147.169.195
+```
+
+Operational notes:
+
+- Keep the same TLS certificate coverage on both edge servers for customer domains handled there.
+- Keep both servers on the same deployed repo version when possible.
+- Keep origin allowlists updated for both edge IPs.
+- Lower DNS TTL during migration if you want faster rollback or cutover.
+- Add a WAF-to-origin secret verification header for defense in depth if the origin IP is ever discovered.
+
+---
+
+## Step 7.5: Add Origin Verification Header
+
+IP allowlists are the first control. Add a second control by requiring a private header from the WAF to the customer origin.
+
+Recommended pattern:
+
+- Configure the protected application origin in ATRAVA Defense with an auth header such as `X-ATRAVA-Origin-Verify`.
+- Use a long random secret value that is unique per protected site.
+- On the customer origin, reject any request that does not include the expected header value.
+
+Example Nginx enforcement on the customer origin:
+
+```nginx
+location / {
+    allow 180.232.117.141;
+    allow 115.147.169.195;
+    deny all;
+
+    if ($http_x_atrava_origin_verify != "REPLACE_WITH_LONG_RANDOM_SECRET") {
+        return 403;
+    }
+
+    proxy_pass http://127.0.0.1:YOUR_APP_PORT;
+}
+```
+
+This prevents direct-origin access from succeeding even if the origin IP becomes known and a firewall rule is misconfigured.
 
 ---
 
@@ -474,9 +549,15 @@ Customers point their domainâ€™s **A record** (or **CNAME**) to the IP (or 
   - If no application is configured for that Host, you may get â€œApplication not found for domain: â€¦â€. That is expected; it means the proxy is listening and resolving by Host.
 - Create an **application** in the Dashboard (domain + origin) and point a test hostname to the WAF IP; then request that hostname and confirm the origin responds.
 
+For a **secondary Makati edge**, run the same checks against `115.147.169.195` and verify both servers can:
+
+- return healthy responses
+- load the same applications from Firestore
+- proxy traffic to the same protected origin set
+- emit logs as expected
+
 ### 8.2 Logs
 
-- **PM2:** `pm2 logs atravad-waf`
 - **systemd:** `journalctl -u atravad-waf -f`
 - Watch for â€œLoaded application: â€¦â€, â€œApplication updated: â€¦â€, and any Firebase or ModSecurity errors.
 
@@ -494,10 +575,17 @@ Confirm the proxy can read Firestore: in Firebase Console â†’ Firestore, ch
 | 2 | Firebase service account JSON; note `project_id`, `client_email`, `private_key`. |
 | 3 | Deploy repo/code; `npm install --omit=dev`. |
 | 4 | Create `.env.waf` with Firebase Admin vars and optional `ATRAVAD_*` ports/tenant. |
-| 5 | Run with `node proxy-server-standalone.js` (test), then PM2 or systemd. |
+| 5 | Run with `node proxy-server-standalone.js` (test), then install as a `systemd` service. |
 | 6 | Install Nginx + Certbot; run `certbot --nginx -d waf-dc.yourcompany.com` for Letâ€™s Encrypt auto-provisioning; enable renewal. |
 | 7 | Set Dashboard `WAF_REGIONS` to your DC IP/cname; customers point DNS to that. |
 | 8 | Verify with curl and a test application; monitor logs and Firestore access. |
+
+For the Makati dual-edge deployment, also confirm:
+
+- the second server at `115.147.169.195` is deployed with the same repo version
+- both edge IPs are present in `WAF_REGIONS` under the same logical region
+- customer origin firewalls allow **both** WAF edge IPs
+- DNS uses either a shared hostname or two A records
 
 ---
 
@@ -522,6 +610,13 @@ If the native module fails to build, the server will still run with the built-in
 | `CertStore: failed to load from disk ... EACCES` | Ensure `/opt/atravad-waf/certs` and files are owned/readable by the service user (example above uses `www-data`). |
 | Cannot bind to port 80/443 | Run with sudo, or use a higher port and reverse proxy; check firewall. |
 | 502 Bad Gateway to origin | Origin URL in Dashboard is correct and reachable from the WAF server; check health checks in logs. |
+
+If the second Makati edge works on one IP but not the other, also check:
+
+- the `/29` address is correctly assigned to the secondary host
+- upstream routing/NAT for `115.147.169.195` is complete
+- data center firewall rules permit inbound `80/443` and outbound Firebase traffic from that host
+- customer origin allowlists include both `180.232.117.141` and `115.147.169.195`
 
 For more on architecture and traffic flow, see [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md).
 
