@@ -662,6 +662,10 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
         /^REQUEST_HEADERS:sec-ch-ua$/i,
         /^REQUEST_HEADERS:user-agent$/i,
         /^REQUEST_HEADERS:accept$/i,
+        /^REQUEST_HEADERS:accept-language$/i,
+        /^REQUEST_HEADERS:accept-encoding$/i,
+        /^REQUEST_HEADERS:sec-ch-ua-mobile$/i,
+        /^REQUEST_HEADERS:sec-ch-ua-platform$/i,
       ],
       regexes: [
         /\b(?:cmd(?:\.exe)?|powershell(?:\.exe)?|bash|sh|zsh|ksh|nc|netcat|curl|wget|perl|python|php|ruby|node)\b/i,
