@@ -541,6 +541,45 @@ function matchInspectionRule(inputs, regexes) {
   return null;
 }
 
+function sourceMatchesRule(inputSource, rule = {}) {
+  const allowedPatterns = Array.isArray(rule.allowedSourcePatterns)
+    ? rule.allowedSourcePatterns
+    : [];
+  const blockedPatterns = Array.isArray(rule.blockedSourcePatterns)
+    ? rule.blockedSourcePatterns
+    : [];
+
+  if (blockedPatterns.some((pattern) => pattern.test(inputSource))) {
+    return false;
+  }
+
+  if (allowedPatterns.length === 0) {
+    return true;
+  }
+
+  return allowedPatterns.some((pattern) => pattern.test(inputSource));
+}
+
+function matchInspectionRuleWithSource(inputs, rule) {
+  for (const input of inputs) {
+    if (!sourceMatchesRule(input.source, rule)) {
+      continue;
+    }
+
+    for (const regex of rule.regexes || []) {
+      const matched = input.value.match(regex) || input.normalized.match(regex);
+      if (matched) {
+        return {
+          matchedData: matched[0],
+          matchedVar: input.source,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel = 'fallback') {
   const headers = req.headers || {};
   const normalizedPolicy = normalizePolicyConfig(policy);
@@ -576,10 +615,13 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       enabled: strictMode || normalizedPolicy.sqlInjection,
       id: 100000,
       message: 'SQL Injection pattern detected',
+      blockedSourcePatterns: [
+        /^REQUEST_HEADERS:accept$/i,
+      ],
       regexes: [
         /\b(?:union(?:\s+all)?\s+select|select\b.{0,80}\bfrom|insert\b.{0,40}\binto|update\b.{0,40}\bset|delete\b.{0,40}\bfrom|drop\b.{0,40}\btable|sleep\s*\(|benchmark\s*\(|waitfor\s+delay)\b/i,
         /(?:^|[\s"'`(])(?:or|and)\s+(?:[\d'"]+\s*=\s*[\d'"]+|true|false|1=1)\b/i,
-        /(?:--|#|\/\*|\*\/|;\s*(?:select|union|drop|delete|insert|update|exec))/i,
+        /(?:--|#|\/\*|;\s*(?:select|union|drop|delete|insert|update|exec))/i,
         /\b(?:or|and)\b(?:\s|['"`=()]){1,16}(?:true|false|null|\d+|[a-z_][\w$]{0,31})(?:\s|['"`=()]){0,16}(?:=|like|regexp|rlike)(?:\s|['"`=()]){0,16}(?:true|false|null|\d+|[a-z_][\w$]{0,31})/i,
         /\b(?:pg_sleep|sleep|benchmark|waitfor\s+delay|dbms_pipe\.receive_message)\s*\(/i,
         /\b(?:information_schema|@@version|version\s*\(|load_file\s*\(|into\s+outfile)\b/i,
@@ -616,6 +658,11 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
       enabled: strictMode || normalizedPolicy.rce,
       id: 100300,
       message: 'Remote code execution payload detected',
+      blockedSourcePatterns: [
+        /^REQUEST_HEADERS:sec-ch-ua$/i,
+        /^REQUEST_HEADERS:user-agent$/i,
+        /^REQUEST_HEADERS:accept$/i,
+      ],
       regexes: [
         /\b(?:cmd(?:\.exe)?|powershell(?:\.exe)?|bash|sh|zsh|ksh|nc|netcat|curl|wget|perl|python|php|ruby|node)\b/i,
         /(?:\$\(|`[^`]+`|\|\||&&|;\s*(?:cat|ls|id|whoami|uname|curl|wget|powershell|bash|sh))/i,
@@ -676,7 +723,7 @@ function runFallbackInspectRequest(req, policy, bodyBuffer = null, engineLabel =
   for (const rule of ruleChecks) {
     if (!rule.enabled) continue;
     if (excludedRuleIds.has(String(rule.id))) continue;
-    const match = matchInspectionRule(inputs, rule.regexes);
+    const match = matchInspectionRuleWithSource(inputs, rule);
     if (!match) continue;
 
     matchedRules.push({
