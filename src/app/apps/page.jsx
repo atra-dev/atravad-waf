@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import AppLoadingState from "@/components/AppLoadingState";
 import Layout from "@/components/Layout";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { getManagedUser } from "@/lib/auth-utils";
 import { isValidPemCertificate, isValidPemPrivateKey } from "@/lib/ssl-utils";
 import { formatAnalyticsDisplayWindow } from "@/lib/analytics-window";
 
@@ -434,13 +435,12 @@ export default function AppsPage() {
   const checkTenantAndFetchData = useCallback(async () => {
     try {
       // Check tenant status
-      const [tenantRes, userRes] = await Promise.all([
+      const [tenantRes, user] = await Promise.all([
         fetch("/api/tenants/current"),
-        fetch("/api/users/me"),
+        getManagedUser(),
       ]);
 
       const tenant = await tenantRes.json();
-      const user = await userRes.json();
 
       // Check if user has a valid tenant
       const userHasTenantName =

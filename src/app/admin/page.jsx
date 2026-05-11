@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
+import { getManagedUser } from '@/lib/auth-utils';
 import { getPlanOptions, PLAN_CATALOG, PLAN_IDS } from '@/lib/plans';
 import { formatPhilippineDate, formatPhilippineDateTime } from '@/lib/timezone';
 import { TRAFFIC_LOGGING_MODES } from '@/lib/traffic-logging';
@@ -314,9 +315,8 @@ export default function SuperAdminPage() {
   const checkAccessAndFetchData = useCallback(async () => {
     try {
       // First check if user is super admin
-      const userRes = await fetch('/api/users/me');
-      if (userRes.ok) {
-        const userData = await userRes.json();
+      const userData = await getManagedUser();
+      if (userData) {
         setUserRole(userData.role);
         
         if (userData.role !== 'super_admin') {

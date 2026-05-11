@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { getManagedUser } from '@/lib/auth-utils';
 import PoliciesList from './PoliciesList';
 import PolicyEditor from './PolicyEditor';
 import ConfirmationModal from './ConfirmationModal';
@@ -80,13 +81,12 @@ export function PoliciesPageContent({
 
   const checkTenantAndFetchData = useCallback(async () => {
     try {
-      const [tenantRes, userRes] = await Promise.all([
+      const [tenantRes, user] = await Promise.all([
         fetch('/api/tenants/current'),
-        fetch('/api/users/me'),
+        getManagedUser(),
       ]);
 
       const tenant = await tenantRes.json();
-      const user = await userRes.json();
       const userHasTenantName = user?.tenantName && typeof user.tenantName === 'string' && user.tenantName.trim() !== '';
       const hasValidTenantFromAPI = !!(tenant?.id && tenant?.name && tenant.name !== 'Default Tenant');
       const userHasTenant = !!userHasTenantName || hasValidTenantFromAPI;

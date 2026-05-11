@@ -1,23 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-
-async function getCurrentUser(request) {
-  const token = request.cookies.get('authToken')?.value;
-  if (!token) return null;
-  
-  try {
-    const { adminAuth } = await import('@/lib/firebase-admin');
-    if (!adminAuth) {
-      console.error('Firebase Admin Auth not initialized');
-      return null;
-    }
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (error) {
-    console.error('Error verifying token:', error);
-    return null;
-  }
-}
+import { getCurrentUser } from '@/lib/api-helpers';
 
 export async function GET(request, { params }) {
   try {

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AppLoadingState from '@/components/AppLoadingState';
 import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { getManagedUser } from '@/lib/auth-utils';
 import { useAuth } from '@/hooks/useAuth';
 import GeographicAnalytics from '@/components/GeographicAnalytics';
 import TrafficAnalytics from '@/components/TrafficAnalytics';
@@ -367,14 +368,12 @@ export default function LogsPage() {
 
   const checkTenantAndFetchData = useCallback(async () => {
     try {
-      const [tenantRes, userRes] = await Promise.all([
+      const [tenantRes, user] = await Promise.all([
         fetch('/api/tenants/current'),
-        fetch('/api/users/me'),
+        getManagedUser(),
       ]);
       
       const tenant = await tenantRes.json();
-      const user = await userRes.json();
-      
       const userHasTenantName = user?.tenantName && 
         typeof user.tenantName === 'string' && 
         user.tenantName.trim() !== '';

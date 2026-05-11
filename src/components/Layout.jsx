@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { signOut, onAuthStateChanged } from 'firebase/auth';
+import { signOut, onIdTokenChanged } from 'firebase/auth';
 import {
   BarChart3,
   FileText,
@@ -184,7 +184,7 @@ export default function Layout({ children }) {
         const sessionReady = await syncUserFromSession();
         if (isCancelled || !sessionReady) return;
 
-        unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
           clearRefreshInterval();
 
           if (!firebaseUser) {

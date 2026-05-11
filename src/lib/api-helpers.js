@@ -22,7 +22,10 @@ export async function getCurrentUser(request) {
     }
     return decodedToken;
   } catch (error) {
-    console.error('Error verifying token:', error.message);
+    const errorCode = error?.code || '';
+    if (errorCode !== 'auth/id-token-expired') {
+      console.error('Error verifying token:', error.message);
+    }
     return null;
   }
 }

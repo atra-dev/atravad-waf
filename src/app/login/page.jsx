@@ -7,7 +7,7 @@ import {
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
-  onAuthStateChanged,
+  onIdTokenChanged,
   signOut,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -216,7 +216,7 @@ function LoginPageContent() {
     
     initializeLogin();
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
       await finalizeGoogleSession(
         firebaseUser,

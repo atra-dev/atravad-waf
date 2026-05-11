@@ -20,6 +20,7 @@ import Layout from '@/components/Layout';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { BlockedTrafficMap } from '@/components/ui/blocked-traffic-map';
 import { ANALYTICS_DISPLAY_HOURS, formatAnalyticsDisplayWindow } from '@/lib/analytics-window';
+import { getManagedUser } from '@/lib/auth-utils';
 
 const ANALYTICS_TIME_ZONE = 'Asia/Manila';
 
@@ -394,11 +395,11 @@ export default function DashboardPage() {
     }
 
     try {
-      const [tenantRes, appsRes, policiesRes, userRes, analyticsRes, logsRes] = await Promise.all([
+      const [tenantRes, appsRes, policiesRes, user, analyticsRes, logsRes] = await Promise.all([
         fetch('/api/tenants/current'),
         fetch('/api/apps'),
         fetch('/api/policies'),
-        fetch('/api/users/me'),
+        getManagedUser(),
         fetch(`/api/logs/analytics?hours=${ANALYTICS_DISPLAY_HOURS}&attacksOnly=true`),
         fetch(`/api/logs?pageSize=150&hours=${ANALYTICS_DISPLAY_HOURS}`),
       ]);
@@ -406,7 +407,6 @@ export default function DashboardPage() {
       const tenant = await tenantRes.json();
       const apps = await appsRes.json();
       const policies = await policiesRes.json();
-      const user = await userRes.json();
       const analyticsData = analyticsRes.ok ? await analyticsRes.json() : null;
       const logsData = logsRes.ok ? await logsRes.json() : null;
 
