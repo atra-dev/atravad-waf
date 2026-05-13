@@ -18,7 +18,7 @@
     "firebase-admin": "^13.8.0",
     "lucide-react": "^1.7.0",
     "motion": "^12.38.0",
-    "next": "^16.2.4",
+    "next": "^16.2.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-simple-maps": "^3.0.0",
@@ -32,6 +32,8 @@
   "overrides": {
     "@tootallnate/once": "^3.0.1",
     "d3-color": "^3.1.0",
+    "fast-xml-builder": "^1.2.0",
+    "fast-xml-parser": "^5.8.0",
     "postcss": "^8.5.13",
     "uuid": "^14.0.0"
   },
@@ -39,7 +41,7 @@
     "@tailwindcss/postcss": "^4",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "^16.2.4",
+    "eslint-config-next": "^16.2.6",
     "lightningcss": "^1.31.1",
     "tailwindcss": "^4",
     "typescript": "^5.9.3"
